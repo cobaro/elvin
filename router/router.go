@@ -1,3 +1,4 @@
+// Copyright (c) Cobaro Pty Ltd. All Rights Reserved. GPL-V3
 package main
 
 import (
@@ -16,6 +17,13 @@ type Connection struct {
 }
 
 func main() {
+	config, err := LoadConfig("config.json")
+	if err != nil {
+		fmt.Println("config load failed:", err)
+		return
+	}
+	// fmt.Println(*config)
+
 	listener("0.0.0.0", 2917)
 }
 

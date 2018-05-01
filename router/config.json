@@ -1,0 +1,8 @@
+{
+    "Protocols" : [
+	"elvin:/tcp,none,xdr/0.0.0.0:2917",
+	"elvin:/udp,none,xdr/0.0.0.0:12301"
+    ],
+
+    "MaxConnections" : 1024
+}
