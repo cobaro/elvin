@@ -35,7 +35,7 @@ type Connection struct {
 }
 
 func main() {
-	config, err := LoadConfig("config.json")
+	config, err := LoadConfig("elvind.json")
 	if err != nil {
 		fmt.Println("config load failed:", err)
 		return
