@@ -1,10 +1,28 @@
-// Copyright (c) Cobaro Pty Ltd. All Rights Reserved. GPL-V3
+// Copyright 2018 Cobaro Pty Ltd. All Rights Reserved.
+
+// This file is part of elvind
+//
+// elvind is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// elvind is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with elvind. If not, see <http://www.gnu.org/licenses/>.
+
 package main
 
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 )
@@ -22,7 +40,19 @@ func main() {
 		fmt.Println("config load failed:", err)
 		return
 	}
-	// fmt.Println(*config)
+	fmt.Println(*config)
+
+	for _, uri := range config.Protocols {
+		uri, err := url.Parse(uri)
+		if err != nil {
+			log.Fatal("URI parsing failed:", uri)
+		}
+		log.Println("uri:", uri)
+
+		if uri.Scheme != "elvin" {
+			log.Fatal("URI parsing failed:", "Scheme is not elvin")
+		}
+	}
 
 	listener("0.0.0.0", 2917)
 }
