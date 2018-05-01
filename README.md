@@ -3,12 +3,14 @@
 Roadmap
 -------
 * Infrastucture
-  * Licensing
-  * Notification
+  * Packaging
+  * Platforms
+  * Testing
 * Code
   * Router
     * Connection Handling
       * URI handling
+    * Logging
     * Subscription parsing
     * Subscription evaluation
     * Termination Handling
