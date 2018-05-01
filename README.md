@@ -9,6 +9,7 @@ Roadmap
 * Code
   * Router
     * Connection Handling
+      * URI handling
     * Subscription parsing
     * Subscription evaluation
     * Termination Handling
