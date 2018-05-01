@@ -1,9 +1,8 @@
-A playground ...
+[![Build Status](https://travis-ci.org/cobaro/elvin-router.svg?branch=master)](https://travis-ci.org/cobaro/elvin-router)
 
 Roadmap
 -------
 * Infrastucture
-  * CI
   * Licensing
   * Notification
 * Code
