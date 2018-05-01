@@ -1,5 +1,5 @@
-// Copyright (c) Cobaro Pty Ltd. All Rights Reserved. GPL-V3
-// Copyright (c) https://stackoverflow.com/questions/16465705/how-to-handle-configuration-in-go
+// Copyright 2018 Cobaro Pty Ltd. All Rights Reserved.
+// Copyright 2013-2018 https://stackoverflow.com/questions/16465705/how-to-handle-configuration-in-go
 
 // This file is part of elvind
 //
