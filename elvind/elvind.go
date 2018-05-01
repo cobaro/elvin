@@ -18,6 +18,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -36,7 +37,12 @@ type Connection struct {
 }
 
 func main() {
-	config, err := LoadConfig("elvind.json")
+	// Argument parsing
+	configFile := flag.String("config", "elvind.json", "JSON config file path")
+	flag.Parse()
+
+	// Load config
+	config, err := LoadConfig(*configFile)
 	if err != nil {
 		fmt.Println("config load failed:", err)
 		return
