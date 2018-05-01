@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 )
 
@@ -53,8 +54,13 @@ func main() {
 			log.Fatal("URI parsing failed:", "Scheme is not elvin")
 		}
 	}
+	go listener("0.0.0.0", 2917)
 
-	listener("0.0.0.0", 2917)
+	// Set up sigint handling and wait for one
+	ch := make(chan os.Signal)
+	signal.Notify(ch, os.Interrupt)
+	log.Println("Exiting on", <-ch)
+	return
 }
 
 func listener(host string, port int) {
