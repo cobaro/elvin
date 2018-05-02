@@ -24,8 +24,14 @@ import (
 	"os"
 )
 
+type Protocol struct {
+	Network string
+	Marshal string
+	Address string
+}
+
 type Configuration struct {
-	Protocols      []string
+	Protocols      []Protocol
 	MaxConnections int
 }
 

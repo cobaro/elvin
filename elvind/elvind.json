@@ -1,7 +1,9 @@
 {
     "Protocols" : [
-	"elvin:/tcp,none,xdr/0.0.0.0:2917",
-	"elvin:/udp,none,xdr/0.0.0.0:12301"
+	{ "Network" : "tcp", "Marshal" : "xdr",		"Address" : "0.0.0.0:2917" },
+	{ "Network" : "tcp", "Marshal" : "protobuf",	"Address" : "0.0.0.0:12301" },
+	{ "Network" : "ssl", "Marshal" : "xdr",		"Address" : "0.0.0.0:12302" },
+	{ "Network" : "tcp", "Marshal" : "xdr",		"Address" : "[::1]:2917" }
     ],
 
     "MaxConnections" : 1024

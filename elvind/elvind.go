@@ -23,10 +23,8 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 )
 
 type Connection struct {
@@ -49,18 +47,33 @@ func main() {
 	}
 	fmt.Println(*config)
 
-	for _, uri := range config.Protocols {
-		uri, err := url.Parse(uri)
-		if err != nil {
-			log.Fatal("URI parsing failed:", uri)
+	// Check Protocols and set up listeners
+	for _, protocol := range config.Protocols {
+		switch protocol.Network {
+		case "tcp":
+			break
+		case "udp":
+		case "ssl":
+			log.Println("Warning: network protocol", protocol.Network, "is currently unsupported")
+			continue
+		default:
+			log.Println("Warning: network protocol", protocol.Network, "is unknown")
+			continue
 		}
-		log.Println("uri:", uri)
 
-		if uri.Scheme != "elvin" {
-			log.Fatal("URI parsing failed:", "Scheme is not elvin")
+		switch protocol.Marshal {
+		case "xdr":
+			break
+		case "protobuf":
+			log.Println("Warning: marshal protocol", protocol.Marshal, "is currently unsupported")
+			continue
+		default:
+			log.Println("Warning: marshal protocol", protocol.Marshal, "is unknown")
+			continue
 		}
+		// TODO: track listeners for shutdown
+		go Listener(protocol)
 	}
-	go listener("0.0.0.0", 2917)
 
 	// Set up sigint handling and wait for one
 	ch := make(chan os.Signal)
@@ -69,13 +82,11 @@ func main() {
 	return
 }
 
-func listener(host string, port int) {
+func Listener(protocol Protocol) {
 
-	listento := host + ":" + strconv.Itoa(port)
+	fmt.Println("Listening on", protocol.Network, protocol.Marshal, protocol.Address)
 
-	fmt.Println("Listening on " + listento)
-
-	ln, err := net.Listen("tcp", listento)
+	ln, err := net.Listen(protocol.Network, protocol.Address)
 	if err != nil {
 		fmt.Println("Listen failed:", err)
 		os.Exit(1)
@@ -87,6 +98,7 @@ func listener(host string, port int) {
 			fmt.Println("Accept failed:", err)
 			os.Exit(1)
 		}
+		// TODO: track connections
 		conn := Connection{c, make(chan []byte), make(chan int), make(chan int)}
 		go readHandler(conn)
 		go writeHandler(conn)
