@@ -1,21 +1,21 @@
 // Copyright 2018 Cobaro Pty Ltd. All Rights Reserved.
 
-// This file is part of elvind
+// This file is part of elvin
 //
-// elvind is free software: you can redistribute it and/or modify
+// elvin is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// elvind is distributed in the hope that it will be useful,
+// elvin is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with elvind. If not, see <http://www.gnu.org/licenses/>.
+// along with elvin. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package elvin
 
 import (
 	"fmt"
@@ -63,7 +63,7 @@ func (c *ConnRqst) String() string {
 	return c.IString("")
 }
 
-// Decode a ConnRqsy packet from a byte array
+// Decode a ConnRqst packet from a byte array
 func (c *ConnRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header

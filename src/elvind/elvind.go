@@ -18,6 +18,8 @@
 package main
 
 import (
+	"bytes"
+	"elvin"
 	"encoding/binary"
 	"errors"
 	"flag"
@@ -34,6 +36,7 @@ type Connection struct {
 	writeChannel   chan []byte
 	readTerminate  chan int
 	writeTerminate chan int
+	writeBuf       *bytes.Buffer
 }
 
 func main() {
@@ -101,7 +104,7 @@ func Listener(protocol Protocol) {
 			os.Exit(1)
 		}
 		// TODO: track connections
-		conn := Connection{c, make(chan []byte), make(chan int), make(chan int)}
+		conn := Connection{c, make(chan []byte), make(chan int), make(chan int), new(bytes.Buffer)}
 		go readHandler(conn)
 		go writeHandler(conn)
 	}
@@ -189,120 +192,120 @@ func writeHandler(conn Connection) {
 
 func HandlePacket(conn Connection, buffer []byte) (err error) {
 
-	switch PacketId(buffer) {
-	case PacketReserved:
+	switch elvin.PacketId(buffer) {
+	case elvin.PacketReserved:
 		return errors.New("FIXME: Packet Reserved")
-	case PacketSvrRqst:
+	case elvin.PacketSvrRqst:
 		return errors.New("FIXME: Packet SvrRqst")
-	case PacketSvrAdvt:
+	case elvin.PacketSvrAdvt:
 		return errors.New("FIXME: Packet SvrAdvt")
-	case PacketSvrAdvtClose:
+	case elvin.PacketSvrAdvtClose:
 		return errors.New("FIXME: Packet SvrAdvtClose")
-	case PacketUnotify:
+	case elvin.PacketUnotify:
 		return errors.New("FIXME: Packet Unotify")
-	case PacketNack:
+	case elvin.PacketNack:
 		return errors.New("FIXME: Packet Nack")
-	case PacketConnRqst:
+	case elvin.PacketConnRqst:
 		return HandleConnRqst(conn, buffer)
-	case PacketConnRply:
+	case elvin.PacketConnRply:
 		return errors.New("FIXME: Packet ConnRply")
-	case PacketDisconnRqst:
+	case elvin.PacketDisconnRqst:
 		return errors.New("FIXME: Packet DisconnRqst")
-	case PacketDisconnRply:
+	case elvin.PacketDisconnRply:
 		return errors.New("FIXME: Packet DisconnRply")
-	case PacketDisconn:
+	case elvin.PacketDisconn:
 		return errors.New("FIXME: Packet Disconn")
-	case PacketSecRqst:
+	case elvin.PacketSecRqst:
 		return errors.New("FIXME: Packet SecRqst")
-	case PacketSecRply:
+	case elvin.PacketSecRply:
 		return errors.New("FIXME: Packet SecRply")
-	case PacketNotifyEmit:
+	case elvin.PacketNotifyEmit:
 		return errors.New("FIXME: Packet NotifyEmit")
-	case PacketNotifyDeliver:
+	case elvin.PacketNotifyDeliver:
 		return errors.New("FIXME: Packet NotifyDeliver")
-	case PacketSubAddRqst:
+	case elvin.PacketSubAddRqst:
 		return errors.New("FIXME: Packet SubAddRqst")
-	case PacketSubModRqst:
+	case elvin.PacketSubModRqst:
 		return errors.New("FIXME: Packet SubModRqst")
-	case PacketSubDelRqst:
+	case elvin.PacketSubDelRqst:
 		return errors.New("FIXME: Packet SubDelRqst")
-	case PacketSubRply:
+	case elvin.PacketSubRply:
 		return errors.New("FIXME: Packet SubRply")
-	case PacketDropWarn:
+	case elvin.PacketDropWarn:
 		return errors.New("FIXME: Packet DropWarn")
-	case PacketTestConn:
+	case elvin.PacketTestConn:
 		return errors.New("FIXME: Packet TestConn")
-	case PacketConfConn:
+	case elvin.PacketConfConn:
 		return errors.New("FIXME: Packet ConfConn")
-	case PacketAck:
+	case elvin.PacketAck:
 		return errors.New("FIXME: Packet Ack")
-	case PacketStatusUpdate:
+	case elvin.PacketStatusUpdate:
 		return errors.New("FIXME: Packet StatusUpdate")
-	case PacketAuthRqst:
+	case elvin.PacketAuthRqst:
 		return errors.New("FIXME: Packet AuthRqst")
-	case PacketAuthCont:
+	case elvin.PacketAuthCont:
 		return errors.New("FIXME: Packet AuthCont")
-	case PacketAuthAck:
+	case elvin.PacketAuthAck:
 		return errors.New("FIXME: Packet AuthAck")
-	case PacketQosRqst:
+	case elvin.PacketQosRqst:
 		return errors.New("FIXME: Packet QosRqst")
-	case PacketQosRply:
+	case elvin.PacketQosRply:
 		return errors.New("FIXME: Packet QosRply")
-	case PacketQnchAddRqst:
+	case elvin.PacketQnchAddRqst:
 		return errors.New("FIXME: Packet QnchAddRqst")
-	case PacketQnchModRqst:
+	case elvin.PacketQnchModRqst:
 		return errors.New("FIXME: Packet QnchModRqst")
-	case PacketQnchDelRqst:
+	case elvin.PacketQnchDelRqst:
 		return errors.New("FIXME: Packet QnchDelRqst")
-	case PacketQnchRply:
+	case elvin.PacketQnchRply:
 		return errors.New("FIXME: Packet QnchRply")
-	case PacketSubAddNotify:
+	case elvin.PacketSubAddNotify:
 		return errors.New("FIXME: Packet SubAddNotify")
-	case PacketSubModNotify:
+	case elvin.PacketSubModNotify:
 		return errors.New("FIXME: Packet SubModNotify")
-	case PacketSubDelNotify:
+	case elvin.PacketSubDelNotify:
 		return errors.New("FIXME: Packet SubDelNotify")
-	case PacketActivate:
+	case elvin.PacketActivate:
 		return errors.New("FIXME: Packet Activate")
-	case PacketStandby:
+	case elvin.PacketStandby:
 		return errors.New("FIXME: Packet Standby")
-	case PacketRestart:
+	case elvin.PacketRestart:
 		return errors.New("FIXME: Packet Restart")
-	case PacketShutdown:
+	case elvin.PacketShutdown:
 		return errors.New("FIXME: Packet Shutdown")
-	case PacketServerReport:
+	case elvin.PacketServerReport:
 		return errors.New("FIXME: Packet ServerReport")
-	case PacketServerNack:
+	case elvin.PacketServerNack:
 		return errors.New("FIXME: Packet ServerNack")
-	case PacketServerStatsReport:
+	case elvin.PacketServerStatsReport:
 		return errors.New("FIXME: Packet ServerStatsReport")
-	case PacketClstJoinRqst:
+	case elvin.PacketClstJoinRqst:
 		return errors.New("FIXME: Packet ClstJoinRqst")
-	case PacketClstJoinRply:
+	case elvin.PacketClstJoinRply:
 		return errors.New("FIXME: Packet ClstJoinRply")
-	case PacketClstTerms:
+	case elvin.PacketClstTerms:
 		return errors.New("FIXME: Packet ClstTerms")
-	case PacketClstNotify:
+	case elvin.PacketClstNotify:
 		return errors.New("FIXME: Packet ClstNotify")
-	case PacketClstRedir:
+	case elvin.PacketClstRedir:
 		return errors.New("FIXME: Packet ClstRedir")
-	case PacketClstLeave:
+	case elvin.PacketClstLeave:
 		return errors.New("FIXME: Packet ClstLeave")
-	case PacketFedConnRqst:
+	case elvin.PacketFedConnRqst:
 		return errors.New("FIXME: Packet FedConnRqst")
-	case PacketFedConnRply:
+	case elvin.PacketFedConnRply:
 		return errors.New("FIXME: Packet FedConnRply")
-	case PacketFedSubReplace:
+	case elvin.PacketFedSubReplace:
 		return errors.New("FIXME: Packet FedSubReplace")
-	case PacketFedNotify:
+	case elvin.PacketFedNotify:
 		return errors.New("FIXME: Packet FedNotify")
-	case PacketFedSubDiff:
+	case elvin.PacketFedSubDiff:
 		return errors.New("FIXME: Packet FedSubDiff")
-	case PacketFailoverConnRqst:
+	case elvin.PacketFailoverConnRqst:
 		return errors.New("FIXME: Packet FailoverConnRqst")
-	case PacketFailoverConnRply:
+	case elvin.PacketFailoverConnRply:
 		return errors.New("FIXME: Packet FailoverConnRply")
-	case PacketFailoverMaster:
+	case elvin.PacketFailoverMaster:
 		return errors.New("FIXME: Packet FailoverMaster")
 	default:
 		return errors.New("FIXME: Packet Unknown")
@@ -312,9 +315,27 @@ func HandlePacket(conn Connection, buffer []byte) (err error) {
 // Handle a Connection request
 func HandleConnRqst(conn Connection, buffer []byte) (err error) {
 	// FIXME: no range checking
-	connRqst := new(ConnRqst)
+	connRqst := new(elvin.ConnRqst)
 	err = connRqst.Decode(buffer)
-	// FIXME: Connection handling
 	fmt.Println(connRqst)
+
+	// FIXME: Connection handling
+
+	connRply := new(elvin.ConnRply)
+	connRply.Xid = connRqst.Xid
+	// FIXME; totally bogus
+	connRply.Options = connRqst.Options
+	connRply.Encode(conn.writeBuf)
+
+	// FIXME: abstract this
+	// Write it back
+	// fmt.Println(connRply)
+	// fmt.Println(conn.writeBuf.Bytes())
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, uint32(conn.writeBuf.Len()))
+	_, err = conn.conn.Write(header)
+	_, err = conn.conn.Write(conn.writeBuf.Bytes())
+	fmt.Println("Connected")
+
 	return err
 }

@@ -1,27 +1,24 @@
 // Copyright 2018 Cobaro Pty Ltd. All Rights Reserved.
 
-// This file is part of elvind
+// This file is part of elvin
 //
-// elvind is free software: you can redistribute it and/or modify
+// elvin is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// elvind is distributed in the hope that it will be useful,
+// elvin is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with elvind. If not, see <http://www.gnu.org/licenses/>.
+// along with elvin. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package elvin
 
 import (
 	"encoding/binary"
-	"errors"
-	"fmt"
-	"math"
 )
 
 const (
@@ -232,135 +229,4 @@ const (
 
 type Key struct {
 	FIXME int
-}
-
-//
-// FIXME: These will get split out soonish
-//
-
-// Get an xdr marshalled 32 bit signed int
-func XdrGetInt32(bytes []byte) (i int, used int) {
-	return int(binary.BigEndian.Uint32(bytes)), 4
-}
-
-// Get an xdr marshalled 32 bit unsigned int
-func XdrGetUint32(bytes []byte) (u uint32, used int) {
-	return binary.BigEndian.Uint32(bytes), 4
-}
-
-// Get an xdr marshalled 64 bit signed int
-func XdrGetInt64(bytes []byte) (i int64, used int) {
-	return int64(binary.BigEndian.Uint64(bytes)), 8
-}
-
-// Get an xdr marshalled 64 bit unsigned int
-func XdrGetUint64(bytes []byte) (u uint64, used int) {
-	return binary.BigEndian.Uint64(bytes), 8
-}
-
-// Get an xdr marshalled string
-func XdrGetString(bytes []byte) (s string, used int) {
-	// string length
-	length, used := XdrGetInt32(bytes)
-	// name
-	return string(bytes[used : used+length]), used + length + (3 - (length+3)%4) // strings use 4 byte boundaries
-}
-
-// Get an xdr marshalled list of opaque bytes
-func XdrGetOpaque(bytes []byte) (b []byte, used int) {
-	// string length
-	length, used := XdrGetInt32(bytes)
-	// name
-	return bytes[used : used+length], used + length + (3 - (length+3)%4) // opaques use 4 byte boundaries
-}
-
-// Get an xdr marshalled 64 bit floating point
-func XdrGetFloat64(bytes []byte) (f float64, used int) {
-	return math.Float64frombits(uint64(bytes[0]) | uint64(bytes[1])<<8 |
-		uint64(bytes[2])<<16 | uint64(bytes[3])<<24 |
-		uint64(bytes[4])<<32 | uint64(bytes[5])<<40 |
-		uint64(bytes[6])<<48 | uint64(bytes[7])<<56), 8
-}
-
-// Get an xdr marshalled Elvin Notification
-func XdrGetNotification(bytes []byte) (nfn map[string]interface{}, used int, err error) {
-	nfn = make(map[string]interface{})
-	offset := 0
-
-	// Number of elements
-	elementCount, used := XdrGetUint32(bytes[offset:])
-	offset += used
-
-	for elementCount > 0 {
-		name, used := XdrGetString(bytes[offset:])
-		offset += used
-
-		// Type of value
-		elementType, used := XdrGetInt32(bytes[offset:])
-		offset += used
-
-		// values
-		switch elementType {
-		case NotificationInt32:
-			nfn[name], used = XdrGetInt32(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationInt64:
-			nfn[name], used = XdrGetUint64(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationFloat64:
-			nfn[name], used = XdrGetFloat64(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationString:
-			var used int
-			nfn[name], used = XdrGetString(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationOpaque:
-			var used int
-			nfn[name], used = XdrGetOpaque(bytes[offset:])
-			offset += used
-			break
-
-		default:
-			return nil, 0, errors.New("Marshalling failed: unknown element type")
-		}
-
-		elementCount--
-	}
-
-	return nfn, offset, err
-}
-
-// Fixme: implement
-// Get an xdr marshalled keyset
-func XdrGetKeys(bytes []byte) (keys [][]byte, used int, err error) {
-	return nil, 0, nil
-
-	offset := 0
-
-	// Number of elements
-	fmt.Println("BYTES", bytes)
-	elementCount, used := XdrGetUint32(bytes[offset:])
-	offset += used
-	fmt.Println("elementCount =", elementCount)
-
-	keys = make([][]byte, elementCount)
-	fmt.Println("now", keys)
-
-	for elementCount > 0 {
-		fmt.Println("EC", elementCount)
-		keys[elementCount-1], used = XdrGetOpaque(bytes[offset:])
-		offset += used
-		elementCount--
-	}
-	fmt.Println("then", keys)
-
-	return keys, offset, nil
 }
