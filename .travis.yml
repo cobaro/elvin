@@ -4,4 +4,4 @@ go:
 - "1.10"
 
 before_install:
-- cd $GOPATH/src
+- cd $TRAVIS_BUILD_DIR/src
