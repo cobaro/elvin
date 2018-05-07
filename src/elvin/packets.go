@@ -230,6 +230,17 @@ const (
 	NotificationOpaque   // marshalled as xdr_opaque
 )
 
-type Key struct {
-	FIXME int
+// Keys are a set of Keysets each with a scheme
+const (
+	KeySchemeSha1Dual       = 1 // The SHA-1 dual key scheme
+	KeySchemeSha1Producer   = 2 // The SHA-1 producer key scheme
+	KeySchemeSha1Consumer   = 3 // The SHA-1 consumer key scheme
+	KeySchemeSha256Dual     = 7 // The SHA-256 dual key scheme
+	KeySchemeSha256Producer = 8 // The SHA-256 producer key scheme
+	KeySchemeSha256Consumer = 9 // The SHA-256 consumer key scheme
+)
+
+type Keyset struct {
+	KeyScheme int
+	Keysets   [][]byte
 }
