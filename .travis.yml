@@ -3,5 +3,5 @@ language: go
 go:
 - "1.10"
 
-before_script:
-- cd $GOPATH/src/elvind
+before_install:
+- cd $TRAVIS_BUILD_DIR/src/elvind
