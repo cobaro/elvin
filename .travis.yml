@@ -3,5 +3,4 @@ language: go
 go:
 - "1.10"
 
-before_install:
-- cd $TRAVIS_BUILD_DIR/src/elvind
+go_import_path: github.com/cobaro/evin-router/src
