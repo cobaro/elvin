@@ -4,4 +4,4 @@ go:
 - "1.10"
 
 before_script:
-- cd $GOPATH/src
+- cd $GOPATH/src/elvind
