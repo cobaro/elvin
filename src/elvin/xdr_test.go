@@ -22,16 +22,17 @@ package elvin
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 )
 
-func TestXdr(t *testing.T) {
+func TestXdrNotification(t *testing.T) {
 	nfn := make(map[string]interface{})
 
 	nfn["int32"] = 3232
-	nfn["int64"] = int64(64646464)
+	nfn["int64"] = int64(646464646464)
 	nfn["string"] = "string"
-	nfn["opaque"] = []byte{3}
+	nfn["opaque"] = []byte{0, 1, 2, 3, 127, 255}
 	nfn["float64"] = 424242.42
 
 	// encode
@@ -82,4 +83,24 @@ func TestXdr(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
+
+func TestXdrKeys(t *testing.T) {
+	var buffer = new(bytes.Buffer)
+	var kl1 []Keyset = []Keyset{
+		Keyset{1, [][]byte{{254, 220, 0, 17}, {1, 2, 3, 4}}},
+		Keyset{3, [][]byte{{1, 2, 3, 4}}}}
+	XdrPutKeys(buffer, kl1)
+	expected := buffer.Len()
+	kl2, used, _ := XdrGetKeys(buffer.Bytes())
+	if used != expected {
+		t.Log("Encode/Decode of Keylists had different lengths")
+		t.Fail()
+	}
+
+	if !reflect.DeepEqual(kl1, kl2) {
+		t.Log("Keys differ\n", kl1, "\n", kl2)
+		t.Fail()
+	}
+	t.Log("\n", kl1, "\n", kl2)
 }

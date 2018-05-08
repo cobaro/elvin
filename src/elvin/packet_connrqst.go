@@ -30,8 +30,8 @@ type ConnRqst struct {
 	VersionMajor uint32
 	VersionMinor uint32
 	Options      map[string]interface{}
-	KeysNfn      [][]byte
-	KeysSub      [][]byte
+	KeysNfn      []Keyset
+	KeysSub      []Keyset
 }
 
 // Integer value of packet type
@@ -91,15 +91,16 @@ func (c *ConnRqst) Decode(bytes []byte) (err error) {
 		return err
 	}
 	offset += used
+	fmt.Println("KeysNfn used", used)
 
-	c.KeysSub, used, err = XdrGetKeys(bytes[offset:])
-	if err != nil {
+	if c.KeysSub, used, err = XdrGetKeys(bytes[offset:]); err != nil {
 		return err
 	}
 	offset += used
+	fmt.Println("KeysSub used", used)
 
-	// fmt.Println("keysN:", c.KeysNfn)
-	// fmt.Println("keysS:", c.KeysSub)
+	fmt.Println("keysN:", c.KeysNfn)
+	fmt.Println("keysS:", c.KeysSub)
 	// fmt.Println(bytes[offset:])
 	// fmt.Println(c)
 	return nil
