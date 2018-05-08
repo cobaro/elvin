@@ -163,7 +163,9 @@ func readHandler(conn Connection) {
 		}
 
 		// Deal with the packet
-		HandlePacket(conn, buffer)
+		if err = HandlePacket(conn, buffer); err != nil {
+			fmt.Println(err)
+		}
 
 		// FIXME: strip echo mode
 		// conn.writeChannel <- buffer[0:length]
@@ -223,7 +225,7 @@ func HandlePacket(conn Connection, buffer []byte) (err error) {
 	case elvin.PacketSecRply:
 		return errors.New("FIXME: Packet SecRply")
 	case elvin.PacketNotifyEmit:
-		return errors.New("FIXME: Packet NotifyEmit")
+		return HandleNotifyEmit(conn, buffer)
 	case elvin.PacketNotifyDeliver:
 		return errors.New("FIXME: Packet NotifyDeliver")
 	case elvin.PacketSubAddRqst:
@@ -315,7 +317,7 @@ func HandlePacket(conn Connection, buffer []byte) (err error) {
 	}
 }
 
-// Handle a Connection request
+// Handle a Connection Request
 func HandleConnRqst(conn Connection, buffer []byte) (err error) {
 	// FIXME: no range checking
 	connRqst := new(elvin.ConnRqst)
@@ -339,6 +341,21 @@ func HandleConnRqst(conn Connection, buffer []byte) (err error) {
 	_, err = conn.conn.Write(header)
 	_, err = conn.conn.Write(conn.writeBuf.Bytes())
 	fmt.Println("Connected")
+
+	return err
+}
+
+// Handle a NotifyEmit
+func HandleNotifyEmit(conn Connection, buffer []byte) (err error) {
+	// FIXME: no range checking
+	ne := new(elvin.NotifyEmit)
+	err = ne.Decode(buffer)
+	fmt.Println(ne)
+
+	// FIXME: Check connection state
+
+	// FIXME: NotifyDeliver
+	fmt.Println("Received", ne)
 
 	return err
 }
