@@ -91,18 +91,12 @@ func (c *ConnRqst) Decode(bytes []byte) (err error) {
 		return err
 	}
 	offset += used
-	fmt.Println("KeysNfn used", used)
 
 	if c.KeysSub, used, err = XdrGetKeys(bytes[offset:]); err != nil {
 		return err
 	}
 	offset += used
-	fmt.Println("KeysSub used", used)
 
-	fmt.Println("keysN:", c.KeysNfn)
-	fmt.Println("keysS:", c.KeysSub)
-	// fmt.Println(bytes[offset:])
-	// fmt.Println(c)
 	return nil
 }
 
