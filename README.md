@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/cobaro/elvin-router.svg?branch=master)](https://travis-ci.org/cobaro/elvin-router)
+[![Build Status](https://travis-ci.org/cobaro/elvin.svg?branch=master)](https://travis-ci.org/cobaro/elvin)
 
 Roadmap
 -------
