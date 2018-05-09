@@ -4,3 +4,7 @@ go:
 - "1.10"
 
 go_import_path: github.com/cobaro/evin-router/src
+
+script:
+- ls -lR
+- cd $HOME; ls -lR
