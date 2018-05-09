@@ -2,3 +2,10 @@ language: go
 
 go:
 - "1.10"
+
+notifications:
+  slack:
+    on_success: always
+    on_failure: always
+  email:
+    false
