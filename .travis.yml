@@ -6,5 +6,4 @@ go:
 go_import_path: github.com/cobaro/evin-router/src
 
 script:
-- ls -lR
 - cd $HOME; ls -lR
