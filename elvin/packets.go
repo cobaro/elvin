@@ -89,7 +89,6 @@ func PacketId(bytes []byte) int {
 	return int(binary.BigEndian.Uint32(bytes[0:4]))
 }
 
-// FIXME: This goes away once each packet is coded and has an IdString()
 func PacketIdString(packetId int) string {
 	switch packetId {
 	case PacketReserved:
