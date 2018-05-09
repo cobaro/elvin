@@ -22,7 +22,7 @@ package main
 
 import (
 	"bytes"
-	"cobaro/elvin-router/elvin"
+	"github.com/cobaro/elvin-router/elvin"
 	"encoding/binary"
 	"errors"
 	"flag"
