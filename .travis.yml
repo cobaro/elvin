@@ -1,11 +1,11 @@
 language: go
 
 go:
-- "1.10"
+- '1.10'
 
 notifications:
+  email: false
   slack:
     on_success: always
     on_failure: always
-  email:
-    false
+    secure: hy/eBlFn0Yv+xcwRivBJwMaaY0wWieDbYWo/ZlS1OlD9IVJda6srq85et3O5+inrvmtXiHy5Z1p8gEEqB3pWJH8It9F45L7UjlWDcaM6Qs5iyVEiH3Px3suLhHX3EIi9/PxbSvyjGSPbfLAKKMdXbHG23dN1vSmI9EZ/gf+57EPltQAcZfulFu8uRvkqBoD5PK5dAN4BnNg+0Sn54C+XzjMYt2ip0MKwOxK43jRPYTCKIH/VXAr8V6+jMrHRVxnuDLzBv4WDQTMr1bsF7OpgCbOB4CupJhCWXAAXsvHxpOZRSBvqkPKuUeSfzXiFWGvwrXc2SEKK6gU/fEPSDNvTXdSCmyZcK+mukNbmuBFe6JKCet13YkD6Gsbq1oO40UOGx+ocxuwqH8Pd/QkeGbR6eqBgLORld+8PsYRBM0/7ZngoLQKWa7iTjU95nalasoLEqgPf+f/6Xb2y35ZzngqK04a30wFGGjO9T8Hii5mjWtdmZGFZFL3wq+6veMNIS7E9egFgWD0DbrvdXvYuRNudvD/U/CTchf/O0yCdzlayg26IYyaX+BOCMOxnbQsDECgInC5PepkR+mXH8cnli3bSnNK8EeQeNp2KwkbIj45x5GDSyRebj6GX22cAzsLLhm8psPzThO8cEljlo9Bianp6Wuctb042eb9QX6i4N0GhB/c=
