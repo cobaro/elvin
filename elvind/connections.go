@@ -28,6 +28,7 @@ import (
 	"github.com/cobaro/elvin/elvin"
 	"io"
 	"net"
+	"sync"
 )
 
 // Connection States
@@ -42,8 +43,7 @@ const (
 type Connection struct {
 	conn           net.Conn
 	state          int
-	writeBuf       bytes.Buffer
-	writeChannel   chan []byte
+	writeChannel   chan *bytes.Buffer
 	readTerminate  chan int
 	writeTerminate chan int
 	// lock           sync.Mutex
@@ -97,17 +97,33 @@ func (conn *Connection) readHandler() {
 // Handle writing for now run as a goroutine
 func (conn *Connection) writeHandler() {
 	fmt.Println("Write Handler starting ")
+	header := make([]byte, 4)
+
 	for {
 		select {
-		case buf := <-conn.writeChannel:
-			// For now just echo it back (and assume full write)
-			_, err := conn.conn.Write(buf)
+		case buffer := <-conn.writeChannel:
+
+			// Write the frame header (packetsize)
+			binary.BigEndian.PutUint32(header, uint32(buffer.Len()))
+			_, err := conn.conn.Write(header)
 			if err != nil {
 				// Deal with more errors
 				if err == io.EOF {
 					conn.conn.Close()
 				} else {
-					fmt.Println("Write handler error:", err)
+					fmt.Println("Unexepcted write error:", err)
+				}
+				return // We're done, cleanup done by read
+			}
+
+			// Write the packet
+			_, err = buffer.WriteTo(conn.conn)
+			if err != nil {
+				// Deal with more errors
+				if err == io.EOF {
+					conn.conn.Close()
+				} else {
+					fmt.Println("Unexepcted write error:", err)
 				}
 				return // We're done, cleanup done by read
 			}
@@ -265,11 +281,15 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	connRply.Xid = connRqst.Xid
 	// FIXME; totally bogus
 	connRply.Options = connRqst.Options
-	connRply.Encode(&conn.writeBuf)
 
 	fmt.Println("Connected")
 
-	return conn.WritePacket()
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	connRply.Encode(buf)
+	conn.writeChannel <- buf
+
+	return nil
 }
 
 // Handle a NotifyEmit
@@ -309,23 +329,18 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subRqst.Xid
 	subRply.Subid = sub.Subid
-	subRply.Encode(&conn.writeBuf)
 
-	return conn.WritePacket()
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	subRply.Encode(buf)
+	conn.writeChannel <- buf
+
+	return nil
 }
 
-// FIXME:
-// This needs to talk to the write goroutine
-// For now we're being dumb
-// Pass buffers
-// FIXME:
-// Pieces of this can use the Packet interface but this requires some decisions on []byte vs buffer
-func (conn *Connection) WritePacket() (err error) {
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, uint32(conn.writeBuf.Len()))
-	if _, err = conn.conn.Write(header); err != nil {
-		return err
-	}
-	_, err = conn.writeBuf.WriteTo(conn.conn)
-	return nil // for now we don't care
+// A buffer pool as we use lots of these for writing to
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
 }

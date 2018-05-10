@@ -21,6 +21,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	// "github.com/cobaro/elvin/elvin"
@@ -99,7 +100,7 @@ func Listener(protocol Protocol) {
 		var conn Connection
 		conn.conn = c
 		conn.state = StateNew
-		conn.writeChannel = make(chan []byte)
+		conn.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
 		conn.readTerminate = make(chan int)
 		conn.writeTerminate = make(chan int)
 
