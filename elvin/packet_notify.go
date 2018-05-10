@@ -142,6 +142,7 @@ func (n *NotifyDeliver) Decode(bytes []byte) (err error) {
 
 // Encode a NotifyDeliver from a buffer
 func (n *NotifyDeliver) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, n.Id())
 	XdrPutNotification(buffer, n.NameValue)
 	XdrPutInt32(buffer, len(n.Secure))
 	for i := 0; i < len(n.Secure); i++ {

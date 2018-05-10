@@ -137,7 +137,7 @@ func (conn *Connection) writeHandler() {
 // Handle a protocol packet
 func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 
-	fmt.Println("HandlePacket", elvin.PacketIdString(elvin.PacketId(buffer)))
+	// fmt.Println("HandlePacket", elvin.PacketIdString(elvin.PacketId(buffer)))
 
 	switch elvin.PacketId(buffer) {
 
@@ -297,12 +297,26 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	// FIXME: no range checking
 	ne := new(elvin.NotifyEmit)
 	err = ne.Decode(buffer)
-	// fmt.Println(ne)
 
 	// FIXME: NotifyDeliver
-	fmt.Println("Received", ne)
+	// fmt.Println("Received", ne)
 
-	return err
+	// As a dummy for now we're going to send every message we see to every subscription
+	// as if all evaluate to true. Don't worry about the giant lock - this all goes away
+	// Also we send it over the wire multiple times not once per connection ... oops ;-)
+	nd := new(elvin.NotifyDeliver)
+	nd.NameValue = ne.NameValue
+	nd.Insecure = []uint64{0}
+
+	subscriptions.lock.Lock()
+	for subid, conn := range subscriptions.subscriptions {
+		nd.Insecure[0] = subid
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nd.Encode(buf)
+		conn.writeChannel <- buf
+	}
+	subscriptions.lock.Unlock()
+	return nil
 }
 
 // Handle a NotifyEmit
