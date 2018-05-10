@@ -102,7 +102,7 @@ func (n *NotifyDeliver) IdString() string {
 
 // Pretty print with indent
 func (n *NotifyDeliver) IString(indent string) string {
-	return fmt.Sprintf("%sNameValue %v\n%sSecure %v\n%sSecure %v\n%sInsecure %v\n",
+	return fmt.Sprintf("%sNameValue %v\n%sSecure %v\n%sInsecure %v\n",
 		indent, n.NameValue,
 		indent, n.Secure,
 		indent, n.Insecure,
