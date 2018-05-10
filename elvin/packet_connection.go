@@ -111,3 +111,56 @@ func (c *ConnRqst) Encode(buffer *bytes.Buffer) {
 	XdrPutKeys(buffer, c.KeysNfn)
 	XdrPutKeys(buffer, c.KeysSub)
 }
+
+// Packet: Connection Reply
+type ConnRply struct {
+	Xid     uint32
+	Options map[string]interface{}
+}
+
+// Integer value of packet type
+func (c *ConnRply) Id() int {
+	return PacketConnRply
+}
+
+// String representation of packet type
+func (c *ConnRply) IdString() string {
+	return "ConnRply"
+}
+
+// Pretty print with indent
+func (c *ConnRply) IString(indent string) string {
+	return fmt.Sprintf("%sXid: %d\n%sOptions %v\n",
+		indent, c.Xid,
+		indent, c.Options)
+
+}
+
+// Pretty print without indent so generic ToString() works
+func (c *ConnRply) String() string {
+	return c.IString("")
+}
+
+// Decode a ConnRply packet from a byte array
+func (c *ConnRply) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4 // header
+
+	c.Xid, used = XdrGetUint32(bytes[offset:])
+	offset += used
+
+	c.Options, used, err = XdrGetNotification(bytes[offset:])
+	if err != nil {
+		return err
+	}
+	offset += used
+
+	return nil
+}
+
+// Encode a ConnRply from a buffer
+func (c *ConnRply) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, c.Id())
+	XdrPutUint32(buffer, c.Xid)
+	XdrPutNotification(buffer, c.Options)
+}
