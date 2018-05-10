@@ -195,7 +195,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		case elvin.PacketNotifyEmit:
 			return conn.HandleNotifyEmit(buffer)
 		case elvin.PacketSubAddRqst:
-			return errors.New("FIXME: Packet SubAddRqst")
+			return conn.HandleSubAddRqst(buffer)
 		case elvin.PacketSubModRqst:
 			return errors.New("FIXME: Packet SubModRqst")
 		case elvin.PacketSubDelRqst:
@@ -267,16 +267,9 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	connRply.Options = connRqst.Options
 	connRply.Encode(&conn.writeBuf)
 
-	// FIXME: abstract this
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, uint32(conn.writeBuf.Len()))
-	_, err = conn.conn.Write(header)
-	_, err = conn.conn.Write(conn.writeBuf.Bytes())
-
-	// FIXME: logging
 	fmt.Println("Connected")
 
-	return err
+	return conn.WritePacket()
 }
 
 // Handle a NotifyEmit
@@ -290,4 +283,49 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	fmt.Println("Received", ne)
 
 	return err
+}
+
+// Handle a NotifyEmit
+func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
+	// FIXME: no range checking
+	subRqst := new(elvin.SubAddRqst)
+	err = subRqst.Decode(buffer)
+	fmt.Println("Received", subRqst)
+
+	ast, err := Parse(subRqst.Expression)
+	if err != nil {
+		fmt.Println("FIXME: nack")
+		return nil
+	}
+
+	// Create a subscription and add it to the subscription store
+	var sub Subscription
+	sub.Ast = ast
+	sub.AcceptInsecure = subRqst.AcceptInsecure
+	sub.Keys = subRqst.Keys
+	sub.Add(conn)
+
+	// Respond with a SubRply
+	subRply := new(elvin.SubRply)
+	subRply.Xid = subRqst.Xid
+	subRply.Subid = sub.Subid
+	subRply.Encode(&conn.writeBuf)
+
+	return conn.WritePacket()
+}
+
+// FIXME:
+// This needs to talk to the write goroutine
+// For now we're being dumb
+// Pass buffers
+// FIXME:
+// Pieces of this can use the Packet interface but this requires some decisions on []byte vs buffer
+func (conn *Connection) WritePacket() (err error) {
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, uint32(conn.writeBuf.Len()))
+	if _, err = conn.conn.Write(header); err != nil {
+		return err
+	}
+	_, err = conn.writeBuf.WriteTo(conn.conn)
+	return nil // for now we don't care
 }
