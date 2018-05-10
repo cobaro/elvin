@@ -21,6 +21,7 @@
 package elvin
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -100,7 +101,13 @@ func (c *ConnRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (c *ConnRqst) Encode() (bytes []byte, err error) {
-	// FIXME: Strictly speaking the router doesn't need this
-	return nil, nil
+func (c *ConnRqst) Encode(buffer *bytes.Buffer) {
+	// FIXME: error handling
+	XdrPutInt32(buffer, c.Id())
+	XdrPutUint32(buffer, c.Xid)
+	XdrPutUint32(buffer, c.VersionMajor)
+	XdrPutUint32(buffer, c.VersionMinor)
+	XdrPutNotification(buffer, c.Options)
+	XdrPutKeys(buffer, c.KeysNfn)
+	XdrPutKeys(buffer, c.KeysSub)
 }
