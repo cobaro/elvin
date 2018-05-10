@@ -25,7 +25,7 @@ import (
 	"fmt"
 )
 
-// Packet: Connection Reply
+// Packet: NotifyEmit
 type NotifyEmit struct {
 	NameValue       map[string]interface{}
 	DeliverInsecure bool
@@ -81,4 +81,74 @@ func (n *NotifyEmit) Encode(buffer *bytes.Buffer) {
 	XdrPutNotification(buffer, n.NameValue)
 	XdrPutBool(buffer, n.DeliverInsecure)
 	XdrPutKeys(buffer, n.Keys)
+}
+
+// Packet: NotifyDeliver
+type NotifyDeliver struct {
+	NameValue map[string]interface{}
+	Secure    []uint64
+	Insecure  []uint64
+}
+
+// Integer value of packet type
+func (n *NotifyDeliver) Id() int {
+	return PacketNotifyDeliver
+}
+
+// String representation of packet type
+func (n *NotifyDeliver) IdString() string {
+	return "NotifyDeliver"
+}
+
+// Pretty print with indent
+func (n *NotifyDeliver) IString(indent string) string {
+	return fmt.Sprintf("%sNameValue %v\n%sSecure %v\n%sSecure %v\n%sInsecure %v\n",
+		indent, n.NameValue,
+		indent, n.Secure,
+		indent, n.Insecure,
+	)
+}
+
+// Pretty print without indent so generic ToString() works
+func (n *NotifyDeliver) String() string {
+	return n.IString("")
+}
+
+// Decode a NotifyDeliver packet from a byte array
+func (n *NotifyDeliver) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4
+	if n.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
+		return err
+	}
+	offset += used
+
+	secureCount, used := XdrGetInt32(bytes[offset:])
+	offset += used
+	for i := 0; i < secureCount; i++ {
+		n.Secure[i], used = XdrGetUint64(bytes[offset:])
+		offset += used
+	}
+
+	insecureCount, used := XdrGetInt32(bytes[offset:])
+	offset += used
+	for i := 0; i < insecureCount; i++ {
+		n.Insecure[i], used = XdrGetUint64(bytes[offset:])
+		offset += used
+	}
+
+	return nil
+}
+
+// Encode a NotifyDeliver from a buffer
+func (n *NotifyDeliver) Encode(buffer *bytes.Buffer) {
+	XdrPutNotification(buffer, n.NameValue)
+	XdrPutInt32(buffer, len(n.Secure))
+	for i := 0; i < len(n.Secure); i++ {
+		XdrPutUint64(buffer, n.Secure[i])
+	}
+	XdrPutInt32(buffer, len(n.Insecure))
+	for i := 0; i < len(n.Insecure); i++ {
+		XdrPutUint64(buffer, n.Insecure[i])
+	}
 }
