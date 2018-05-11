@@ -21,6 +21,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/cobaro/elvin/elvin"
 	"sync"
 )
@@ -52,6 +53,10 @@ func init() {
 
 // Parse a subscription expression into an AST
 func Parse(subexpr string) (ast Ast, err error) {
+	// For now 'bogus' fails and everything else succeeds
+	if subexpr == "bogus" {
+		return 0, errors.New("bogus")
+	}
 	return 0, nil
 }
 
