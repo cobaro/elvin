@@ -21,7 +21,6 @@
 package main
 
 import (
-	"errors"
 	"github.com/cobaro/elvin/elvin"
 	"sync"
 )
@@ -52,10 +51,16 @@ func init() {
 }
 
 // Parse a subscription expression into an AST
-func Parse(subexpr string) (ast Ast, err error) {
+func Parse(subexpr string) (ast Ast, n *elvin.Nack) {
 	// For now 'bogus' fails and everything else succeeds
 	if subexpr == "bogus" {
-		return 0, errors.New("bogus")
+		nack := new(elvin.Nack)
+		nack.ErrorCode = elvin.ErrorsParsing
+		nack.Message = elvin.ProtocolErrors[elvin.ErrorsParsing]
+		nack.Args = make([]interface{}, 2)
+		nack.Args[0] = 0
+		nack.Args[1] = "bogus"
+		return 0, nack
 	}
 	return 0, nil
 }

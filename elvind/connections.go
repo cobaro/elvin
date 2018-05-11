@@ -103,6 +103,7 @@ func (conn *Connection) writeHandler() {
 		select {
 		case buffer := <-conn.writeChannel:
 
+			defer bufferPool.Put(buffer)
 			// Write the frame header (packetsize)
 			binary.BigEndian.PutUint32(header, uint32(buffer.Len()))
 			_, err := conn.conn.Write(header)
@@ -326,9 +327,12 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	err = subRqst.Decode(buffer)
 	fmt.Println("Received", subRqst)
 
-	ast, err := Parse(subRqst.Expression)
-	if err != nil {
-		fmt.Println("FIXME: nack")
+	ast, nack := Parse(subRqst.Expression)
+	if nack != nil {
+		nack.Xid = subRqst.Xid
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nack.Encode(buf)
+		conn.writeChannel <- buf
 		return nil
 	}
 
@@ -348,7 +352,6 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	buf := bufferPool.Get().(*bytes.Buffer)
 	subRply.Encode(buf)
 	conn.writeChannel <- buf
-
 	return nil
 }
 
