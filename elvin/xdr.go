@@ -98,20 +98,44 @@ func XdrPutUint64(buffer *bytes.Buffer, u uint64) {
 	return
 }
 
-// Get an xdr marshalled 32 bit signed int
+// Get an xdr marshalled bool (on the wire it's a 32 bit signed int)
 func XdrGetBool(bytes []byte) (b bool, used int) {
 	i, used := XdrGetInt32(bytes)
 	b = (i == 0)
 	return b, used
 }
 
-// Put an xdr marshalled 32 bit signed int
+// Put an xdr marshalled bool (ont the wire it's a 32 bit signed int)
 func XdrPutBool(buffer *bytes.Buffer, b bool) {
 	var i int = 0
 	if b {
 		i = 1
 	}
 	XdrPutInt32(buffer, i)
+	return
+}
+
+// Get an xdr marshalled int16 (on the wire it's a 32 bit signed int)
+func XdrGetInt16(bytes []byte) (i16 int16, used int) {
+	i, used := XdrGetInt32(bytes)
+	return int16(i), used
+}
+
+// Put an xdr marshalled int16 (ont the wire it's a 32 bit signed int)
+func XdrPutInt16(buffer *bytes.Buffer, i16 int16) {
+	XdrPutInt32(buffer, int(i16))
+	return
+}
+
+// Get an xdr marshalled uint16 (on the wire it's a 32 bit unsigned int)
+func XdrGetUint16(bytes []byte) (u16 uint16, used int) {
+	u, used := XdrGetUint32(bytes)
+	return uint16(u), used
+}
+
+// Put an xdr marshalled uint16 (ont the wire it's a 32 bit unsigned int)
+func XdrPutUint16(buffer *bytes.Buffer, u16 uint16) {
+	XdrPutUint32(buffer, uint32(u16))
 	return
 }
 
@@ -184,6 +208,76 @@ func XdrPutFloat64(buffer *bytes.Buffer, f float64) {
 }
 
 // Get an xdr marshalled Elvin Notification
+func XdrGetValue(bytes []byte) (val interface{}, used int, err error) {
+
+	// Type of value
+	offset := 0
+	elementType, used := XdrGetInt32(bytes[offset:])
+	offset += used
+	var value interface{}
+
+	// The values itself
+	switch elementType {
+	case NotificationInt32:
+		value, used = XdrGetInt32(bytes[offset:])
+		offset += used
+		break
+
+	case NotificationInt64:
+		value, used = XdrGetInt64(bytes[offset:])
+		offset += used
+		break
+
+	case NotificationFloat64:
+		value, used = XdrGetFloat64(bytes[offset:])
+		offset += used
+		break
+
+	case NotificationString:
+		value, used = XdrGetString(bytes[offset:])
+		offset += used
+		break
+
+	case NotificationOpaque:
+		value, used = XdrGetOpaque(bytes[offset:])
+		offset += used
+		break
+
+	default:
+		return nil, offset, errors.New("Marshalling failed: unknown element type")
+	}
+	return value, offset, nil
+}
+
+// Put a value
+func XdrPutValue(buffer *bytes.Buffer, value interface{}) {
+
+	// Value
+	switch typ := value.(type) {
+	case int:
+		XdrPutInt32(buffer, 1)
+		XdrPutInt32(buffer, value.(int))
+	case int64:
+		XdrPutInt32(buffer, 2)
+		XdrPutInt64(buffer, value.(int64))
+	case float64:
+		XdrPutInt32(buffer, 3)
+		XdrPutFloat64(buffer, value.(float64))
+	case string:
+		XdrPutInt32(buffer, 4)
+		XdrPutString(buffer, value.(string))
+	case []byte:
+		XdrPutInt32(buffer, 5)
+		XdrPutOpaque(buffer, value.([]uint8))
+	default:
+		XdrPutInt32(buffer, 0)
+		panic(fmt.Sprintf("What *type* is: %v", typ))
+		return
+	}
+	return
+}
+
+// Get an xdr marshalled Elvin Notification
 func XdrGetNotification(bytes []byte) (nfn map[string]interface{}, used int, err error) {
 	nfn = make(map[string]interface{})
 	offset := 0
@@ -196,43 +290,12 @@ func XdrGetNotification(bytes []byte) (nfn map[string]interface{}, used int, err
 		name, used := XdrGetString(bytes[offset:])
 		offset += used
 
-		// Type of value
-		elementType, used := XdrGetInt32(bytes[offset:])
+		// The value
+		nfn[name], used, err = XdrGetValue(bytes[offset:])
 		offset += used
-
-		// values
-		switch elementType {
-		case NotificationInt32:
-			nfn[name], used = XdrGetInt32(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationInt64:
-			nfn[name], used = XdrGetInt64(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationFloat64:
-			nfn[name], used = XdrGetFloat64(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationString:
-			var used int
-			nfn[name], used = XdrGetString(bytes[offset:])
-			offset += used
-			break
-
-		case NotificationOpaque:
-			var used int
-			nfn[name], used = XdrGetOpaque(bytes[offset:])
-			offset += used
-			break
-
-		default:
-			return nil, 0, errors.New("Marshalling failed: unknown element type")
+		if err != nil {
+			return nil, offset, err
 		}
-
 		elementCount--
 	}
 
@@ -249,27 +312,39 @@ func XdrPutNotification(buffer *bytes.Buffer, nfn map[string]interface{}) {
 		// Key
 		XdrPutString(buffer, k)
 		// Value
-		switch t := v.(type) {
-		case int:
-			XdrPutInt32(buffer, 1)
-			XdrPutInt32(buffer, v.(int))
-		case int64:
-			XdrPutInt32(buffer, 2)
-			XdrPutInt64(buffer, v.(int64))
-		case float64:
-			XdrPutInt32(buffer, 3)
-			XdrPutFloat64(buffer, v.(float64))
-		case string:
-			XdrPutInt32(buffer, 4)
-			XdrPutString(buffer, v.(string))
-		case []byte:
-			XdrPutInt32(buffer, 5)
-			XdrPutOpaque(buffer, v.([]uint8))
-		default:
-			XdrPutInt32(buffer, 0)
-			panic(fmt.Sprintf("What *type* is: %v", t))
-			return
+		XdrPutValue(buffer, v)
+	}
+	return
+}
+
+// Get an xdr marshalled list of Values
+func XdrGetValues(bytes []byte) (values []interface{}, used int, err error) {
+	offset := 0
+
+	// Number of elements
+	elementCount, used := XdrGetUint32(bytes[offset:])
+	offset += used
+
+	v := make([]interface{}, elementCount)
+	for i := 0; i < int(elementCount); i++ {
+		v[i], used, err = XdrGetValue(bytes[offset:])
+		offset += used
+		if err != nil {
+			return nil, offset, err
 		}
+	}
+
+	return v, offset, nil
+}
+
+// Put an xdr marshalled list of Values
+func XdrPutValues(buffer *bytes.Buffer, values []interface{}) {
+
+	// Number of elements
+	XdrPutInt32(buffer, len(values))
+
+	for i := 0; i < len(values); i++ {
+		XdrPutValue(buffer, values[i])
 	}
 	return
 }
