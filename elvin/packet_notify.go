@@ -33,41 +33,41 @@ type NotifyEmit struct {
 }
 
 // Integer value of packet type
-func (n *NotifyEmit) Id() int {
+func (pkt *NotifyEmit) Id() int {
 	return PacketNotifyEmit
 }
 
 // String representation of packet type
-func (n *NotifyEmit) IdString() string {
+func (pkt *NotifyEmit) IdString() string {
 	return "NotifyEmit"
 }
 
 // Pretty print with indent
-func (n *NotifyEmit) IString(indent string) string {
+func (pkt *NotifyEmit) IString(indent string) string {
 	return fmt.Sprintf("%sNameValue %v\n%sDeliverInsecure %v\n%sKeys %v\n",
-		indent, n.NameValue,
-		indent, n.DeliverInsecure,
-		indent, n.Keys)
+		indent, pkt.NameValue,
+		indent, pkt.DeliverInsecure,
+		indent, pkt.Keys)
 }
 
 // Pretty print without indent so generic ToString() works
-func (n *NotifyEmit) String() string {
-	return n.IString("")
+func (pkt *NotifyEmit) String() string {
+	return pkt.IString("")
 }
 
 // Decode a NotifyEmit packet from a byte array
-func (n *NotifyEmit) Decode(bytes []byte) (err error) {
+func (pkt *NotifyEmit) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4
-	if n.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
+	if pkt.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
 		return err
 	}
 	offset += used
 
-	n.DeliverInsecure, used = XdrGetBool(bytes[offset:])
+	pkt.DeliverInsecure, used = XdrGetBool(bytes[offset:])
 	offset += used
 
-	if n.Keys, used, err = XdrGetKeys(bytes[offset:]); err != nil {
+	if pkt.Keys, used, err = XdrGetKeys(bytes[offset:]); err != nil {
 		return err
 	}
 	offset += used
@@ -77,10 +77,10 @@ func (n *NotifyEmit) Decode(bytes []byte) (err error) {
 }
 
 // Encode a NotifyEmit from a buffer
-func (n *NotifyEmit) Encode(buffer *bytes.Buffer) {
-	XdrPutNotification(buffer, n.NameValue)
-	XdrPutBool(buffer, n.DeliverInsecure)
-	XdrPutKeys(buffer, n.Keys)
+func (pkt *NotifyEmit) Encode(buffer *bytes.Buffer) {
+	XdrPutNotification(buffer, pkt.NameValue)
+	XdrPutBool(buffer, pkt.DeliverInsecure)
+	XdrPutKeys(buffer, pkt.Keys)
 }
 
 // Packet: NotifyDeliver
@@ -91,34 +91,34 @@ type NotifyDeliver struct {
 }
 
 // Integer value of packet type
-func (n *NotifyDeliver) Id() int {
+func (pkt *NotifyDeliver) Id() int {
 	return PacketNotifyDeliver
 }
 
 // String representation of packet type
-func (n *NotifyDeliver) IdString() string {
+func (pkt *NotifyDeliver) IdString() string {
 	return "NotifyDeliver"
 }
 
 // Pretty print with indent
-func (n *NotifyDeliver) IString(indent string) string {
+func (pkt *NotifyDeliver) IString(indent string) string {
 	return fmt.Sprintf("%sNameValue %v\n%sSecure %v\n%sInsecure %v\n",
-		indent, n.NameValue,
-		indent, n.Secure,
-		indent, n.Insecure,
+		indent, pkt.NameValue,
+		indent, pkt.Secure,
+		indent, pkt.Insecure,
 	)
 }
 
 // Pretty print without indent so generic ToString() works
-func (n *NotifyDeliver) String() string {
-	return n.IString("")
+func (pkt *NotifyDeliver) String() string {
+	return pkt.IString("")
 }
 
 // Decode a NotifyDeliver packet from a byte array
-func (n *NotifyDeliver) Decode(bytes []byte) (err error) {
+func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4
-	if n.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
+	if pkt.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
 		return err
 	}
 	offset += used
@@ -126,14 +126,14 @@ func (n *NotifyDeliver) Decode(bytes []byte) (err error) {
 	secureCount, used := XdrGetInt32(bytes[offset:])
 	offset += used
 	for i := 0; i < secureCount; i++ {
-		n.Secure[i], used = XdrGetUint64(bytes[offset:])
+		pkt.Secure[i], used = XdrGetUint64(bytes[offset:])
 		offset += used
 	}
 
 	insecureCount, used := XdrGetInt32(bytes[offset:])
 	offset += used
 	for i := 0; i < insecureCount; i++ {
-		n.Insecure[i], used = XdrGetUint64(bytes[offset:])
+		pkt.Insecure[i], used = XdrGetUint64(bytes[offset:])
 		offset += used
 	}
 
@@ -141,15 +141,15 @@ func (n *NotifyDeliver) Decode(bytes []byte) (err error) {
 }
 
 // Encode a NotifyDeliver from a buffer
-func (n *NotifyDeliver) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, n.Id())
-	XdrPutNotification(buffer, n.NameValue)
-	XdrPutInt32(buffer, len(n.Secure))
-	for i := 0; i < len(n.Secure); i++ {
-		XdrPutUint64(buffer, n.Secure[i])
+func (pkt *NotifyDeliver) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutNotification(buffer, pkt.NameValue)
+	XdrPutInt32(buffer, len(pkt.Secure))
+	for i := 0; i < len(pkt.Secure); i++ {
+		XdrPutUint64(buffer, pkt.Secure[i])
 	}
-	XdrPutInt32(buffer, len(n.Insecure))
-	for i := 0; i < len(n.Insecure); i++ {
-		XdrPutUint64(buffer, n.Insecure[i])
+	XdrPutInt32(buffer, len(pkt.Insecure))
+	for i := 0; i < len(pkt.Insecure); i++ {
+		XdrPutUint64(buffer, pkt.Insecure[i])
 	}
 }

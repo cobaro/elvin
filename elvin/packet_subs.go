@@ -35,53 +35,53 @@ type SubAddRqst struct {
 }
 
 // Integer value of packet type
-func (s *SubAddRqst) Id() int {
+func (pkt *SubAddRqst) Id() int {
 	return PacketSubAddRqst
 }
 
 // String representation of packet type
-func (s *SubAddRqst) IdString() string {
+func (pkt *SubAddRqst) IdString() string {
 	return "SubAddRqst"
 }
 
 // Pretty print with indent
-func (s *SubAddRqst) IString(indent string) string {
+func (pkt *SubAddRqst) IString(indent string) string {
 	return fmt.Sprintf("%sXid %v\n%sExpression %v\n%sAcceptInsecure %v\n%sKeys %v\n",
-		indent, s.Xid,
-		indent, s.Expression,
-		indent, s.AcceptInsecure,
-		indent, s.Keys,
+		indent, pkt.Xid,
+		indent, pkt.Expression,
+		indent, pkt.AcceptInsecure,
+		indent, pkt.Keys,
 	)
 }
 
 // Pretty print without indent so generic ToString() works
-func (s *SubAddRqst) String() string {
-	return s.IString("")
+func (pkt *SubAddRqst) String() string {
+	return pkt.IString("")
 }
 
 // Decode a SubAddRqst packet from a byte array
-func (s *SubAddRqst) Decode(bytes []byte) (err error) {
+func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	s.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
 	offset += used
-	s.Expression, used = XdrGetString(bytes[offset:])
+	pkt.Expression, used = XdrGetString(bytes[offset:])
 	offset += used
-	s.AcceptInsecure, used = XdrGetBool(bytes[offset:])
+	pkt.AcceptInsecure, used = XdrGetBool(bytes[offset:])
 	offset += used
-	s.Keys, used, err = XdrGetKeys(bytes[offset:])
+	pkt.Keys, used, err = XdrGetKeys(bytes[offset:])
 	offset += used
 	return err
 }
 
 // Encode a SubAddRqst from a buffer
-func (s *SubAddRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, s.Id())
-	XdrPutUint32(buffer, s.Xid)
-	XdrPutBool(buffer, s.AcceptInsecure)
-	XdrPutKeys(buffer, s.Keys)
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutBool(buffer, pkt.AcceptInsecure)
+	XdrPutKeys(buffer, pkt.Keys)
 }
 
 // Packet: SubRply
@@ -92,44 +92,44 @@ type SubRply struct {
 }
 
 // Integer value of packet type
-func (s *SubRply) Id() int {
+func (pkt *SubRply) Id() int {
 	return PacketSubRply
 }
 
 // String representation of packet type
-func (s *SubRply) IdString() string {
+func (pkt *SubRply) IdString() string {
 	return "SubRply"
 }
 
 // Pretty print with indent
-func (s *SubRply) IString(indent string) string {
+func (pkt *SubRply) IString(indent string) string {
 	return fmt.Sprintf("%sXid %v\n%sSubid %v\n",
-		indent, s.Xid,
-		indent, s.Subid,
+		indent, pkt.Xid,
+		indent, pkt.Subid,
 	)
 }
 
 // Pretty print without indent so generic ToString() works
-func (s *SubRply) String() string {
-	return s.IString("")
+func (pkt *SubRply) String() string {
+	return pkt.IString("")
 }
 
 // Decode a SubRply packet from a byte array
-func (s *SubRply) Decode(bytes []byte) (err error) {
+func (pkt *SubRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	s.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
 	offset += used
-	s.Subid, used = XdrGetUint64(bytes[offset:])
+	pkt.Subid, used = XdrGetUint64(bytes[offset:])
 	offset += used
 	return err
 }
 
 // Encode a SubRply from a buffer
-func (s *SubRply) Encode(buffer *bytes.Buffer) {
+func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, s.Id())
-	XdrPutUint32(buffer, s.Xid)
-	XdrPutUint64(buffer, s.Subid)
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint64(buffer, pkt.Subid)
 }

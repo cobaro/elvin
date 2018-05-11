@@ -36,17 +36,17 @@ type ConnRqst struct {
 }
 
 // Integer value of packet type
-func (c *ConnRqst) Id() int {
+func (pkt *ConnRqst) Id() int {
 	return PacketConnRqst
 }
 
 // String representation of packet type
-func (c *ConnRqst) IdString() string {
+func (pkt *ConnRqst) IdString() string {
 	return "ConnRqst"
 }
 
 // Pretty print with indent
-func (c *ConnRqst) IString(indent string) string {
+func (pkt *ConnRqst) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXid: %d\n"+
 			"%sVersionMajor %d\n"+
@@ -54,46 +54,46 @@ func (c *ConnRqst) IString(indent string) string {
 			"%sOptions %v\n"+
 			"%sKeysNfn: %v\n"+
 			"%sKeysSub: %v\n",
-		indent, c.Xid,
-		indent, c.VersionMajor,
-		indent, c.VersionMinor,
-		indent, c.Options,
-		indent, c.KeysNfn,
-		indent, c.KeysSub)
+		indent, pkt.Xid,
+		indent, pkt.VersionMajor,
+		indent, pkt.VersionMinor,
+		indent, pkt.Options,
+		indent, pkt.KeysNfn,
+		indent, pkt.KeysSub)
 }
 
 // Pretty print without indent so generic ToString() works
-func (c *ConnRqst) String() string {
-	return c.IString("")
+func (pkt *ConnRqst) String() string {
+	return pkt.IString("")
 }
 
 // Decode a ConnRqst packet from a byte array
-func (c *ConnRqst) Decode(bytes []byte) (err error) {
+func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	c.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
 	offset += used
 
-	c.VersionMajor, used = XdrGetUint32(bytes[offset:])
+	pkt.VersionMajor, used = XdrGetUint32(bytes[offset:])
 	offset += used
 
-	c.VersionMinor, used = XdrGetUint32(bytes[offset:])
+	pkt.VersionMinor, used = XdrGetUint32(bytes[offset:])
 	offset += used
 
-	c.Options, used, err = XdrGetNotification(bytes[offset:])
+	pkt.Options, used, err = XdrGetNotification(bytes[offset:])
 	if err != nil {
 		return err
 	}
 	offset += used
 
-	c.KeysNfn, used, err = XdrGetKeys(bytes[offset:])
+	pkt.KeysNfn, used, err = XdrGetKeys(bytes[offset:])
 	if err != nil {
 		return err
 	}
 	offset += used
 
-	if c.KeysSub, used, err = XdrGetKeys(bytes[offset:]); err != nil {
+	if pkt.KeysSub, used, err = XdrGetKeys(bytes[offset:]); err != nil {
 		return err
 	}
 	offset += used
@@ -101,15 +101,15 @@ func (c *ConnRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (c *ConnRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, c.Id())
-	XdrPutUint32(buffer, c.Xid)
-	XdrPutUint32(buffer, c.VersionMajor)
-	XdrPutUint32(buffer, c.VersionMinor)
-	XdrPutNotification(buffer, c.Options)
-	XdrPutKeys(buffer, c.KeysNfn)
-	XdrPutKeys(buffer, c.KeysSub)
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.VersionMajor)
+	XdrPutUint32(buffer, pkt.VersionMinor)
+	XdrPutNotification(buffer, pkt.Options)
+	XdrPutKeys(buffer, pkt.KeysNfn)
+	XdrPutKeys(buffer, pkt.KeysSub)
 }
 
 // Packet: Connection Reply
@@ -119,37 +119,37 @@ type ConnRply struct {
 }
 
 // Integer value of packet type
-func (c *ConnRply) Id() int {
+func (pkt *ConnRply) Id() int {
 	return PacketConnRply
 }
 
 // String representation of packet type
-func (c *ConnRply) IdString() string {
+func (pkt *ConnRply) IdString() string {
 	return "ConnRply"
 }
 
 // Pretty print with indent
-func (c *ConnRply) IString(indent string) string {
+func (pkt *ConnRply) IString(indent string) string {
 	return fmt.Sprintf("%sXid: %d\n%sOptions %v\n",
-		indent, c.Xid,
-		indent, c.Options)
+		indent, pkt.Xid,
+		indent, pkt.Options)
 
 }
 
 // Pretty print without indent so generic ToString() works
-func (c *ConnRply) String() string {
-	return c.IString("")
+func (pkt *ConnRply) String() string {
+	return pkt.IString("")
 }
 
 // Decode a ConnRply packet from a byte array
-func (c *ConnRply) Decode(bytes []byte) (err error) {
+func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	c.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
 	offset += used
 
-	c.Options, used, err = XdrGetNotification(bytes[offset:])
+	pkt.Options, used, err = XdrGetNotification(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -159,8 +159,8 @@ func (c *ConnRply) Decode(bytes []byte) (err error) {
 }
 
 // Encode a ConnRply from a buffer
-func (c *ConnRply) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, c.Id())
-	XdrPutUint32(buffer, c.Xid)
-	XdrPutNotification(buffer, c.Options)
+func (pkt *ConnRply) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutNotification(buffer, pkt.Options)
 }
