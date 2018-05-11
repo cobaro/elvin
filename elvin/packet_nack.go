@@ -45,7 +45,7 @@ func (pkt *Nack) IdString() string {
 
 // Pretty print with indent
 func (pkt *Nack) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sErrorCode %v\n%sMessage %v\n%sArgs %v\n%v", // FIXME, testing my go version
+	return fmt.Sprintf("%sXid %v\n%sErrorCode %v\n%sMessage %v\n%sArgs %v\n",
 		indent, pkt.Xid,
 		indent, pkt.ErrorCode,
 		indent, pkt.Message,
