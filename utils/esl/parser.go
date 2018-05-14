@@ -1,5 +1,4 @@
 package main
 
-type  Parser struct {
-
+type Parser struct {
 }
