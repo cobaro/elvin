@@ -1,12 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-	"fmt"
 )
 
+// Lexer states.
 const (
 	inLimbo = iota
 	inIdentifier
@@ -15,17 +16,17 @@ const (
 	inNumber
 )
 
-const invalidRune = '\u0000'
+// Pseudo-terminal, used to report a lexing error to the parser.
 const terminalError = -1
 
-
+// Structure used to pass tokens to the parser.
 type tokenInfo struct {
 	token int
 	value string
 }
 
 func isInitialNumberChar(r rune) bool {
-	return  strings.ContainsRune("0123456789-", r)
+	return strings.ContainsRune("0123456789-", r)
 }
 
 func isNumberChar(r rune) bool {
@@ -45,15 +46,16 @@ func lexer(buf string) []tokenInfo {
 	var i = 0
 	var mode = 0
 	var tokenValue strings.Builder
+	var eof = false
 
 	for {
 		expr := buf[i:]
 		rune1, len1 := utf8.DecodeRuneInString(expr)
-		if len1 == 0 {
-			break
+		if rune1 == 65533 && len1 == 0 {
+			eof = true
 		}
 		rune2, len2 := utf8.DecodeRuneInString(expr[len1:])
-		rune3, _ := utf8.DecodeRuneInString(expr[len1 + len2:])
+		rune3, _ := utf8.DecodeRuneInString(expr[len1+len2:])
 
 		s2 := string([]rune{rune1, rune2})
 		s3 := string([]rune{rune1, rune2, rune3})
@@ -65,7 +67,7 @@ func lexer(buf string) []tokenInfo {
 			} else if rune1 == '"' {
 				mode = inDoubleQuotedString
 				tokenValue.Reset()
-			} else if s3 == ">>>" {  // Must check before '>>' (below)
+			} else if s3 == ">>>" { // Must check before '>>' (below)
 				tokens = append(tokens, tokenInfo{TerminalBIT_LSR, ""})
 				i += 2
 			} else if s2 == ">>" {
@@ -98,7 +100,7 @@ func lexer(buf string) []tokenInfo {
 			} else if rune1 == '\\' {
 				mode = inIdentifier
 				tokenValue.WriteRune(rune2)
-				i += len2  // +=1 at end of loop covers backslash; this is for the real rune
+				i += len2 // +=1 at end of loop covers backslash; this is for the real rune
 			} else if rune1 == '(' {
 				tokens = append(tokens, tokenInfo{TerminalLPAREN, ""})
 			} else if rune1 == ')' {
@@ -137,7 +139,7 @@ func lexer(buf string) []tokenInfo {
 			} else if isInitialNumberChar(rune1) {
 				mode = inNumber
 				tokenValue.WriteRune(rune1)
-			} else if rune1 == invalidRune {
+			} else if eof {
 				tokens = append(tokens, tokenInfo{TerminalEOF, ""})
 				break
 			} else {
@@ -177,7 +179,7 @@ func lexer(buf string) []tokenInfo {
 				tokens = append(tokens, tokenInfo{TerminalSTRING, tokenValue.String()})
 				tokenValue.Reset()
 				mode = inLimbo
-			} else if rune1 == invalidRune {
+			} else if eof {
 				err := fmt.Sprintf("String missing closing single quote at index %d", i)
 				tokens = append(tokens, tokenInfo{terminalError, err})
 			} else {
@@ -192,7 +194,7 @@ func lexer(buf string) []tokenInfo {
 				tokens = append(tokens, tokenInfo{TerminalSTRING, tokenValue.String()})
 				tokenValue.Reset()
 				mode = inLimbo
-			} else if rune1 == invalidRune {
+			} else if eof {
 				err := fmt.Sprintf("String missing closing double quote at index %d", i)
 				tokens = append(tokens, tokenInfo{terminalError, err})
 			} else {
@@ -214,6 +216,7 @@ func lexer(buf string) []tokenInfo {
 			panic("panic")
 		}
 
+		// FIXME: remove debug printing ...
 		fmt.Printf("i=%d, r1=%v, s2=%s, s3=%s, mode=%d, tokenValue=%s, tokens=%#v\n",
 			i, rune1, s2, s3, mode, tokenValue.String(), tokens)
 		i += len1
