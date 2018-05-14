@@ -150,7 +150,7 @@ func lexer(buf string) []tokenInfo {
 			} else if rune1 == '%' {
 				tokens = append(tokens, tokenInfo{TerminalMOD, ""})
 			} else if rune1 == '!' {
-				tokens = append(tokens, tokenInfo{TerminalNEG, ""})
+				tokens = append(tokens, tokenInfo{TerminalBANG, ""})
 			} else if unicode.IsSpace(rune1) {
 				// Whitespace is ignored in limbo mode
 			} else if isInitialNameChar(rune1) {
@@ -237,8 +237,10 @@ func lexer(buf string) []tokenInfo {
 		}
 
 		// FIXME: remove debug printing ...
-		fmt.Printf("i=%d, r1=%v, s2=%s, s3=%s, mode=%d, tokenValue=%s, tokens=%#v\n",
-			i, rune1, s2, s3, mode, tokenValue.String(), tokens)
+		if false {
+			fmt.Printf("i=%d, r1=%v, s2=%s, s3=%s, mode=%d, tokenValue=%s, tokens=%#v\n",
+				i, rune1, s2, s3, mode, tokenValue.String(), tokens)
+		}
 		i += len1
 	}
 
