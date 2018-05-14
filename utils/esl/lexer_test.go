@@ -262,8 +262,8 @@ func TestBitwiseXor(t *testing.T) {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
 
-	if tokens[1].token != TerminalBIT_AND {
-		t.Error("Expected bitwise-COMP; lexer reported ", tokens[1].token)
+	if tokens[1].token != TerminalBIT_XOR {
+		t.Error("Expected bitwise-XOR; lexer reported ", tokens[1].token)
 	}
 }
 
@@ -275,7 +275,7 @@ func TestBitwiseComplement(t *testing.T) {
 		t.Error("Expected 3 tokens; lexer reported ", len(tokens))
 	}
 
-	if tokens[1].token != TerminalNEG {
-		t.Error("Expected bitwise-complement; lexer reported ", tokens[1].token)
+	if tokens[0].token != TerminalNEG {
+		t.Error("Expected bitwise-complement; lexer reported ", tokens[0].token)
 	}
 }
