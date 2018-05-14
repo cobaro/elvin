@@ -37,7 +37,7 @@ func isInitialNameChar(r rune) bool {
 }
 
 func isNameChar(r rune) bool {
-	return !(r < 32 || r > 126 || strings.ContainsRune("\\()\"',", r))
+	return !(r < 32 || r > 126 || strings.ContainsRune("\\()\"', ", r))
 }
 
 func lexer(buf string) []tokenInfo {
