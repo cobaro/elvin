@@ -1,1 +1,5 @@
+.idea
+bin
+pkg
+src
 utils/esl/esl
