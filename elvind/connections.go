@@ -295,7 +295,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		case elvin.PacketShutdown:
 			return errors.New("FIXME: Packet Shutdown")
 		default:
-			return errors.New("FIXME: Packet Unknown")
+			return fmt.Errorf("FIXME: Packet Unknown [%d]", elvin.PacketId(buffer))
 		}
 
 	case StateDisconnecting:
