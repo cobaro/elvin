@@ -28,7 +28,6 @@ import (
 	"github.com/cobaro/elvin/elvin"
 	"io"
 	"math/rand"
-	"net"
 	"sync"
 	// "time"
 )
@@ -45,7 +44,8 @@ const (
 type Connection struct {
 	id             uint32
 	subs           map[uint32]*Subscription
-	conn           net.Conn
+	reader         io.ReadCloser
+	writer         io.WriteCloser
 	state          int
 	writeChannel   chan *bytes.Buffer
 	readTerminate  chan int
@@ -100,14 +100,14 @@ func (conn *Connection) MakeId() {
 // Handle reading for now run as a goroutine
 func (conn *Connection) readHandler() {
 	fmt.Println("Read Handler starting")
-	defer conn.conn.Close()
+	defer conn.reader.Close()
 	defer fmt.Println("Read Handler exiting")
 
 	header := make([]byte, 4)
 
 	for {
 		// Read frame header
-		length, err := readBytes(conn.conn, header, 4)
+		length, err := readBytes(conn.reader, header, 4)
 		if length != 4 || err != nil {
 			// Deal with more errors
 			if err == io.EOF {
@@ -123,7 +123,7 @@ func (conn *Connection) readHandler() {
 		// log.Println("Want to read packet of length:", packetSize)
 		// TODO: buffer cache
 		buffer := make([]byte, packetSize)
-		length, err = readBytes(conn.conn, buffer, int(packetSize))
+		length, err = readBytes(conn.reader, buffer, int(packetSize))
 		if err != nil {
 			// Deal with more errors
 			if err == io.EOF {
@@ -153,11 +153,11 @@ func (conn *Connection) writeHandler() {
 
 			// Write the frame header (packetsize)
 			binary.BigEndian.PutUint32(header, uint32(buffer.Len()))
-			_, err := conn.conn.Write(header)
+			_, err := conn.writer.Write(header)
 			if err != nil {
 				// Deal with more errors
 				if err == io.EOF {
-					conn.conn.Close()
+					conn.writer.Close()
 				} else {
 					fmt.Println("Unexepcted write error:", err)
 				}
@@ -166,11 +166,11 @@ func (conn *Connection) writeHandler() {
 			}
 
 			// Write the packet
-			_, err = buffer.WriteTo(conn.conn)
+			_, err = buffer.WriteTo(conn.writer)
 			if err != nil {
 				// Deal with more errors
 				if err == io.EOF {
-					conn.conn.Close()
+					conn.writer.Close()
 				} else {
 					fmt.Println("Unexepcted write error:", err)
 				}
@@ -312,7 +312,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	connRqst := new(elvin.ConnRqst)
 	if err = connRqst.Decode(buffer); err != nil {
 		conn.state = StateClosed
-		conn.conn.Close()
+		conn.reader.Close()
 	}
 
 	// We're now connected
@@ -342,7 +342,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	disconnRqst := new(elvin.DisconnRqst)
 	if err = disconnRqst.Decode(buffer); err != nil {
 		conn.state = StateClosed
-		conn.conn.Close()
+		conn.reader.Close()
 	}
 
 	// We're now disconnecting

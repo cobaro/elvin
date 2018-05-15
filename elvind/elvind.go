@@ -24,12 +24,12 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	// "github.com/cobaro/elvin/elvin"
 	"log"
 	"net"
 	"os"
 	"os/signal"
-	// "sync"
 )
 
 func main() {
@@ -98,7 +98,8 @@ func Listener(protocol Protocol) {
 		}
 
 		var conn Connection
-		conn.conn = c
+		conn.reader = c
+		conn.writer = c
 		conn.state = StateNew
 		conn.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
 		conn.readTerminate = make(chan int)
@@ -110,7 +111,7 @@ func Listener(protocol Protocol) {
 }
 
 // Read n bytes from conn into buffer
-func readBytes(conn net.Conn, buffer []byte, numToRead int) (int, error) {
+func readBytes(conn io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
 		length, err := conn.Read(buffer[offset:])
