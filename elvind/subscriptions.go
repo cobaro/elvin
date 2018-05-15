@@ -21,8 +21,8 @@
 package main
 
 import (
+	_ "fmt"
 	"github.com/cobaro/elvin/elvin"
-	"sync"
 )
 
 // FIXME:dummy
@@ -34,20 +34,6 @@ type Subscription struct {
 	AcceptInsecure bool
 	Keys           []elvin.Keyset
 	Ast            Ast
-}
-
-// Map of subscriptions to clients
-type Subscriptions struct {
-	subscriptions map[uint64]*Connection // initialized in init()
-	current       uint64                 // Subscription Ids are simply globally incremented as 64 bits is sufficient
-	lock          sync.Mutex             // initialized aautomatically
-}
-
-// Global subscriptions
-var subscriptions Subscriptions
-
-func init() {
-	subscriptions.subscriptions = make(map[uint64]*Connection)
 }
 
 // Parse a subscription expression into an AST
@@ -63,15 +49,4 @@ func Parse(subexpr string) (ast Ast, n *elvin.Nack) {
 		return 0, nack
 	}
 	return 0, nil
-}
-
-// Handle add a subscription into our global subscription engine
-func (sub *Subscription) Add(conn *Connection) {
-	subscriptions.lock.Lock()
-
-	sub.Subid = subscriptions.current
-	subscriptions.current++
-	subscriptions.subscriptions[sub.Subid] = conn
-
-	subscriptions.lock.Unlock()
 }

@@ -27,8 +27,10 @@ import (
 	"fmt"
 	"github.com/cobaro/elvin/elvin"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
+	// "time"
 )
 
 // Connection States
@@ -41,12 +43,58 @@ const (
 
 // A Connection (e.g. a socket)
 type Connection struct {
+	id             uint32
+	subs           map[uint32]*Subscription
 	conn           net.Conn
 	state          int
 	writeChannel   chan *bytes.Buffer
 	readTerminate  chan int
 	writeTerminate chan int
-	// lock           sync.Mutex
+}
+
+// A buffer pool as we use lots of these for writing to
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
+// Global connections
+
+type Connections struct {
+	connections map[uint32]*Connection // initialized in init()
+	lock        sync.Mutex             // initialized automatically
+}
+
+var connections Connections
+
+func init() {
+	// rand.New(rand.NewSource(time.Now().UnixNano()))
+	connections.connections = make(map[uint32]*Connection)
+}
+
+// Return our unique 32 bit unsigned identifier
+func (conn *Connection) Id() uint32 {
+	return conn.id
+}
+
+// Create a unique 32 bit unsigned integer id
+func (conn *Connection) MakeId() {
+	connections.lock.Lock()
+	defer connections.lock.Unlock()
+	var c uint32 = rand.Uint32()
+	for {
+		_, err := connections.connections[c]
+		if !err {
+			break
+		}
+		c++
+	}
+
+	// fmt.Println("conn id is", c)
+	conn.id = c
+	connections.connections[c] = conn
+	return
 }
 
 // Handle reading for now run as a goroutine
@@ -146,9 +194,12 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case elvin.PacketDropWarn:
 	case elvin.PacketReserved:
 	case elvin.PacketNotifyDeliver:
+	case elvin.PacketNack:
+	case elvin.PacketConnRply:
+	case elvin.PacketDisconnRply:
 		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIdString(elvin.PacketId(buffer)))
 
-		// Protocol Packets not planned for the short term
+	// Protocol Packets not planned for the short term
 	case elvin.PacketSvrRqst:
 	case elvin.PacketSvrAdvt:
 	case elvin.PacketSvrAdvtClose:
@@ -173,6 +224,9 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case elvin.PacketServerReport:
 	case elvin.PacketServerNack:
 	case elvin.PacketServerStatsReport:
+	case elvin.PacketSubAddNotify:
+	case elvin.PacketSubModNotify:
+	case elvin.PacketSubDelNotify:
 		return fmt.Errorf("UnimplementedError: %s received", elvin.PacketIdString(elvin.PacketId(buffer)))
 	}
 
@@ -195,14 +249,8 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 
 		// FIXME: implement or move this lot in the short term
 		switch elvin.PacketId(buffer) {
-		case elvin.PacketNack:
-			return errors.New("FIXME: Packet Nack")
-		case elvin.PacketConnRply:
-			return errors.New("FIXME: Packet ConnRply")
 		case elvin.PacketDisconnRqst:
-			return errors.New("FIXME: Packet DisconnRqst")
-		case elvin.PacketDisconnRply:
-			return errors.New("FIXME: Packet DisconnRply")
+			return conn.HandleDisconnRqst(buffer)
 		case elvin.PacketDisconn:
 			return errors.New("FIXME: Packet Disconn")
 		case elvin.PacketSecRqst:
@@ -214,9 +262,9 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		case elvin.PacketSubAddRqst:
 			return conn.HandleSubAddRqst(buffer)
 		case elvin.PacketSubModRqst:
-			return errors.New("FIXME: Packet SubModRqst")
+			return conn.HandleSubModRqst(buffer)
 		case elvin.PacketSubDelRqst:
-			return errors.New("FIXME: Packet SubDelRqst")
+			return conn.HandleSubDelRqst(buffer)
 		case elvin.PacketSubRply:
 			return errors.New("FIXME: Packet SubRply")
 		case elvin.PacketTestConn:
@@ -237,12 +285,6 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 			return errors.New("FIXME: Packet QosRqst")
 		case elvin.PacketQosRply:
 			return errors.New("FIXME: Packet QosRply")
-		case elvin.PacketSubAddNotify:
-			return errors.New("FIXME: Packet SubAddNotify")
-		case elvin.PacketSubModNotify:
-			return errors.New("FIXME: Packet SubModNotify")
-		case elvin.PacketSubDelNotify:
-			return errors.New("FIXME: Packet SubDelNotify")
 		case elvin.PacketActivate:
 			return errors.New("FIXME: Packet Activate")
 		case elvin.PacketStandby:
@@ -268,14 +310,14 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	// FIXME: no range checking
 	connRqst := new(elvin.ConnRqst)
 	if err = connRqst.Decode(buffer); err != nil {
-		// FIXME: Send a nack
-		// FIXME: disconnect (and move the close()
+		conn.state = StateClosed
 		conn.conn.Close()
 	}
-	// fmt.Println(connRqst)
 
 	// We're now connected
+	conn.MakeId()
 	conn.state = StateConnected
+	conn.subs = make(map[uint32]*Subscription)
 
 	// Respond with a Connection Reply
 	connRply := new(elvin.ConnRply)
@@ -293,6 +335,41 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	return nil
 }
 
+// Handle a Disconnection Request
+func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
+	// FIXME: no range checking
+	disconnRqst := new(elvin.DisconnRqst)
+	if err = disconnRqst.Decode(buffer); err != nil {
+		conn.state = StateClosed
+		conn.conn.Close()
+	}
+
+	// We're now disconnecting
+	conn.state = StateDisconnecting
+
+	// Respond with a Disconnection Reply
+	DisconnRply := new(elvin.DisconnRply)
+	DisconnRply.Xid = disconnRqst.Xid
+
+	fmt.Println("Disconnected")
+
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	DisconnRply.Encode(buf)
+	conn.writeChannel <- buf
+
+	for subid, _ := range conn.subs {
+		// FIXME: send subscription removal to sub engine
+		delete(conn.subs, subid)
+	}
+
+	connections.lock.Lock()
+	defer connections.lock.Unlock()
+	delete(connections.connections, conn.id)
+
+	return nil
+}
+
 // Handle a NotifyEmit
 func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	// FIXME: no range checking
@@ -304,23 +381,26 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 
 	// As a dummy for now we're going to send every message we see to every subscription
 	// as if all evaluate to true. Don't worry about the giant lock - this all goes away
-	// Also we send it over the wire multiple times not once per connection ... oops ;-)
+	connections.lock.Lock()
+	defer connections.lock.Unlock()
 	nd := new(elvin.NotifyDeliver)
 	nd.NameValue = ne.NameValue
-	nd.Insecure = []uint64{0}
 
-	subscriptions.lock.Lock()
-	for subid, conn := range subscriptions.subscriptions {
-		nd.Insecure[0] = subid
+	for connid, connection := range connections.connections {
+		nd.Insecure = make([]uint64, len(connection.subs))
+		i := 0
+		for id, _ := range connection.subs {
+			nd.Insecure[i] = uint64(connid)<<32 | uint64(id)
+			i++
+		}
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nd.Encode(buf)
-		conn.writeChannel <- buf
+		connection.writeChannel <- buf
 	}
-	subscriptions.lock.Unlock()
 	return nil
 }
 
-// Handle a NotifyEmit
+// Handle a Subscription Add
 func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	// FIXME: no range checking
 	subRqst := new(elvin.SubAddRqst)
@@ -341,12 +421,26 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	sub.Ast = ast
 	sub.AcceptInsecure = subRqst.AcceptInsecure
 	sub.Keys = subRqst.Keys
-	sub.Add(conn)
+
+	// Create a unique sub id
+	var s uint32 = rand.Uint32()
+	for {
+		_, err := conn.subs[s]
+		if !err {
+			break
+		}
+		s++
+	}
+	conn.subs[s] = &sub
+	sub.Subid = (uint64(conn.id) << 32) | uint64(s)
+
+	// FIXME: send subscription addition to sub engine
 
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subRqst.Xid
 	subRply.Subid = sub.Subid
+	fmt.Println("Replying with SubRply\n", subRply)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -355,9 +449,51 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	return nil
 }
 
-// A buffer pool as we use lots of these for writing to
-var bufferPool = sync.Pool{
-	New: func() interface{} {
-		return new(bytes.Buffer)
-	},
+// Handle a Subscription Delete
+func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
+	// FIXME: no range checking
+	subDelRqst := new(elvin.SubDelRqst)
+	err = subDelRqst.Decode(buffer)
+	if err != nil {
+		// FIXME
+	}
+	fmt.Println("Received SubDelRqst\n", subDelRqst)
+
+	// If deletion fails then nack and disconn
+	idx := uint32(subDelRqst.Subid & 0xfffffffff)
+	sub, exists := conn.subs[idx]
+	if !exists {
+		nack := new(elvin.Nack)
+		nack.ErrorCode = elvin.ErrorsUnknownSubid
+		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubid]
+		nack.Args = make([]interface{}, 1)
+		nack.Args[0] = sub.Subid
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nack.Encode(buf)
+		conn.writeChannel <- buf
+
+		// FIXME Disconnect as that's a protocol violation
+		return nil
+	}
+
+	// Remove it from the connection
+	delete(conn.subs, idx)
+
+	// Respond with a SubRply
+	subRply := new(elvin.SubRply)
+	subRply.Xid = subDelRqst.Xid
+	subRply.Subid = subDelRqst.Subid
+	fmt.Println("Replying with SubRply\n", subRply)
+
+	// FIXME: send subscription deletion to sub engine
+
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	subRply.Encode(buf)
+	conn.writeChannel <- buf
+	return nil
+}
+
+func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
+	return nil
 }
