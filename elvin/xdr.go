@@ -271,8 +271,8 @@ func XdrPutValue(buffer *bytes.Buffer, value interface{}) {
 		XdrPutOpaque(buffer, value.([]uint8))
 	default:
 		XdrPutInt32(buffer, 0)
+		// FIXME: This seems harsh in it's be strict what you send
 		panic(fmt.Sprintf("What *type* is: %v", typ))
-		return
 	}
 	return
 }
