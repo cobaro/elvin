@@ -164,3 +164,91 @@ func (pkt *ConnRply) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutNotification(buffer, pkt.Options)
 }
+
+// Packet: Disconnection Request
+type DisconnRqst struct {
+	Xid uint32
+}
+
+// Integer value of packet type
+func (pkt *DisconnRqst) Id() int {
+	return PacketDisconnRqst
+}
+
+// String representation of packet type
+func (pkt *DisconnRqst) IdString() string {
+	return "DisconnRqst"
+}
+
+// Pretty print with indent
+func (pkt *DisconnRqst) IString(indent string) string {
+	return fmt.Sprintf(
+		"%sXid: %d\n",
+		indent, pkt.Xid)
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *DisconnRqst) String() string {
+	return pkt.IString("")
+}
+
+// Decode a DisconnRqst packet from a byte array
+func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4 // header
+
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	offset += used
+
+	return nil
+}
+
+func (pkt *DisconnRqst) Encode(buffer *bytes.Buffer) {
+	// FIXME: error handling
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+}
+
+// Packet: Disconnection Request
+type DisconnRply struct {
+	Xid uint32
+}
+
+// Integer value of packet type
+func (pkt *DisconnRply) Id() int {
+	return PacketDisconnRply
+}
+
+// String representation of packet type
+func (pkt *DisconnRply) IdString() string {
+	return "DisconnRply"
+}
+
+// Pretty print with indent
+func (pkt *DisconnRply) IString(indent string) string {
+	return fmt.Sprintf(
+		"%sXid: %d\n",
+		indent, pkt.Xid)
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *DisconnRply) String() string {
+	return pkt.IString("")
+}
+
+// Decode a DisconnRply packet from a byte array
+func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4 // header
+
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	offset += used
+
+	return nil
+}
+
+func (pkt *DisconnRply) Encode(buffer *bytes.Buffer) {
+	// FIXME: error handling
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+}
