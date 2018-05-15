@@ -21,6 +21,7 @@
 package elvin
 
 import (
+	"bytes"
 	"encoding/binary"
 )
 
@@ -216,7 +217,7 @@ type Packet interface {
 	IdString() string
 	String() string
 	Decode(bytes []byte) (err error)
-	Encode() (bytes []byte, err error)
+	Encode(buffer *bytes.Buffer)
 }
 
 // Notification element types
