@@ -207,7 +207,7 @@ func (pkt *SubModRqst) IdString() string {
 
 // Pretty print with indent
 func (pkt *SubModRqst) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sSubId %v\nExpression %v\n%sAcceptInsecure %v\n%sAddKeys %v\n%sDelKeys %v\n",
+	return fmt.Sprintf("%sXid %v\n%sSubId %v\n%sExpression %v\n%sAcceptInsecure %v\n%sAddKeys %v\n%sDelKeys %v\n",
 		indent, pkt.Xid,
 		indent, pkt.Subid,
 		indent, pkt.Expression,
