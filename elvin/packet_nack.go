@@ -87,7 +87,8 @@ func (pkt *Nack) Encode(buffer *bytes.Buffer) {
 // FIXME: Think about how to structure these and split out
 
 const (
-	ErrorsParsing = 02101
+	ErrorsUnknownSubid = 1002
+	ErrorsParsing      = 2101
 )
 
 var ProtocolErrors map[int]string
@@ -95,4 +96,5 @@ var ProtocolErrors map[int]string
 func init() {
 	ProtocolErrors = make(map[int]string)
 	ProtocolErrors[ErrorsParsing] = "Parse error before %2 at position %1" // string, int
+	ProtocolErrors[ErrorsUnknownSubid] = "Unknown subscription id %1"      // int64
 }
