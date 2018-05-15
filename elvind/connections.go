@@ -405,7 +405,10 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	// FIXME: no range checking
 	subRqst := new(elvin.SubAddRqst)
 	err = subRqst.Decode(buffer)
-	fmt.Println("Received", subRqst)
+	if err != nil {
+		// FIXME: Protocol violation
+	}
+	// fmt.Println("Received", subRqst)
 
 	ast, nack := Parse(subRqst.Expression)
 	if nack != nil {
@@ -440,7 +443,7 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subRqst.Xid
 	subRply.Subid = sub.Subid
-	fmt.Println("Replying with SubRply\n", subRply)
+	// fmt.Println("Replying with SubRply\n", subRply)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -455,9 +458,9 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	subDelRqst := new(elvin.SubDelRqst)
 	err = subDelRqst.Decode(buffer)
 	if err != nil {
-		// FIXME
+		// FIXME: Protocol violation
 	}
-	fmt.Println("Received SubDelRqst\n", subDelRqst)
+	// fmt.Println("Received SubDelRqst\n", subDelRqst)
 
 	// If deletion fails then nack and disconn
 	idx := uint32(subDelRqst.Subid & 0xfffffffff)
@@ -483,7 +486,7 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subDelRqst.Xid
 	subRply.Subid = subDelRqst.Subid
-	fmt.Println("Replying with SubRply\n", subRply)
+	// fmt.Println("Replying with SubRply\n", subRply)
 
 	// FIXME: send subscription deletion to sub engine
 
@@ -495,5 +498,68 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 }
 
 func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
+	// FIXME: no range checking
+	subModRqst := new(elvin.SubModRqst)
+	err = subModRqst.Decode(buffer)
+	if err != nil {
+		// FIXME: Protocol violation
+	}
+	//fmt.Println("Received SubModRqst\n", subModRqst)
+
+	// If modify fails then nack and disconn
+	idx := uint32(subModRqst.Subid & 0xfffffffff)
+	sub, exists := conn.subs[idx]
+	if !exists {
+		nack := new(elvin.Nack)
+		nack.ErrorCode = elvin.ErrorsUnknownSubid
+		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubid]
+		nack.Args = make([]interface{}, 1)
+		nack.Args[0] = sub.Subid
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nack.Encode(buf)
+		conn.writeChannel <- buf
+
+		// FIXME Disconnect as that's a protocol violation
+		return nil
+	}
+
+	// FIXME: At some point this sub will need a lock but for now it's all handled in the read goroutine
+	// FIXME: And any update to the sub should be all or nothing
+
+	// Check the subscription expression. Empty is ok. Incorrect means bail.
+	if len(subModRqst.Expression) > 0 {
+		ast, nack := Parse(subModRqst.Expression)
+		if nack != nil {
+			nack.Xid = subModRqst.Xid
+			buf := bufferPool.Get().(*bytes.Buffer)
+			nack.Encode(buf)
+			conn.writeChannel <- buf
+			return nil
+		}
+		sub.Ast = ast
+	}
+
+	// AcceptInsecure is the only piece that must have a value - and it is allowed to be the same
+	sub.AcceptInsecure = subModRqst.AcceptInsecure
+
+	// We ignore deletion requests that don't exist
+	if len(subModRqst.DelKeys) > 0 {
+		// FIXME: implement
+	}
+
+	// We ignore addition requests that already exist
+	if len(subModRqst.AddKeys) > 0 {
+		// FIXME: implement
+	}
+
+	// Respond with a SubRply
+	subRply := new(elvin.SubRply)
+	subRply.Xid = subModRqst.Xid
+	subRply.Subid = subModRqst.Subid
+
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	subRply.Encode(buf)
+	conn.writeChannel <- buf
 	return nil
 }

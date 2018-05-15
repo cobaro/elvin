@@ -183,3 +183,72 @@ func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.Subid)
 }
+
+// Packet: SubModRqst
+
+type SubModRqst struct {
+	Xid            uint32
+	Subid          uint64
+	Expression     string
+	AcceptInsecure bool
+	AddKeys        []Keyset
+	DelKeys        []Keyset
+}
+
+// Integer value of packet type
+func (pkt *SubModRqst) Id() int {
+	return PacketSubModRqst
+}
+
+// String representation of packet type
+func (pkt *SubModRqst) IdString() string {
+	return "SubModRqst"
+}
+
+// Pretty print with indent
+func (pkt *SubModRqst) IString(indent string) string {
+	return fmt.Sprintf("%sXid %v\n%sSubId %v\nExpression %v\n%sAcceptInsecure %v\n%sAddKeys %v\n%sDelKeys %v\n",
+		indent, pkt.Xid,
+		indent, pkt.Subid,
+		indent, pkt.Expression,
+		indent, pkt.AcceptInsecure,
+		indent, pkt.AddKeys,
+		indent, pkt.DelKeys,
+	)
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *SubModRqst) String() string {
+	return pkt.IString("")
+}
+
+// Decode a SubModRqst packet from a byte array
+func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4 // header
+
+	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	offset += used
+	pkt.Subid, used = XdrGetUint64(bytes[offset:])
+	offset += used
+	pkt.Expression, used = XdrGetString(bytes[offset:])
+	offset += used
+	pkt.AcceptInsecure, used = XdrGetBool(bytes[offset:])
+	offset += used
+	pkt.AddKeys, used, err = XdrGetKeys(bytes[offset:])
+	offset += used
+	pkt.DelKeys, used, err = XdrGetKeys(bytes[offset:])
+	offset += used
+	return err
+}
+
+// Encode a SubModRqst from a buffer
+func (pkt *SubModRqst) Encode(buffer *bytes.Buffer) {
+	// FIXME: error handling
+	XdrPutInt32(buffer, pkt.Id())
+	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint64(buffer, pkt.Subid)
+	XdrPutBool(buffer, pkt.AcceptInsecure)
+	XdrPutKeys(buffer, pkt.AddKeys)
+	XdrPutKeys(buffer, pkt.DelKeys)
+}
