@@ -151,7 +151,6 @@ func (conn *Connection) writeHandler() {
 		select {
 		case buffer := <-conn.writeChannel:
 
-			defer bufferPool.Put(buffer)
 			// Write the frame header (packetsize)
 			binary.BigEndian.PutUint32(header, uint32(buffer.Len()))
 			_, err := conn.conn.Write(header)
@@ -162,6 +161,7 @@ func (conn *Connection) writeHandler() {
 				} else {
 					fmt.Println("Unexepcted write error:", err)
 				}
+				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
 			}
 
@@ -174,6 +174,7 @@ func (conn *Connection) writeHandler() {
 				} else {
 					fmt.Println("Unexepcted write error:", err)
 				}
+				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
 			}
 		case <-conn.writeTerminate:
