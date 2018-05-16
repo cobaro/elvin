@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cobaro/elvin/elvin"
+	"github.com/golang/glog"
 	"io"
 	"math/rand"
 	"sync"
@@ -91,7 +92,9 @@ func (conn *Connection) MakeId() {
 		c++
 	}
 
-	// fmt.Println("conn id is", c)
+	if glog.V(3) {
+		glog.Infof("conn id is", c)
+	}
 	conn.id = c
 	connections.connections[c] = conn
 	return
@@ -99,9 +102,13 @@ func (conn *Connection) MakeId() {
 
 // Handle reading for now run as a goroutine
 func (conn *Connection) readHandler() {
-	fmt.Println("Read Handler starting")
+	if glog.V(2) {
+		glog.Infof("Read Handler starting")
+	}
 	defer conn.reader.Close()
-	defer fmt.Println("Read Handler exiting")
+	if glog.V(2) {
+		defer glog.Infof("Read Handler exiting")
+	}
 
 	header := make([]byte, 4)
 
@@ -113,14 +120,13 @@ func (conn *Connection) readHandler() {
 			if err == io.EOF {
 				conn.writeTerminate <- 1
 			} else {
-				fmt.Println("Read Handler error:", err)
+				glog.Errorf("Read Handler error: %v", err)
 			}
 			return // We're done
 		}
 
 		// Read the protocol packet
 		packetSize := binary.BigEndian.Uint32(header)
-		// log.Println("Want to read packet of length:", packetSize)
 		// TODO: buffer cache
 		buffer := make([]byte, packetSize)
 		length, err = readBytes(conn.reader, buffer, int(packetSize))
@@ -129,14 +135,15 @@ func (conn *Connection) readHandler() {
 			if err == io.EOF {
 				conn.writeTerminate <- 1
 			} else {
-				fmt.Println("Read Handler error:", err)
+				glog.Errorf("Read Handler error: %v", err)
 			}
 			return // We're done
 		}
 
 		// Deal with the packet
 		if err = conn.HandlePacket(buffer); err != nil {
-			fmt.Println(err)
+			glog.Errorf("Read Handler error: %v", err)
+			// FIXME: protocol error
 		}
 
 	}
@@ -144,7 +151,14 @@ func (conn *Connection) readHandler() {
 
 // Handle writing for now run as a goroutine
 func (conn *Connection) writeHandler() {
-	fmt.Println("Write Handler starting ")
+	if glog.V(2) {
+		glog.Infof("Write Handler starting")
+	}
+	if glog.V(2) {
+		defer glog.Infof("Write Handler exiting")
+	}
+	defer conn.reader.Close()
+
 	header := make([]byte, 4)
 
 	for {
@@ -159,7 +173,7 @@ func (conn *Connection) writeHandler() {
 				if err == io.EOF {
 					conn.writer.Close()
 				} else {
-					fmt.Println("Unexepcted write error:", err)
+					glog.Errorf("Unexpected write error: ", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
@@ -172,13 +186,12 @@ func (conn *Connection) writeHandler() {
 				if err == io.EOF {
 					conn.writer.Close()
 				} else {
-					fmt.Println("Unexepcted write error:", err)
+					glog.Errorf("Unexpected write error: ", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
 			}
 		case <-conn.writeTerminate:
-			fmt.Println("Write Handler exiting ")
 			return
 		}
 	}
@@ -186,8 +199,6 @@ func (conn *Connection) writeHandler() {
 
 // Handle a protocol packet
 func (conn *Connection) HandlePacket(buffer []byte) (err error) {
-
-	// fmt.Println("HandlePacket", elvin.PacketIdString(elvin.PacketId(buffer)))
 
 	switch elvin.PacketId(buffer) {
 
@@ -326,7 +337,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	// FIXME; totally bogus
 	connRply.Options = connRqst.Options
 
-	fmt.Println("Connected")
+	glog.Infof("New client %d connected", conn.Id)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -352,7 +363,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	DisconnRply := new(elvin.DisconnRply)
 	DisconnRply.Xid = disconnRqst.Xid
 
-	fmt.Println("Disconnected")
+	glog.Infof("client %d disconnected", conn.Id)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -378,10 +389,10 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	err = ne.Decode(buffer)
 
 	// FIXME: NotifyDeliver
-	// fmt.Println("Received", ne)
 
-	// As a dummy for now we're going to send every message we see to every subscription
-	// as if all evaluate to true. Don't worry about the giant lock - this all goes away
+	// As a dummy for now we're going to send every message we see
+	// to every subscription as if all evaluate to true. Don't
+	// worry about the giant lock - this all goes away
 	connections.lock.Lock()
 	defer connections.lock.Unlock()
 	nd := new(elvin.NotifyDeliver)
@@ -409,7 +420,6 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	if err != nil {
 		// FIXME: Protocol violation
 	}
-	// fmt.Println("Received", subRqst)
 
 	ast, nack := Parse(subRqst.Expression)
 	if nack != nil {
@@ -444,7 +454,6 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subRqst.Xid
 	subRply.Subid = sub.Subid
-	// fmt.Println("Replying with SubRply\n", subRply)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -461,7 +470,6 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	if err != nil {
 		// FIXME: Protocol violation
 	}
-	// fmt.Println("Received SubDelRqst\n", subDelRqst)
 
 	// If deletion fails then nack and disconn
 	idx := uint32(subDelRqst.Subid & 0xfffffffff)
@@ -487,7 +495,6 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subDelRqst.Xid
 	subRply.Subid = subDelRqst.Subid
-	// fmt.Println("Replying with SubRply\n", subRply)
 
 	// FIXME: send subscription deletion to sub engine
 
@@ -505,7 +512,6 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	if err != nil {
 		// FIXME: Protocol violation
 	}
-	//fmt.Println("Received SubModRqst\n", subModRqst)
 
 	// If modify fails then nack and disconn
 	idx := uint32(subModRqst.Subid & 0xfffffffff)

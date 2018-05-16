@@ -22,7 +22,6 @@ package main
 
 import (
 	"bytes"
-	_ "fmt"
 	"github.com/cobaro/elvin/elvin"
 	"io"
 	"testing"

@@ -21,7 +21,6 @@
 package main
 
 import (
-	_ "fmt"
 	"github.com/cobaro/elvin/elvin"
 )
 
