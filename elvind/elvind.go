@@ -23,10 +23,8 @@ package main
 import (
 	"bytes"
 	"flag"
-	"fmt"
+	"github.com/golang/glog"
 	"io"
-	// "github.com/cobaro/elvin/elvin"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -40,10 +38,12 @@ func main() {
 	// Load config
 	config, err := LoadConfig(*configFile)
 	if err != nil {
-		fmt.Println("config load failed:", err)
-		return
+		glog.Fatal("config load failed:", err)
 	}
-	// fmt.Println(*config)
+
+	if glog.V(2) {
+		glog.Infof("Config: %v", *config)
+	}
 
 	// Check Protocols and set up listeners
 	for _, protocol := range config.Protocols {
@@ -52,10 +52,10 @@ func main() {
 			break
 		case "udp":
 		case "ssl":
-			log.Println("Warning: network protocol", protocol.Network, "is currently unsupported")
+			glog.Warningf("network protocol %s is currently unsupported", protocol.Network)
 			continue
 		default:
-			log.Println("Warning: network protocol", protocol.Network, "is unknown")
+			glog.Warningf("network protocol %s is unknown", protocol.Network)
 			continue
 		}
 
@@ -63,10 +63,10 @@ func main() {
 		case "xdr":
 			break
 		case "protobuf":
-			log.Println("Warning: marshal protocol", protocol.Marshal, "is currently unsupported")
+			glog.Warningf("marshal protocol %s is currently unsupported", protocol.Marshal)
 			continue
 		default:
-			log.Println("Warning: marshal protocol", protocol.Marshal, "is unknown")
+			glog.Warningf("marshal protocol %s is unknown", protocol.Marshal)
 			continue
 		}
 		// TODO: track listeners for shutdown
@@ -76,25 +76,25 @@ func main() {
 	// Set up sigint handling and wait for one
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt)
-	log.Println("Exiting on", <-ch)
-	return
+
+	glog.Info("Exiting on ", <-ch)
+	glog.Flush()
+	os.Exit(0)
 }
 
 func Listener(protocol Protocol) {
 
-	fmt.Println("Listening on", protocol.Network, protocol.Marshal, protocol.Address)
+	glog.Infof("Listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
 
 	ln, err := net.Listen(protocol.Network, protocol.Address)
 	if err != nil {
-		fmt.Println("Listen failed:", err)
-		os.Exit(1)
+		glog.Fatal("Listen failed:", err)
 	}
 
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			fmt.Println("Accept failed:", err)
-			os.Exit(1)
+			glog.Fatal("Accept failed:", err)
 		}
 
 		var conn Connection
