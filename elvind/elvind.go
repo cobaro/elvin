@@ -24,7 +24,6 @@ import (
 	"bytes"
 	"flag"
 	"github.com/golang/glog"
-	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -108,17 +107,4 @@ func Listener(protocol Protocol) {
 		go conn.readHandler()
 		go conn.writeHandler()
 	}
-}
-
-// Read n bytes from conn into buffer
-func readBytes(conn io.Reader, buffer []byte, numToRead int) (int, error) {
-	offset := 0
-	for offset < numToRead {
-		length, err := conn.Read(buffer[offset:])
-		if err != nil {
-			return offset + length, err
-		}
-		offset += length
-	}
-	return offset, nil
 }

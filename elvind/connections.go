@@ -93,11 +93,24 @@ func (conn *Connection) MakeId() {
 	}
 
 	if glog.V(3) {
-		glog.Infof("conn id is", c)
+		glog.Infof("conn id is %d", c)
 	}
 	conn.id = c
 	connections.connections[c] = conn
 	return
+}
+
+// Read n bytes from reader into buffer which must be big enough
+func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
+	offset := 0
+	for offset < numToRead {
+		length, err := reader.Read(buffer[offset : numToRead-offset])
+		if err != nil {
+			return offset + length, err
+		}
+		offset += length
+	}
+	return offset, nil
 }
 
 // Handle reading for now run as a goroutine
@@ -111,6 +124,7 @@ func (conn *Connection) readHandler() {
 	}
 
 	header := make([]byte, 4)
+	buffer := make([]byte, 2048)
 
 	for {
 		// Read frame header
@@ -125,10 +139,16 @@ func (conn *Connection) readHandler() {
 			return // We're done
 		}
 
-		// Read the protocol packet
+		// Read the protocol packet, starting with it's length
 		packetSize := binary.BigEndian.Uint32(header)
-		// TODO: buffer cache
-		buffer := make([]byte, packetSize)
+		// Grow our buffer if needed
+		if int(packetSize) > len(buffer) {
+			if glog.V(4) {
+				glog.Infof("Growing buffer to %d bytes", packetSize)
+			}
+			buffer = make([]byte, packetSize)
+		}
+
 		length, err = readBytes(conn.reader, buffer, int(packetSize))
 		if err != nil {
 			// Deal with more errors
@@ -173,7 +193,7 @@ func (conn *Connection) writeHandler() {
 				if err == io.EOF {
 					conn.writer.Close()
 				} else {
-					glog.Errorf("Unexpected write error: ", err)
+					glog.Errorf("Unexpected write error: %v", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
@@ -186,7 +206,7 @@ func (conn *Connection) writeHandler() {
 				if err == io.EOF {
 					conn.writer.Close()
 				} else {
-					glog.Errorf("Unexpected write error: ", err)
+					glog.Errorf("Unexpected write error: %v", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
@@ -337,7 +357,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	// FIXME; totally bogus
 	connRply.Options = connRqst.Options
 
-	glog.Infof("New client %d connected", conn.Id)
+	glog.Infof("New client %d connected", conn.id)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
