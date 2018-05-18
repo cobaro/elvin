@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package main
+package elvin
 
 import (
 	"fmt"
@@ -61,7 +61,7 @@ func isNameChar(r rune) bool {
 	return !(r < 32 || r > 126 || strings.ContainsRune("\\()\"', ", r))
 }
 
-func lexer(buf string) []tokenInfo {
+func Lexer(buf string) []tokenInfo {
 	var tokens []tokenInfo
 	var i = 0
 	var mode = 0

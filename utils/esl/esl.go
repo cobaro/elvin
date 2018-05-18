@@ -23,6 +23,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/cobaro/elvin/elvin"
 	"io/ioutil"
 	"os"
 )
@@ -85,7 +86,7 @@ func main() {
 
 	fmt.Println(subExpr)
 
-	lexer(subExpr)
+	elvin.Lexer(subExpr)
 
 	os.Exit(0)
 }

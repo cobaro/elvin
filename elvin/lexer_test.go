@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package main
+package elvin
 
 import (
 	"testing"
@@ -27,7 +27,7 @@ import (
 func TestRightShiftZero(t *testing.T) {
 	s := " 42 >>> 3 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -40,7 +40,7 @@ func TestRightShiftZero(t *testing.T) {
 func TestRightShift(t *testing.T) {
 	s := " 42 >> 3 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -53,7 +53,7 @@ func TestRightShift(t *testing.T) {
 func TestLeftShift(t *testing.T) {
 	s := " 42 << 3 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -66,7 +66,7 @@ func TestLeftShift(t *testing.T) {
 func TestLogicalAnd(t *testing.T) {
 	s := " a && b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -79,7 +79,7 @@ func TestLogicalAnd(t *testing.T) {
 func TestLogicalOr(t *testing.T) {
 	s := " a || b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -92,7 +92,7 @@ func TestLogicalOr(t *testing.T) {
 func TestLogicalXor(t *testing.T) {
 	s := " a ^^ b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -105,7 +105,7 @@ func TestLogicalXor(t *testing.T) {
 func TestEquals(t *testing.T) {
 	s := " a == b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -118,7 +118,7 @@ func TestEquals(t *testing.T) {
 func TestNotEquals(t *testing.T) {
 	s := " a != b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -131,7 +131,7 @@ func TestNotEquals(t *testing.T) {
 func TestLessThanOrEquals(t *testing.T) {
 	s := " a <= b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -144,7 +144,7 @@ func TestLessThanOrEquals(t *testing.T) {
 func TestGreaterThanOrEquals(t *testing.T) {
 	s := " a >= b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -157,7 +157,7 @@ func TestGreaterThanOrEquals(t *testing.T) {
 func TestIdentifier(t *testing.T) {
 	s := " a == 1 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -175,7 +175,7 @@ func TestIdentifierWithLeadingEscape(t *testing.T) {
 	t.Skip("Until it actually works")
 	s := " \require == 1 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -192,7 +192,7 @@ func TestIdentifierWithLeadingEscape(t *testing.T) {
 func TestLeftParenthesis(t *testing.T) {
 	s := " (foo == 1 || bar == 1) && baz == 3 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 14 {
 		t.Error("Expected 14 tokens; lexer reported ", len(tokens))
 	}
@@ -205,7 +205,7 @@ func TestLeftParenthesis(t *testing.T) {
 func TestRightParenthesis(t *testing.T) {
 	s := " (foo == 1 || bar == 1) && baz == 3 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 14 {
 		t.Error("Expected 14 tokens; lexer reported ", len(tokens))
 	}
@@ -218,7 +218,7 @@ func TestRightParenthesis(t *testing.T) {
 func TestComma(t *testing.T) {
 	s := "equals(Group, 'foo', 'bar', 'baz')"
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 11 {
 		t.Error("Expecting 11 tokens; lexer reported ", len(tokens))
 	}
@@ -231,7 +231,7 @@ func TestComma(t *testing.T) {
 func TestBitwiseAnd(t *testing.T) {
 	s := " b & 15 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -244,7 +244,7 @@ func TestBitwiseAnd(t *testing.T) {
 func TestBitwiseOr(t *testing.T) {
 	s := " b | 15 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -257,7 +257,7 @@ func TestBitwiseOr(t *testing.T) {
 func TestBitwiseXor(t *testing.T) {
 	s := " b ^ 15 "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 4 {
 		t.Error("Expected 4 tokens; lexer reported ", len(tokens))
 	}
@@ -270,7 +270,7 @@ func TestBitwiseXor(t *testing.T) {
 func TestBitwiseComplement(t *testing.T) {
 	s := " ~b "
 	var tokens []tokenInfo
-	tokens = lexer(s)
+	tokens = Lexer(s)
 	if len(tokens) != 3 {
 		t.Error("Expected 3 tokens; lexer reported ", len(tokens))
 	}

@@ -24,19 +24,16 @@ import (
 	"github.com/cobaro/elvin/elvin"
 )
 
-// FIXME:dummy
-type Ast int
-
 // A Subscription
 type Subscription struct {
 	Subid          uint64
 	AcceptInsecure bool
 	Keys           []elvin.Keyset
-	Ast            Ast
+	Ast            *elvin.AST
 }
 
 // Parse a subscription expression into an AST
-func Parse(subexpr string) (ast Ast, n *elvin.Nack) {
+func Parse(subexpr string) (ast *elvin.AST, n *elvin.Nack) {
 	// For now 'bogus' fails and everything else succeeds
 	if subexpr == "bogus" {
 		nack := new(elvin.Nack)
@@ -45,7 +42,7 @@ func Parse(subexpr string) (ast Ast, n *elvin.Nack) {
 		nack.Args = make([]interface{}, 2)
 		nack.Args[0] = 0
 		nack.Args[1] = "bogus"
-		return 0, nack
+		return nil, nack
 	}
-	return 0, nil
+	return nil, nil
 }
