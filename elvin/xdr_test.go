@@ -22,9 +22,181 @@ package elvin
 
 import (
 	"bytes"
+	"math"
 	"reflect"
 	"testing"
 )
+
+func TestXdrInt16(t *testing.T) {
+	var b bytes.Buffer
+	tests := []int16{1, math.MaxInt16, 0x7ead, 0x73b9}
+
+	for _, test := range tests {
+		XdrPutInt16(&b, test)
+		i, used := XdrGetInt16(b.Bytes())
+		if i != test {
+			t.Fatalf("Marshal/Unmarshal of %d failed", test)
+		}
+		if used != 4 { // int32 on the wire
+			t.Fatalf("Unmarshal of 16 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrUint16(t *testing.T) {
+	var b bytes.Buffer
+	tests := []uint16{1, math.MaxUint16, 0xdead, 0xfedc}
+	for _, test := range tests {
+		XdrPutUint16(&b, test)
+		u, used := XdrGetUint16(b.Bytes())
+		if u != test {
+			t.Fatalf("Marshal/Unmarshal of %d failed", test)
+		}
+		if used != 4 { // int32 on the wire
+			t.Fatalf("Unmarshal of 16 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrInt32(t *testing.T) {
+	var b bytes.Buffer
+	tests := []int{1, math.MaxInt32, 0x7eadbeef, 0x7373b9b9}
+
+	for _, test := range tests {
+		XdrPutInt32(&b, test)
+		i, used := XdrGetInt32(b.Bytes())
+		if i != test {
+			t.Fatalf("Marshal/Unmarshal of %d failed", test)
+		}
+		if used != 4 {
+			t.Fatalf("Unmarshal of 32 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrUint32(t *testing.T) {
+	var b bytes.Buffer
+	tests := []uint32{1, math.MaxUint32, 0xdeadbeef, 0xfedccdef}
+	for _, test := range tests {
+		XdrPutUint32(&b, test)
+		u, used := XdrGetUint32(b.Bytes())
+		if u != test {
+			t.Fatalf("Marshal/Unmarshal of %d failed", test)
+		}
+		if used != 4 {
+			t.Fatalf("Unmarshal of 32 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrInt64(t *testing.T) {
+	var b bytes.Buffer
+	tests := []int64{1, math.MaxInt64, 0x7eadbeefdeadbeef, 0x7373b9b9dada5151}
+
+	for _, test := range tests {
+		XdrPutInt64(&b, test)
+		v, used := XdrGetInt64(b.Bytes())
+		if v != test {
+			t.Fatalf("Marshal/Unmarshal of %v->%v failed", test, v)
+		}
+		if used != 8 {
+			t.Fatalf("Unmarshal of 64 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrUint64(t *testing.T) {
+	var b bytes.Buffer
+	tests := []uint64{1, math.MaxUint64, 0xdeadbeefdeadbeef, 0xfedccdef98766789}
+	for _, test := range tests {
+		XdrPutUint64(&b, test)
+		v, used := XdrGetUint64(b.Bytes())
+		if v != test {
+			t.Fatalf("Marshal/Unmarshal of %v->%v failed", test, v)
+		}
+		if used != 8 {
+			t.Fatalf("Unmarshal of 64 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrBool(t *testing.T) {
+	var b bytes.Buffer
+
+	tests := []bool{true, false}
+	for _, test := range tests {
+		XdrPutBool(&b, test)
+		v, used := XdrGetBool(b.Bytes())
+		if v != test {
+			t.Fatalf("Marshal/Unmarshal of %v->%v failed", test, v)
+		}
+		if used != 4 { // int32 on the wire
+			t.Fatalf("Unmarshal of 64 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrFloat64(t *testing.T) {
+	var b bytes.Buffer
+
+	tests := []float64{0, 1, math.Pi, math.E, float64(math.MaxFloat32), math.MaxFloat64}
+	for _, test := range tests {
+		XdrPutFloat64(&b, test)
+		v, used := XdrGetFloat64(b.Bytes())
+		if v != test {
+			t.Fatalf("Marshal/Unmarshal of %v->%v failed", test, v)
+		}
+		if used != 8 {
+			t.Fatalf("Unmarshal of 64 bit type used %d bytes", used)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrString(t *testing.T) {
+	var b bytes.Buffer
+
+	tests := []string{"", "a", "ab", "abc", "abcd", "abcde", ";kashf;kdhsaflkadsflkhasdlkfhladkshflkadhsflkhasdlfkhalskdhfksdjahfklasdhfklahdsfk9843y5043ryehfdlskhsdlkfy90834yrid;kafknzxcn@%$#%$@%$W&%^*T*(&&()*)"}
+	for _, test := range tests {
+		XdrPutString(&b, test)
+		v, _ := XdrGetString(b.Bytes())
+		if v != test {
+			t.Fatalf("Marshal/Unmarshal of %v->%v failed", test, v)
+		}
+		b.Reset()
+	}
+	return
+}
+
+func TestXdrOpaque(t *testing.T) {
+	var b bytes.Buffer
+
+	tests := [][]byte{[]byte{}, []byte{0}, []byte{0, 1}, []byte{0, 1, 2}, []byte{0, 1, 2, 3}, []byte{0, 1, 2, 3, 127, 255}}
+	for _, test := range tests {
+		XdrPutOpaque(&b, test)
+		v, _ := XdrGetOpaque(b.Bytes())
+		if bytes.Compare(v, test) != 0 {
+			t.Fatalf("Marshal/Unmarshal of %v->%v failed", test, v)
+		}
+		b.Reset()
+	}
+	return
+}
 
 func TestXdrNotification(t *testing.T) {
 	nfn := make(map[string]interface{})

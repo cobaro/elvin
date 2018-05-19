@@ -101,7 +101,7 @@ func XdrPutUint64(buffer *bytes.Buffer, u uint64) {
 // Get an xdr marshalled bool (on the wire it's a 32 bit signed int)
 func XdrGetBool(bytes []byte) (b bool, used int) {
 	i, used := XdrGetInt32(bytes)
-	b = (i == 0)
+	b = (i != 0)
 	return b, used
 }
 
