@@ -46,7 +46,7 @@ type Connection struct {
 	id             uint32
 	subs           map[uint32]*Subscription
 	reader         io.Reader
-	writer         io.WriteCloser
+	writer         io.Writer
 	closer         io.Closer
 	state          int
 	writeChannel   chan *bytes.Buffer
@@ -193,7 +193,7 @@ func (conn *Connection) writeHandler() {
 			if err != nil {
 				// Deal with more errors
 				if err == io.EOF {
-					conn.writer.Close()
+					conn.closer.Close()
 				} else {
 					glog.Errorf("Unexpected write error: %v", err)
 				}
@@ -206,7 +206,7 @@ func (conn *Connection) writeHandler() {
 			if err != nil {
 				// Deal with more errors
 				if err == io.EOF {
-					conn.writer.Close()
+					conn.closer.Close()
 				} else {
 					glog.Errorf("Unexpected write error: %v", err)
 				}

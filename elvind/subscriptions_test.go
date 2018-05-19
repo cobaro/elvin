@@ -37,14 +37,24 @@ func Xid() uint32 {
 
 func TestMockup(t *testing.T) {
 
-	return
-
-	// Create a dummy connection, reader, and writer
+	// Create a dummy connection using pipes, assigning roles for
+	// reader,writer, and closer
+	//
+	// client write ----> server read
+	//                        |
+	// client read ----> server write
+	//
+	// closer needs to be assigned from the return from io.Pipe()
+	// return although we could use a CloseReader
 	var server, client Connection
-	client.reader, server.writer = io.Pipe()
-	server.reader, client.writer = io.Pipe()
-	// client.closer = client.reader
-	// server.closer = server.reader
+	cr, sw := io.Pipe()
+	sr, cw := io.Pipe()
+	client.reader = cr
+	client.writer = cw
+	client.closer = cr
+	server.reader = sr
+	server.writer = sw
+	server.closer = sr
 
 	server.state = StateNew
 	server.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
