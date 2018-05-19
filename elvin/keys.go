@@ -31,6 +31,6 @@ const (
 )
 
 type Keyset struct {
-	KeyScheme int
+	KeyScheme int32
 	Keysets   [][]byte
 }

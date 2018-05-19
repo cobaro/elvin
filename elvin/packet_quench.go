@@ -64,17 +64,30 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	nameCount, used := XdrGetUint32(bytes[offset:])
+	nameCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	for i := uint32(0); i < nameCount; i++ {
-		pkt.Names[i], used = XdrGetString(bytes[offset:])
+		pkt.Names[i], used, err = XdrGetString(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	pkt.DeliverInsecure, used = XdrGetBool(bytes[offset:])
+	pkt.DeliverInsecure, used, err = XdrGetBool(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	pkt.Keys, used, err = XdrGetKeys(bytes[offset:])
@@ -87,7 +100,7 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 }
 
 func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, uint32(len(pkt.Names)))
 	for i := 0; i < len(pkt.Names); i++ {
 		XdrPutString(buffer, pkt.Names[i])
@@ -140,27 +153,48 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	pkt.QuenchId, used = XdrGetUint64(bytes[offset:])
+	pkt.QuenchId, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	namesAddCount, used := XdrGetUint32(bytes[offset:])
+	namesAddCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 	for i := uint32(0); i < namesAddCount; i++ {
-		pkt.NamesAdd[i], used = XdrGetString(bytes[offset:])
+		pkt.NamesAdd[i], used, err = XdrGetString(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	namesDelCount, used := XdrGetUint32(bytes[offset:])
+	namesDelCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 	for i := uint32(0); i < namesDelCount; i++ {
-		pkt.NamesDel[i], used = XdrGetString(bytes[offset:])
+		pkt.NamesDel[i], used, err = XdrGetString(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	pkt.DeliverInsecure, used = XdrGetBool(bytes[offset:])
+	pkt.DeliverInsecure, used, err = XdrGetBool(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	pkt.AddKeys, used, err = XdrGetKeys(bytes[offset:])
@@ -179,7 +213,7 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 }
 
 func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint64(buffer, pkt.QuenchId)
 	XdrPutUint32(buffer, uint32(len(pkt.NamesAdd)))
 	for i := 0; i < len(pkt.NamesAdd); i++ {
@@ -223,17 +257,23 @@ func (pkt *QnchDelRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	pkt.QuenchId, used = XdrGetUint64(bytes[offset:])
+	pkt.QuenchId, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	return nil
 }
 
 func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint64(buffer, pkt.QuenchId)
 }
 
@@ -266,17 +306,23 @@ func (pkt *QnchRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	pkt.QuenchId, used = XdrGetUint64(bytes[offset:])
+	pkt.QuenchId, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	return nil
 }
 
 func (pkt *QnchRply) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint64(buffer, pkt.QuenchId)
 }
 
@@ -315,21 +361,38 @@ func (pkt *SubAddNotify) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	secureQidsCount, used := XdrGetUint32(bytes[offset:])
+	secureQidsCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	for i := uint32(0); i < secureQidsCount; i++ {
-		pkt.SecureQuenchIds[i], used = XdrGetUint64(bytes[offset:])
+		pkt.SecureQuenchIds[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	insecureQidsCount, used := XdrGetUint32(bytes[offset:])
+	insecureQidsCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	for i := uint32(0); i < insecureQidsCount; i++ {
-		pkt.InsecureQuenchIds[i], used = XdrGetUint64(bytes[offset:])
+		pkt.InsecureQuenchIds[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	pkt.TermId, used = XdrGetUint64(bytes[offset:])
+	pkt.TermId, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	// FIXME
@@ -390,21 +453,38 @@ func (pkt *SubModNotify) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	secureQidsCount, used := XdrGetUint32(bytes[offset:])
+	secureQidsCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	for i := uint32(0); i < secureQidsCount; i++ {
-		pkt.SecureQuenchIds[i], used = XdrGetUint64(bytes[offset:])
+		pkt.SecureQuenchIds[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	insecureQidsCount, used := XdrGetUint32(bytes[offset:])
+	insecureQidsCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	for i := uint32(0); i < insecureQidsCount; i++ {
-		pkt.InsecureQuenchIds[i], used = XdrGetUint64(bytes[offset:])
+		pkt.InsecureQuenchIds[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	pkt.TermId, used = XdrGetUint64(bytes[offset:])
+	pkt.TermId, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	// FIXME
@@ -459,14 +539,24 @@ func (pkt *SubDelNotify) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	qidCount, used := XdrGetUint32(bytes[offset:])
+	qidCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	for i := uint32(0); i < qidCount; i++ {
-		pkt.QuenchIds[i], used = XdrGetUint64(bytes[offset:])
+		pkt.QuenchIds[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	pkt.TermId, used = XdrGetUint64(bytes[offset:])
+	pkt.TermId, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	return nil

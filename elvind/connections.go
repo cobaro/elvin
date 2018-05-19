@@ -45,8 +45,9 @@ const (
 type Connection struct {
 	id             uint32
 	subs           map[uint32]*Subscription
-	reader         io.ReadCloser
+	reader         io.Reader
 	writer         io.WriteCloser
+	closer         io.Closer
 	state          int
 	writeChannel   chan *bytes.Buffer
 	readTerminate  chan int
@@ -104,7 +105,8 @@ func (conn *Connection) MakeId() {
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
-		length, err := reader.Read(buffer[offset : numToRead-offset])
+		glog.Infof("offset = %d, numToRead = %d", offset, numToRead)
+		length, err := reader.Read(buffer[offset:numToRead])
 		if err != nil {
 			return offset + length, err
 		}
@@ -118,7 +120,7 @@ func (conn *Connection) readHandler() {
 	if glog.V(2) {
 		glog.Infof("Read Handler starting")
 	}
-	defer conn.reader.Close()
+	defer conn.closer.Close()
 	if glog.V(2) {
 		defer glog.Infof("Read Handler exiting")
 	}
@@ -140,7 +142,7 @@ func (conn *Connection) readHandler() {
 		}
 
 		// Read the protocol packet, starting with it's length
-		packetSize := binary.BigEndian.Uint32(header)
+		packetSize := int32(binary.BigEndian.Uint32(header))
 		// Grow our buffer if needed
 		if int(packetSize) > len(buffer) {
 			if glog.V(4) {
@@ -177,7 +179,7 @@ func (conn *Connection) writeHandler() {
 	if glog.V(2) {
 		defer glog.Infof("Write Handler exiting")
 	}
-	defer conn.reader.Close()
+	defer conn.closer.Close()
 
 	header := make([]byte, 4)
 
@@ -343,7 +345,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	connRqst := new(elvin.ConnRqst)
 	if err = connRqst.Decode(buffer); err != nil {
 		conn.state = StateClosed
-		conn.reader.Close()
+		conn.closer.Close()
 	}
 
 	// We're now connected
@@ -373,7 +375,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	disconnRqst := new(elvin.DisconnRqst)
 	if err = disconnRqst.Decode(buffer); err != nil {
 		conn.state = StateClosed
-		conn.reader.Close()
+		conn.closer.Close()
 	}
 
 	// We're now disconnecting

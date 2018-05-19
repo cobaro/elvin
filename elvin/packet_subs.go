@@ -64,21 +64,37 @@ func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.Expression, used = XdrGetString(bytes[offset:])
+
+	pkt.Expression, used, err = XdrGetString(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.AcceptInsecure, used = XdrGetBool(bytes[offset:])
+
+	pkt.AcceptInsecure, used, err = XdrGetBool(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	pkt.Keys, used, err = XdrGetKeys(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	return err
+
+	return nil
 }
 
 // Encode a SubAddRqst from a buffer
 func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutBool(buffer, pkt.AcceptInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
@@ -119,17 +135,25 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.Subid, used = XdrGetUint64(bytes[offset:])
+
+	pkt.Subid, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	return err
+
+	return nil
 }
 
 // Encode a SubRply from a buffer
 func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.Subid)
 }
@@ -169,17 +193,25 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.Subid, used = XdrGetUint64(bytes[offset:])
+
+	pkt.Subid, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	return err
+
+	return nil
 }
 
 // Encode a SubDelRqst from a buffer
 func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.Subid)
 }
@@ -227,25 +259,49 @@ func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.Subid, used = XdrGetUint64(bytes[offset:])
+
+	pkt.Subid, used, err = XdrGetUint64(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.Expression, used = XdrGetString(bytes[offset:])
+
+	pkt.Expression, used, err = XdrGetString(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.AcceptInsecure, used = XdrGetBool(bytes[offset:])
+
+	pkt.AcceptInsecure, used, err = XdrGetBool(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	pkt.AddKeys, used, err = XdrGetKeys(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	pkt.DelKeys, used, err = XdrGetKeys(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	return err
+
+	return nil
 }
 
 // Encode a SubModRqst from a buffer
 func (pkt *SubModRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.Subid)
 	XdrPutBool(buffer, pkt.AcceptInsecure)

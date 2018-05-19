@@ -64,7 +64,10 @@ func (pkt *NotifyEmit) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	pkt.DeliverInsecure, used = XdrGetBool(bytes[offset:])
+	pkt.DeliverInsecure, used, err = XdrGetBool(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	if pkt.Keys, used, err = XdrGetKeys(bytes[offset:]); err != nil {
@@ -123,17 +126,31 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	secureCount, used := XdrGetInt32(bytes[offset:])
+	secureCount, used, err := XdrGetInt32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	for i := 0; i < secureCount; i++ {
-		pkt.Secure[i], used = XdrGetUint64(bytes[offset:])
+
+	for i := int32(0); i < secureCount; i++ {
+		pkt.Secure[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
-	insecureCount, used := XdrGetInt32(bytes[offset:])
+	insecureCount, used, err := XdrGetInt32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	for i := 0; i < insecureCount; i++ {
-		pkt.Insecure[i], used = XdrGetUint64(bytes[offset:])
+
+	for i := int32(0); i < insecureCount; i++ {
+		pkt.Insecure[i], used, err = XdrGetUint64(bytes[offset:])
+		if err != nil {
+			return err
+		}
 		offset += used
 	}
 
@@ -142,13 +159,13 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 
 // Encode a NotifyDeliver from a buffer
 func (pkt *NotifyDeliver) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutNotification(buffer, pkt.NameValue)
-	XdrPutInt32(buffer, len(pkt.Secure))
+	XdrPutInt32(buffer, int32(len(pkt.Secure)))
 	for i := 0; i < len(pkt.Secure); i++ {
 		XdrPutUint64(buffer, pkt.Secure[i])
 	}
-	XdrPutInt32(buffer, len(pkt.Insecure))
+	XdrPutInt32(buffer, int32(len(pkt.Insecure)))
 	for i := 0; i < len(pkt.Insecure); i++ {
 		XdrPutUint64(buffer, pkt.Insecure[i])
 	}

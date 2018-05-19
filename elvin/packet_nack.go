@@ -63,13 +63,28 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4
 	// FIXME: at some point we will want to return how many bytes we consumed
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.ErrorCode, used = XdrGetUint16(bytes[offset:])
+
+	pkt.ErrorCode, used, err = XdrGetUint16(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
-	pkt.Message, used = XdrGetString(bytes[offset:])
+
+	pkt.Message, used, err = XdrGetString(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
+
 	pkt.Args, used, err = XdrGetValues(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	return nil
@@ -77,7 +92,7 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 
 // Encode a Nack from a buffer
 func (pkt *Nack) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint16(buffer, pkt.ErrorCode)
 	XdrPutString(buffer, pkt.Message)

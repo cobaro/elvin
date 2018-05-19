@@ -99,6 +99,7 @@ func Listener(protocol Protocol) {
 		var conn Connection
 		conn.reader = c
 		conn.writer = c
+		conn.closer = c
 		conn.state = StateNew
 		conn.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
 		conn.readTerminate = make(chan int)

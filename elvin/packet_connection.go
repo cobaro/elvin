@@ -72,13 +72,22 @@ func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	pkt.VersionMajor, used = XdrGetUint32(bytes[offset:])
+	pkt.VersionMajor, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
-	pkt.VersionMinor, used = XdrGetUint32(bytes[offset:])
+	pkt.VersionMinor, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	pkt.Options, used, err = XdrGetNotification(bytes[offset:])
@@ -103,7 +112,7 @@ func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 
 func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint32(buffer, pkt.VersionMajor)
 	XdrPutUint32(buffer, pkt.VersionMinor)
@@ -146,7 +155,10 @@ func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	pkt.Options, used, err = XdrGetNotification(bytes[offset:])
@@ -160,7 +172,7 @@ func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 
 // Encode a ConnRply from a buffer
 func (pkt *ConnRply) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutNotification(buffer, pkt.Options)
 }
@@ -197,7 +209,10 @@ func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	return nil
@@ -205,7 +220,7 @@ func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
 
 func (pkt *DisconnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 }
 
@@ -241,7 +256,10 @@ func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used = XdrGetUint32(bytes[offset:])
+	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
 	offset += used
 
 	return nil
@@ -249,6 +267,6 @@ func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
 
 func (pkt *DisconnRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, pkt.Id())
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutUint32(buffer, pkt.Xid)
 }
