@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"github.com/cobaro/elvin/elvin"
 	"io"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -31,8 +32,7 @@ import (
 var xid uint32 = 0
 
 func Xid() uint32 {
-	xid++
-	return xid
+	return atomic.AddUint32(&xid, 1)
 }
 
 func TestMockup(t *testing.T) {
