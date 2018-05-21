@@ -105,7 +105,9 @@ func (conn *Connection) MakeId() {
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
-		glog.Infof("offset = %d, numToRead = %d", offset, numToRead)
+		if glog.V(4) {
+			glog.Infof("offset = %d, numToRead = %d", offset, numToRead)
+		}
 		length, err := reader.Read(buffer[offset:numToRead])
 		if err != nil {
 			return offset + length, err
