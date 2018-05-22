@@ -224,6 +224,9 @@ func (conn *Connection) writeHandler() {
 // Handle a protocol packet
 func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 
+	if glog.V(4) {
+		glog.Infof("received %s", elvin.PacketIdString(elvin.PacketId(buffer)))
+	}
 	switch elvin.PacketId(buffer) {
 
 	// Packets a router should never receive
