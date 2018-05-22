@@ -426,15 +426,17 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	nd.NameValue = ne.NameValue
 
 	for connid, connection := range connections.connections {
-		nd.Insecure = make([]uint64, len(connection.subs))
-		i := 0
-		for id, _ := range connection.subs {
-			nd.Insecure[i] = uint64(connid)<<32 | uint64(id)
-			i++
+		if len(connection.subs) > 0 {
+			nd.Insecure = make([]uint64, len(connection.subs))
+			i := 0
+			for id, _ := range connection.subs {
+				nd.Insecure[i] = uint64(connid)<<32 | uint64(id)
+				i++
+			}
+			buf := bufferPool.Get().(*bytes.Buffer)
+			nd.Encode(buf)
+			connection.writeChannel <- buf
 		}
-		buf := bufferPool.Get().(*bytes.Buffer)
-		nd.Encode(buf)
-		connection.writeChannel <- buf
 	}
 	return nil
 }
