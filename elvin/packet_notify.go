@@ -81,6 +81,7 @@ func (pkt *NotifyEmit) Decode(bytes []byte) (err error) {
 
 // Encode a NotifyEmit from a buffer
 func (pkt *NotifyEmit) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, int32(pkt.Id()))
 	XdrPutNotification(buffer, pkt.NameValue)
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
