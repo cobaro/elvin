@@ -397,9 +397,9 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	DisconnRply.Encode(buf)
 	conn.writeChannel <- buf
 
-	for subid, _ := range conn.subs {
+	for subID, _ := range conn.subs {
 		// FIXME: send subscription removal to sub engine
-		delete(conn.subs, subid)
+		delete(conn.subs, subID)
 	}
 
 	connections.lock.Lock()
@@ -475,14 +475,14 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 		s++
 	}
 	conn.subs[s] = &sub
-	sub.Subid = (uint64(conn.id) << 32) | uint64(s)
+	sub.SubID = (uint64(conn.id) << 32) | uint64(s)
 
 	// FIXME: send subscription addition to sub engine
 
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subRqst.Xid
-	subRply.Subid = sub.Subid
+	subRply.SubID = sub.SubID
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -501,14 +501,14 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	}
 
 	// If deletion fails then nack and disconn
-	idx := uint32(subDelRqst.Subid & 0xfffffffff)
+	idx := uint32(subDelRqst.SubID & 0xfffffffff)
 	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
-		nack.ErrorCode = elvin.ErrorsUnknownSubid
-		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubid]
+		nack.ErrorCode = elvin.ErrorsUnknownSubID
+		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubID]
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = sub.Subid
+		nack.Args[0] = sub.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -523,7 +523,7 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subDelRqst.Xid
-	subRply.Subid = subDelRqst.Subid
+	subRply.SubID = subDelRqst.SubID
 
 	// FIXME: send subscription deletion to sub engine
 
@@ -543,14 +543,14 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	}
 
 	// If modify fails then nack and disconn
-	idx := uint32(subModRqst.Subid & 0xfffffffff)
+	idx := uint32(subModRqst.SubID & 0xfffffffff)
 	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
-		nack.ErrorCode = elvin.ErrorsUnknownSubid
-		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubid]
+		nack.ErrorCode = elvin.ErrorsUnknownSubID
+		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubID]
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = sub.Subid
+		nack.Args[0] = sub.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -591,7 +591,7 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
 	subRply.Xid = subModRqst.Xid
-	subRply.Subid = subModRqst.Subid
+	subRply.SubID = subModRqst.SubID
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)

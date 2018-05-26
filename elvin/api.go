@@ -80,7 +80,7 @@ type Subscription struct {
 	AcceptInsecure bool                        // Do we accept notifications with no security keys
 	Keys           []Keyset                    // Keys for this subscriptions
 	Notifications  chan map[string]interface{} // Notifications delivered on this channel
-	subId          uint64
+	subID          uint64
 	events         chan SubscriptionEvent
 }
 
@@ -213,9 +213,9 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 	select {
 	case subevent := <-sub.events:
 		// Track the subscription id
-		sub.subId = subevent.subRply.Subid
+		sub.subID = subevent.subRply.SubID
 		client.mu.Lock()
-		client.subDelivers[sub.subId] = sub
+		client.subDelivers[sub.subID] = sub
 		client.mu.Unlock()
 		// log.Printf("Subscribe got (%v)", subevent)
 	case <-time.After(SubscriptionTimeout):

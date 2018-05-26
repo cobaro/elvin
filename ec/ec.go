@@ -28,10 +28,6 @@ import (
 	"os/signal"
 )
 
-func NotifyCallback(nfn map[string]interface{}) {
-	log.Printf("%v received:\n%v", nfn)
-}
-
 func main() {
 	// Argument parsing
 	flag.Parse()

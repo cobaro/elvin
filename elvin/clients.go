@@ -298,26 +298,26 @@ func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 		// FIXME: return error
 	}
 
-	// Sync the map of subids. We can do this once as:
+	// Sync the map of subIDs. We can do this once as:
 	// * If one disappears it's ok (we don't deliver)
-	// * If one appears it's ok (subids are sparse)
+	// * If one appears it's ok (they're sparse)
 	client.mu.Lock()
 	delivers := client.subDelivers
 	client.mu.Unlock()
 
 	// foreach matching subscription deliver it
-	for _, subid := range notifyDeliver.Secure {
-		log.Printf("NotifyDeliver secure for %d", subid)
-		sub, ok := delivers[subid]
-		if ok && sub.subId == subid {
+	for _, subID := range notifyDeliver.Secure {
+		log.Printf("NotifyDeliver secure for %d", subID)
+		sub, ok := delivers[subID]
+		if ok && sub.subID == subID {
 			sub.Notifications <- notifyDeliver.NameValue
 		}
 	}
-	for _, subid := range notifyDeliver.Insecure {
-		sub, ok := client.subDelivers[subid]
-		// log.Printf("NotifyDeliver insecure for %d", subid)
+	for _, subID := range notifyDeliver.Insecure {
+		sub, ok := client.subDelivers[subID]
+		// log.Printf("NotifyDeliver insecure for %d", subID)
 		// log.Printf("client.subDelivers = %v", client.subDelivers)
-		if ok && sub.subId == subid {
+		if ok && sub.subID == subID {
 			sub.Notifications <- notifyDeliver.NameValue
 		}
 	}
