@@ -364,7 +364,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	// FIXME; totally bogus
 	connRply.Options = connRqst.Options
 
-	glog.Infof("New client %d connected", conn.id)
+	glog.Infof("New client %d connected", conn.ID())
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -390,7 +390,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	DisconnRply := new(elvin.DisconnRply)
 	DisconnRply.Xid = disconnRqst.Xid
 
-	glog.Infof("client %d disconnected", conn.id)
+	glog.Infof("client %d disconnected", conn.ID())
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -404,7 +404,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 
 	connections.lock.Lock()
 	defer connections.lock.Unlock()
-	delete(connections.connections, conn.id)
+	delete(connections.connections, conn.ID())
 
 	return nil
 }
@@ -475,7 +475,7 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 		s++
 	}
 	conn.subs[s] = &sub
-	sub.SubID = (uint64(conn.id) << 32) | uint64(s)
+	sub.SubID = (uint64(conn.ID()) << 32) | uint64(s)
 
 	// FIXME: send subscription addition to sub engine
 
