@@ -38,7 +38,7 @@ func (pkt *NotifyEmit) ID() int {
 }
 
 // String representation of packet type
-func (pkt *NotifyEmit) IdString() string {
+func (pkt *NotifyEmit) IDString() string {
 	return "NotifyEmit"
 }
 
@@ -100,7 +100,7 @@ func (pkt *NotifyDeliver) ID() int {
 }
 
 // String representation of packet type
-func (pkt *NotifyDeliver) IdString() string {
+func (pkt *NotifyDeliver) IDString() string {
 	return "NotifyDeliver"
 }
 

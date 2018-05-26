@@ -40,7 +40,7 @@ func (pkt *SubAddRqst) ID() int {
 }
 
 // String representation of packet type
-func (pkt *SubAddRqst) IdString() string {
+func (pkt *SubAddRqst) IDString() string {
 	return "SubAddRqst"
 }
 
@@ -116,7 +116,7 @@ func (pkt *SubRply) ID() int {
 }
 
 // String representation of packet type
-func (pkt *SubRply) IdString() string {
+func (pkt *SubRply) IDString() string {
 	return "SubRply"
 }
 
@@ -174,7 +174,7 @@ func (pkt *SubDelRqst) ID() int {
 }
 
 // String representation of packet type
-func (pkt *SubDelRqst) IdString() string {
+func (pkt *SubDelRqst) IDString() string {
 	return "SubDelRqst"
 }
 
@@ -236,7 +236,7 @@ func (pkt *SubModRqst) ID() int {
 }
 
 // String representation of packet type
-func (pkt *SubModRqst) IdString() string {
+func (pkt *SubModRqst) IDString() string {
 	return "SubModRqst"
 }
 

@@ -41,7 +41,7 @@ func (pkt *ConnRqst) ID() int {
 }
 
 // String representation of packet type
-func (pkt *ConnRqst) IdString() string {
+func (pkt *ConnRqst) IDString() string {
 	return "ConnRqst"
 }
 
@@ -133,7 +133,7 @@ func (pkt *ConnRply) ID() int {
 }
 
 // String representation of packet type
-func (pkt *ConnRply) IdString() string {
+func (pkt *ConnRply) IDString() string {
 	return "ConnRply"
 }
 
@@ -188,7 +188,7 @@ func (pkt *DisconnRqst) ID() int {
 }
 
 // String representation of packet type
-func (pkt *DisconnRqst) IdString() string {
+func (pkt *DisconnRqst) IDString() string {
 	return "DisconnRqst"
 }
 
@@ -235,7 +235,7 @@ func (pkt *DisconnRply) ID() int {
 }
 
 // String representation of packet type
-func (pkt *DisconnRply) IdString() string {
+func (pkt *DisconnRply) IDString() string {
 	return "DisconnRply"
 }
 

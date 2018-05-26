@@ -215,7 +215,7 @@ func PacketIDString(packetID int) string {
 // All packets must implement these
 type Packet interface {
 	ID() int
-	IdString() string
+	IDString() string
 	String() string
 	Decode(bytes []byte) (err error)
 	Encode(buffer *bytes.Buffer)

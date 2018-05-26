@@ -39,7 +39,7 @@ func (pkt *Nack) ID() int {
 }
 
 // String representation of packet type
-func (pkt *Nack) IdString() string {
+func (pkt *Nack) IDString() string {
 	return "Nack"
 }
 

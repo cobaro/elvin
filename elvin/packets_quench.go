@@ -40,7 +40,7 @@ func (pkt *QnchAddRqst) ID() int {
 	return PacketQnchAddRqst
 }
 
-func (pkt *QnchAddRqst) IdString() string {
+func (pkt *QnchAddRqst) IDString() string {
 	return "QnchAddRqst"
 }
 
@@ -123,7 +123,7 @@ func (pkt *QnchModRqst) ID() int {
 	return PacketQnchAddRqst
 }
 
-func (pkt *QnchModRqst) IdString() string {
+func (pkt *QnchModRqst) IDString() string {
 	return "QnchModRqst"
 }
 
@@ -237,7 +237,7 @@ func (pkt *QnchDelRqst) ID() int {
 	return PacketQnchDelRqst
 }
 
-func (pkt *QnchDelRqst) IdString() string {
+func (pkt *QnchDelRqst) IDString() string {
 	return "QnchDelRqst"
 }
 
@@ -286,7 +286,7 @@ func (pkt *QnchRply) ID() int {
 	return PacketQnchRply
 }
 
-func (pkt *QnchRply) IdString() string {
+func (pkt *QnchRply) IDString() string {
 	return "QnchRply"
 }
 
@@ -337,7 +337,7 @@ func (pkt *SubAddNotify) ID() int {
 	return PacketSubAddNotify
 }
 
-func (pkt *SubAddNotify) IdString() string {
+func (pkt *SubAddNotify) IDString() string {
 	return "SubAddNotify"
 }
 
@@ -429,7 +429,7 @@ func (pkt *SubModNotify) ID() int {
 	return PacketSubModNotify
 }
 
-func (pkt *SubModNotify) IdString() string {
+func (pkt *SubModNotify) IDString() string {
 	return "SubModNotify"
 }
 
@@ -519,7 +519,7 @@ func (pkt *SubDelNotify) ID() int {
 	return PacketSubDelNotify
 }
 
-func (pkt *SubDelNotify) IdString() string {
+func (pkt *SubDelNotify) IDString() string {
 	return "SubDelNotify"
 }
 
