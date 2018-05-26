@@ -98,18 +98,3 @@ func (pkt *Nack) Encode(buffer *bytes.Buffer) {
 	XdrPutString(buffer, pkt.Message)
 	XdrPutValues(buffer, pkt.Args)
 }
-
-// FIXME: Think about how to structure these and split out
-
-const (
-	ErrorsUnknownSubID = 1002
-	ErrorsParsing      = 2101
-)
-
-var ProtocolErrors map[int]string
-
-func init() {
-	ProtocolErrors = make(map[int]string)
-	ProtocolErrors[ErrorsParsing] = "Parse error before %2 at position %1" // string, int
-	ProtocolErrors[ErrorsUnknownSubID] = "Unknown subscription id %1"      // int64
-}
