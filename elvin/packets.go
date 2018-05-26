@@ -86,12 +86,13 @@ const (
 )
 
 // In a protocol packet the type is encoded
-func PacketId(bytes []byte) int {
+func PacketID(bytes []byte) int {
 	return int(binary.BigEndian.Uint32(bytes[0:4]))
 }
 
-func PacketIdString(packetId int) string {
-	switch packetId {
+// Return a usable string from a Packet ID
+func PacketIDString(packetID int) string {
+	switch packetID {
 	case PacketReserved:
 		return "Reserved"
 	case PacketSvrRqst:

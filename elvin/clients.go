@@ -187,21 +187,21 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 	// Packets dependent upon Client's connection state
 	switch client.State() {
 	case StateConnecting:
-		switch PacketId(buffer) {
+		switch PacketID(buffer) {
 		case PacketConnRply:
 			return client.HandleConnRply(buffer)
 		default:
-			return fmt.Errorf("ProtocolError: %s received", PacketIdString(PacketId(buffer)))
+			return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
 		}
 
 	case StateDisconnecting:
-		switch PacketId(buffer) {
+		switch PacketID(buffer) {
 		case PacketDisconnRply:
 			return client.HandleDisconnRply(buffer)
 		}
 
 	case StateConnected:
-		switch PacketId(buffer) {
+		switch PacketID(buffer) {
 		case PacketSubRply:
 			return client.HandleSubRply(buffer)
 		case PacketNotifyDeliver:
@@ -214,16 +214,16 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		case PacketSubAddNotify:
 		case PacketSubModNotify:
 		case PacketSubDelNotify:
-			return fmt.Errorf("FIXME implement: %s received", PacketIdString(PacketId(buffer)))
+			return fmt.Errorf("FIXME implement: %s received", PacketIDString(PacketID(buffer)))
 		default:
-			return fmt.Errorf("ProtocolError: %s received", PacketIdString(PacketId(buffer)))
+			return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
 		}
 
 	case StateClosed:
-		return fmt.Errorf("ProtocolError: %s received", PacketIdString(PacketId(buffer)))
+		return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
 	}
 
-	return fmt.Errorf("Error: %s received and not handled", PacketIdString(PacketId(buffer)))
+	return fmt.Errorf("Error: %s received and not handled", PacketIDString(PacketID(buffer)))
 }
 
 // Handle a Connection Reply

@@ -225,9 +225,9 @@ func (conn *Connection) writeHandler() {
 func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 
 	if glog.V(4) {
-		glog.Infof("received %s", elvin.PacketIdString(elvin.PacketId(buffer)))
+		glog.Infof("received %s", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
-	switch elvin.PacketId(buffer) {
+	switch elvin.PacketID(buffer) {
 
 	// Packets a router should never receive
 	case elvin.PacketDropWarn:
@@ -236,7 +236,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case elvin.PacketNack:
 	case elvin.PacketConnRply:
 	case elvin.PacketDisconnRply:
-		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIdString(elvin.PacketId(buffer)))
+		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 
 	// Protocol Packets not planned for the short term
 	case elvin.PacketSvrRqst:
@@ -266,7 +266,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case elvin.PacketSubAddNotify:
 	case elvin.PacketSubModNotify:
 	case elvin.PacketSubDelNotify:
-		return fmt.Errorf("UnimplementedError: %s received", elvin.PacketIdString(elvin.PacketId(buffer)))
+		return fmt.Errorf("UnimplementedError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
 
 	// Packets dependent upon Client's connection state
@@ -274,20 +274,20 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case StateNew:
 		// Connect and Unotify are the only valid packets without
 		// a properly established connection
-		switch elvin.PacketId(buffer) {
+		switch elvin.PacketID(buffer) {
 		case elvin.PacketConnRqst:
 			return conn.HandleConnRqst(buffer)
 		case elvin.PacketUnotify:
 			return errors.New("FIXME: Packet Unotify")
 		default:
-			return fmt.Errorf("ProtocolError: %s received", elvin.PacketIdString(elvin.PacketId(buffer)))
+			return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 		}
 
 	case StateConnected:
 		// Deal with packets that can arrive whilst connected
 
 		// FIXME: implement or move this lot in the short term
-		switch elvin.PacketId(buffer) {
+		switch elvin.PacketID(buffer) {
 		case elvin.PacketDisconnRqst:
 			return conn.HandleDisconnRqst(buffer)
 		case elvin.PacketDisconn:
@@ -333,15 +333,15 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		case elvin.PacketShutdown:
 			return errors.New("FIXME: Packet Shutdown")
 		default:
-			return fmt.Errorf("FIXME: Packet Unknown [%d]", elvin.PacketId(buffer))
+			return fmt.Errorf("FIXME: Packet Unknown [%d]", elvin.PacketID(buffer))
 		}
 
 	case StateDisconnecting:
 	case StateClosed:
-		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIdString(elvin.PacketId(buffer)))
+		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
 
-	return fmt.Errorf("Error: %s received and not handled", elvin.PacketIdString(elvin.PacketId(buffer)))
+	return fmt.Errorf("Error: %s received and not handled", elvin.PacketIDString(elvin.PacketID(buffer)))
 }
 
 // Handle a Connection Request
