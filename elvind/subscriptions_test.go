@@ -29,10 +29,10 @@ import (
 	"time"
 )
 
-var xid uint32 = 0
+var xID uint32 = 0
 
-func Xid() uint32 {
-	return atomic.AddUint32(&xid, 1)
+func XID() uint32 {
+	return atomic.AddUint32(&xID, 1)
 }
 
 func TestMockup(t *testing.T) {
@@ -75,7 +75,7 @@ func TestMockup(t *testing.T) {
 
 	// Make a ConnRqst and feed it to the client's writer
 	pkt := new(elvin.ConnRqst)
-	pkt.Xid = Xid()
+	pkt.XID = XID()
 	pkt.VersionMajor = 4
 	pkt.VersionMinor = 4
 

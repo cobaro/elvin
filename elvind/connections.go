@@ -360,7 +360,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 
 	// Respond with a Connection Reply
 	connRply := new(elvin.ConnRply)
-	connRply.Xid = connRqst.Xid
+	connRply.XID = connRqst.XID
 	// FIXME; totally bogus
 	connRply.Options = connRqst.Options
 
@@ -388,7 +388,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 
 	// Respond with a Disconnection Reply
 	DisconnRply := new(elvin.DisconnRply)
-	DisconnRply.Xid = disconnRqst.Xid
+	DisconnRply.XID = disconnRqst.XID
 
 	glog.Infof("client %d disconnected", conn.ID())
 
@@ -452,7 +452,7 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 
 	ast, nack := Parse(subRqst.Expression)
 	if nack != nil {
-		nack.Xid = subRqst.Xid
+		nack.XID = subRqst.XID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -481,7 +481,7 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
-	subRply.Xid = subRqst.Xid
+	subRply.XID = subRqst.XID
 	subRply.SubID = sub.SubID
 
 	// Encode that into a buffer for the write handler
@@ -522,7 +522,7 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
-	subRply.Xid = subDelRqst.Xid
+	subRply.XID = subDelRqst.XID
 	subRply.SubID = subDelRqst.SubID
 
 	// FIXME: send subscription deletion to sub engine
@@ -566,7 +566,7 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	if len(subModRqst.Expression) > 0 {
 		ast, nack := Parse(subModRqst.Expression)
 		if nack != nil {
-			nack.Xid = subModRqst.Xid
+			nack.XID = subModRqst.XID
 			buf := bufferPool.Get().(*bytes.Buffer)
 			nack.Encode(buf)
 			conn.writeChannel <- buf
@@ -590,7 +590,7 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 
 	// Respond with a SubRply
 	subRply := new(elvin.SubRply)
-	subRply.Xid = subModRqst.Xid
+	subRply.XID = subModRqst.XID
 	subRply.SubID = subModRqst.SubID
 
 	// Encode that into a buffer for the write handler

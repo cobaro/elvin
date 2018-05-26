@@ -27,7 +27,7 @@ import (
 
 // Packet: Connection Request
 type ConnRqst struct {
-	Xid          uint32
+	XID          uint32
 	VersionMajor uint32
 	VersionMinor uint32
 	Options      map[string]interface{}
@@ -48,13 +48,13 @@ func (pkt *ConnRqst) IDString() string {
 // Pretty print with indent
 func (pkt *ConnRqst) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n"+
+		"%sXID: %d\n"+
 			"%sVersionMajor %d\n"+
 			"%sVersionMinor %d\n"+
 			"%sOptions %v\n"+
 			"%sKeysNfn: %v\n"+
 			"%sKeysSub: %v\n",
-		indent, pkt.Xid,
+		indent, pkt.XID,
 		indent, pkt.VersionMajor,
 		indent, pkt.VersionMinor,
 		indent, pkt.Options,
@@ -72,7 +72,7 @@ func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint32(buffer, pkt.VersionMajor)
 	XdrPutUint32(buffer, pkt.VersionMinor)
 	XdrPutNotification(buffer, pkt.Options)
@@ -123,7 +123,7 @@ func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
 
 // Packet: Connection Reply
 type ConnRply struct {
-	Xid     uint32
+	XID     uint32
 	Options map[string]interface{}
 }
 
@@ -139,8 +139,8 @@ func (pkt *ConnRply) IDString() string {
 
 // Pretty print with indent
 func (pkt *ConnRply) IString(indent string) string {
-	return fmt.Sprintf("%sXid: %d\n%sOptions %v\n",
-		indent, pkt.Xid,
+	return fmt.Sprintf("%sXID: %d\n%sOptions %v\n",
+		indent, pkt.XID,
 		indent, pkt.Options)
 
 }
@@ -155,7 +155,7 @@ func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -173,13 +173,13 @@ func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 // Encode a ConnRply from a buffer
 func (pkt *ConnRply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 	XdrPutNotification(buffer, pkt.Options)
 }
 
 // Packet: Disconnection Request
 type DisconnRqst struct {
-	Xid uint32
+	XID uint32
 }
 
 // Integer value of packet type
@@ -195,8 +195,8 @@ func (pkt *DisconnRqst) IDString() string {
 // Pretty print with indent
 func (pkt *DisconnRqst) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n",
-		indent, pkt.Xid)
+		"%sXID: %d\n",
+		indent, pkt.XID)
 }
 
 // Pretty print without indent so generic ToString() works
@@ -209,7 +209,7 @@ func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -221,12 +221,12 @@ func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
 func (pkt *DisconnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 }
 
 // Packet: Disconnection Request
 type DisconnRply struct {
-	Xid uint32
+	XID uint32
 }
 
 // Integer value of packet type
@@ -242,8 +242,8 @@ func (pkt *DisconnRply) IDString() string {
 // Pretty print with indent
 func (pkt *DisconnRply) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n",
-		indent, pkt.Xid)
+		"%sXID: %d\n",
+		indent, pkt.XID)
 }
 
 // Pretty print without indent so generic ToString() works
@@ -256,7 +256,7 @@ func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -268,5 +268,5 @@ func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
 func (pkt *DisconnRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 }

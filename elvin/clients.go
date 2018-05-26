@@ -30,13 +30,13 @@ import (
 	"sync/atomic"
 )
 
-// Transaction Ids on packets
-func Xid() uint32 {
-	return atomic.AddUint32(&xid, 1)
+// Transaction IDs on packets
+func XID() uint32 {
+	return atomic.AddUint32(&xID, 1)
 }
 
 // private
-var xid uint32 = 0
+var xID uint32 = 0
 
 // Client connection states used for sanity and to enforce protocol rules
 const (
@@ -273,8 +273,8 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 	}
 
 	client.mu.Lock()
-	sub, ok := client.subRplys[subRply.Xid]
-	delete(client.subRplys, subRply.Xid)
+	sub, ok := client.subRplys[subRply.XID]
+	delete(client.subRplys, subRply.XID)
 	client.mu.Unlock()
 	if !ok {
 		client.closer.Close()

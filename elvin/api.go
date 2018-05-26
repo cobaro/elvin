@@ -110,7 +110,7 @@ func (client *Client) Connect() (err error) {
 	go client.writeHandler()
 
 	pkt := new(ConnRqst)
-	pkt.Xid = Xid()
+	pkt.XID = XID()
 	pkt.VersionMajor = 4
 	pkt.VersionMinor = 1
 	pkt.Options = client.Options
@@ -126,7 +126,7 @@ func (client *Client) Connect() (err error) {
 	case connRply := <-client.connRply:
 
 		// FIXME: check it
-		log.Printf("We connected (xid=%d)", connRply.Xid)
+		log.Printf("We connected (xID=%d)", connRply.XID)
 		client.SetState(StateConnected)
 		return nil
 
@@ -146,7 +146,7 @@ func (client *Client) Disconnect() (err error) {
 
 	// FIXME: in a generous world we might unsubscribe, unquench etc
 	pkt := new(DisconnRqst)
-	pkt.Xid = Xid()
+	pkt.XID = XID()
 
 	writeBuf := new(bytes.Buffer)
 	pkt.Encode(writeBuf)
@@ -155,7 +155,7 @@ func (client *Client) Disconnect() (err error) {
 	// Wait for the reply
 	select {
 	case disconnRply := <-client.disconnRply:
-		log.Printf("We disconnected (xid=%d)", disconnRply.Xid)
+		log.Printf("We disconnected (xID=%d)", disconnRply.XID)
 	case <-time.After(ConnectTimeout):
 		err = fmt.Errorf("FIXME: timeout")
 	}
@@ -200,11 +200,11 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 	sub.events = make(chan SubscriptionEvent)
 
 	writeBuf := new(bytes.Buffer)
-	xid := pkt.Encode(writeBuf)
+	xID := pkt.Encode(writeBuf)
 
-	// Map the xid back to this request along with the notifications
+	// Map the XID back to this request along with the notifications
 	client.mu.Lock()
-	client.subRplys[xid] = sub
+	client.subRplys[xID] = sub
 	client.mu.Unlock()
 
 	client.writeChannel <- writeBuf

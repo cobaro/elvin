@@ -27,7 +27,7 @@ import (
 
 // Packet: Nack
 type Nack struct {
-	Xid       uint32
+	XID       uint32
 	ErrorCode uint16
 	Message   string
 	Args      []interface{}
@@ -45,8 +45,8 @@ func (pkt *Nack) IDString() string {
 
 // Pretty print with indent
 func (pkt *Nack) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sErrorCode %v\n%sMessage %v\n%sArgs %v\n",
-		indent, pkt.Xid,
+	return fmt.Sprintf("%sXID %v\n%sErrorCode %v\n%sMessage %v\n%sArgs %v\n",
+		indent, pkt.XID,
 		indent, pkt.ErrorCode,
 		indent, pkt.Message,
 		indent, pkt.Args,
@@ -63,7 +63,7 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4
 	// FIXME: at some point we will want to return how many bytes we consumed
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 // Encode a Nack from a buffer
 func (pkt *Nack) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint16(buffer, pkt.ErrorCode)
 	XdrPutString(buffer, pkt.Message)
 	XdrPutValues(buffer, pkt.Args)

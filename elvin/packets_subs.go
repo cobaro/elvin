@@ -28,7 +28,7 @@ import (
 // Packet: SubAddRqst
 
 type SubAddRqst struct {
-	Xid            uint32
+	XID            uint32
 	Expression     string
 	AcceptInsecure bool
 	Keys           []Keyset
@@ -46,8 +46,8 @@ func (pkt *SubAddRqst) IDString() string {
 
 // Pretty print with indent
 func (pkt *SubAddRqst) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sExpression %v\n%sAcceptInsecure %v\n%sKeys %v\n",
-		indent, pkt.Xid,
+	return fmt.Sprintf("%sXID %v\n%sExpression %v\n%sAcceptInsecure %v\n%sKeys %v\n",
+		indent, pkt.XID,
 		indent, pkt.Expression,
 		indent, pkt.AcceptInsecure,
 		indent, pkt.Keys,
@@ -64,7 +64,7 @@ func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -92,10 +92,10 @@ func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 }
 
 // Encode a SubAddRqst from a buffer
-func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xid uint32) {
-	xid = Xid()
+func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, xid)
+	XdrPutUint32(buffer, xID)
 	XdrPutString(buffer, pkt.Expression)
 	XdrPutBool(buffer, pkt.AcceptInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
@@ -106,7 +106,7 @@ func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xid uint32) {
 // Packet: SubRply
 
 type SubRply struct {
-	Xid   uint32
+	XID   uint32
 	SubID uint64
 }
 
@@ -122,8 +122,8 @@ func (pkt *SubRply) IDString() string {
 
 // Pretty print with indent
 func (pkt *SubRply) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sSubID %v\n",
-		indent, pkt.Xid,
+	return fmt.Sprintf("%sXID %v\n%sSubID %v\n",
+		indent, pkt.XID,
 		indent, pkt.SubID,
 	)
 }
@@ -138,7 +138,7 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -157,14 +157,14 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint64(buffer, pkt.SubID)
 }
 
 // Packet: SubDelRqst
 
 type SubDelRqst struct {
-	Xid   uint32
+	XID   uint32
 	SubID uint64
 }
 
@@ -180,8 +180,8 @@ func (pkt *SubDelRqst) IDString() string {
 
 // Pretty print with indent
 func (pkt *SubDelRqst) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sSubID %v\n",
-		indent, pkt.Xid,
+	return fmt.Sprintf("%sXID %v\n%sSubID %v\n",
+		indent, pkt.XID,
 		indent, pkt.SubID,
 	)
 }
@@ -196,7 +196,7 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -215,14 +215,14 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint64(buffer, pkt.SubID)
 }
 
 // Packet: SubModRqst
 
 type SubModRqst struct {
-	Xid            uint32
+	XID            uint32
 	SubID          uint64
 	Expression     string
 	AcceptInsecure bool
@@ -242,8 +242,8 @@ func (pkt *SubModRqst) IDString() string {
 
 // Pretty print with indent
 func (pkt *SubModRqst) IString(indent string) string {
-	return fmt.Sprintf("%sXid %v\n%sSubID %v\n%sExpression %v\n%sAcceptInsecure %v\n%sAddKeys %v\n%sDelKeys %v\n",
-		indent, pkt.Xid,
+	return fmt.Sprintf("%sXID %v\n%sSubID %v\n%sExpression %v\n%sAcceptInsecure %v\n%sAddKeys %v\n%sDelKeys %v\n",
+		indent, pkt.XID,
 		indent, pkt.SubID,
 		indent, pkt.Expression,
 		indent, pkt.AcceptInsecure,
@@ -262,7 +262,7 @@ func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
 func (pkt *SubModRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint64(buffer, pkt.SubID)
 	XdrPutBool(buffer, pkt.AcceptInsecure)
 	XdrPutKeys(buffer, pkt.AddKeys)

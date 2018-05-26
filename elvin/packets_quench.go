@@ -30,7 +30,7 @@ type SubAST struct {
 }
 
 type QnchAddRqst struct {
-	Xid             uint32
+	XID             uint32
 	Names           []string
 	DeliverInsecure bool
 	Keys            []Keyset
@@ -46,11 +46,11 @@ func (pkt *QnchAddRqst) IDString() string {
 
 func (pkt *QnchAddRqst) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n"+
+		"%sXID: %d\n"+
 			"%sNames: %v\n"+
 			"%sDeliverInsecure: %v\n"+
 			"%sKeys: %v\n",
-		indent, pkt.Xid,
+		indent, pkt.XID,
 		indent, pkt.Names,
 		indent, pkt.DeliverInsecure,
 		indent, pkt.Keys)
@@ -64,7 +64,7 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) {
 }
 
 type QnchModRqst struct {
-	Xid             uint32
+	XID             uint32
 	QuenchID        uint64
 	NamesAdd        []string
 	NamesDel        []string
@@ -129,14 +129,14 @@ func (pkt *QnchModRqst) IDString() string {
 
 func (pkt *QnchModRqst) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n"+
+		"%sXID: %d\n"+
 			"%sQuenchID: %d\n"+
 			"%sNamesAdd: %v\n"+
 			"%sNamesDel: %v\n"+
 			"%sDeliverInsecure: %v\n"+
 			"%sAddKeys: %v\n"+
 			"%sDelKeys: %v\n",
-		indent, pkt.Xid,
+		indent, pkt.XID,
 		indent, pkt.QuenchID,
 		indent, pkt.NamesAdd,
 		indent, pkt.NamesDel,
@@ -153,7 +153,7 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) {
 }
 
 type QnchDelRqst struct {
-	Xid      uint32
+	XID      uint32
 	QuenchID uint64
 }
 
@@ -243,9 +243,9 @@ func (pkt *QnchDelRqst) IDString() string {
 
 func (pkt *QnchDelRqst) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n"+
+		"%sXID: %d\n"+
 			"%sQuenchID: %d\n",
-		indent, pkt.Xid,
+		indent, pkt.XID,
 		indent, pkt.QuenchID)
 }
 
@@ -257,7 +257,7 @@ func (pkt *QnchDelRqst) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) {
 }
 
 type QnchRply struct {
-	Xid      uint32
+	XID      uint32
 	QuenchID uint64
 }
 
@@ -292,9 +292,9 @@ func (pkt *QnchRply) IDString() string {
 
 func (pkt *QnchRply) IString(indent string) string {
 	return fmt.Sprintf(
-		"%sXid: %d\n"+
+		"%sXID: %d\n"+
 			"%sQuenchID: %d\n",
-		indent, pkt.Xid,
+		indent, pkt.XID,
 		indent, pkt.QuenchID)
 }
 
@@ -306,7 +306,7 @@ func (pkt *QnchRply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
-	pkt.Xid, used, err = XdrGetUint32(bytes[offset:])
+	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
