@@ -21,7 +21,6 @@
 package elvin
 
 import (
-	"bytes"
 	"encoding/binary"
 	_ "errors"
 	"fmt"
@@ -68,26 +67,6 @@ func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 		offset += length
 	}
 	return offset, nil
-}
-
-// Create a new client. This must be called as using new(Client) will
-// not result in proper initialization
-func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset, keysSub []Keyset) (conn *Client) {
-	client := new(Client)
-	client.Endpoint = endpoint
-	client.Options = options
-	client.KeysNfn = keysNfn
-	client.KeysSub = keysSub
-	client.writeChannel = make(chan *bytes.Buffer)
-	client.readTerminate = make(chan int)
-	client.writeTerminate = make(chan int)
-	// Async packets
-	client.subDelivers = make(map[uint64]*Subscription)
-	// Sync Packets
-	client.connRply = make(chan *ConnRply)
-	client.disconnRply = make(chan *DisconnRply)
-	client.subRplys = make(map[uint32]*Subscription)
-	return client
 }
 
 // Handle reading for now run as a goroutine

@@ -26,7 +26,6 @@ import (
 )
 
 // Packet: SubAddRqst
-
 type SubAddRqst struct {
 	XID            uint32
 	Expression     string
@@ -104,7 +103,6 @@ func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 }
 
 // Packet: SubRply
-
 type SubRply struct {
 	XID   uint32
 	SubID uint64

@@ -30,7 +30,14 @@ import (
 	"time"
 )
 
-// A Connection (e.g. a socket)
+// A client of an Elvin service, typically used via:
+//      client.Connect()
+//      client = newClient()
+//      client.Subscribe()
+//      client.Notify()
+//      client.Disonnect()
+// See individual methods for details
+
 type Client struct {
 	// Public
 	Endpoint string
@@ -55,7 +62,7 @@ type Client struct {
 	subRplys    map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
 }
 
-// Type of event a subscription can receive
+// Types of event a subscription can receive
 const (
 	subEventNotifyDeliver = iota
 	subEventNack
@@ -64,17 +71,18 @@ const (
 	subEventSubDelRply
 )
 
-// For lack of a union type we pass one of three packet types discriminated by eventType
+// For lack of a union type we pass one of these packet types
+// discriminated by eventType. This is done to provide semantic
+// ordering guarantees.
 type SubscriptionEvent struct {
-	eventType     int // subEvent*
-	notifyDeliver *NotifyDeliver
-	nack          *Nack
-	subRply       *SubRply
+	eventType int // subEvent*
+	nack      *Nack
+	subRply   *SubRply
 	// subModRply    *SubModRply
 	// subDelRply    *SubDelRply
 }
 
-// Client Subscription
+// The Subscription type used by clients.
 type Subscription struct {
 	Expression     string                      // Subscription Expression
 	AcceptInsecure bool                        // Do we accept notifications with no security keys
@@ -88,6 +96,26 @@ type Subscription struct {
 const ConnectTimeout = (10 * time.Second)
 const DisconnectTimeout = (10 * time.Second)
 const SubscriptionTimeout = (10 * time.Second)
+
+// Create a new client.
+// Using new(Client) will not result in proper initialization
+func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset, keysSub []Keyset) (conn *Client) {
+	client := new(Client)
+	client.Endpoint = endpoint
+	client.Options = options
+	client.KeysNfn = keysNfn
+	client.KeysSub = keysSub
+	client.writeChannel = make(chan *bytes.Buffer)
+	client.readTerminate = make(chan int)
+	client.writeTerminate = make(chan int)
+	// Async packets
+	client.subDelivers = make(map[uint64]*Subscription)
+	// Sync Packets
+	client.connRply = make(chan *ConnRply)
+	client.disconnRply = make(chan *DisconnRply)
+	client.subRplys = make(map[uint32]*Subscription)
+	return client
+}
 
 // Connect this client to it's endpoint
 func (client *Client) Connect() (err error) {
@@ -136,7 +164,7 @@ func (client *Client) Connect() (err error) {
 	}
 }
 
-// Disonnect this client to matchfrom it's endpoint
+// Disonnect this client from it's endpoint
 func (client *Client) Disconnect() (err error) {
 
 	if client.State() != StateConnected {
@@ -185,7 +213,7 @@ func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, ke
 	return nil
 }
 
-// Subscribe
+// Subscribe this client to the subscription
 func (client *Client) Subscribe(sub *Subscription) (err error) {
 
 	if client.State() != StateConnected {
