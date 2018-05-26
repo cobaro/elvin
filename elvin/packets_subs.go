@@ -35,7 +35,7 @@ type SubAddRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *SubAddRqst) Id() int {
+func (pkt *SubAddRqst) ID() int {
 	return PacketSubAddRqst
 }
 
@@ -94,7 +94,7 @@ func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 // Encode a SubAddRqst from a buffer
 func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xid uint32) {
 	xid = Xid()
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, xid)
 	XdrPutString(buffer, pkt.Expression)
 	XdrPutBool(buffer, pkt.AcceptInsecure)
@@ -111,7 +111,7 @@ type SubRply struct {
 }
 
 // Integer value of packet type
-func (pkt *SubRply) Id() int {
+func (pkt *SubRply) ID() int {
 	return PacketSubRply
 }
 
@@ -156,7 +156,7 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 // Encode a SubRply from a buffer
 func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.SubID)
 }
@@ -169,7 +169,7 @@ type SubDelRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *SubDelRqst) Id() int {
+func (pkt *SubDelRqst) ID() int {
 	return PacketSubDelRqst
 }
 
@@ -214,7 +214,7 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 // Encode a SubDelRqst from a buffer
 func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.SubID)
 }
@@ -231,7 +231,7 @@ type SubModRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *SubModRqst) Id() int {
+func (pkt *SubModRqst) ID() int {
 	return PacketSubModRqst
 }
 
@@ -304,7 +304,7 @@ func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
 // Encode a SubModRqst from a buffer
 func (pkt *SubModRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint64(buffer, pkt.SubID)
 	XdrPutBool(buffer, pkt.AcceptInsecure)

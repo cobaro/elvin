@@ -76,12 +76,12 @@ func init() {
 }
 
 // Return our unique 32 bit unsigned identifier
-func (conn *Connection) Id() uint32 {
+func (conn *Connection) ID() uint32 {
 	return conn.id
 }
 
 // Create a unique 32 bit unsigned integer id
-func (conn *Connection) MakeId() {
+func (conn *Connection) MakeID() {
 	connections.lock.Lock()
 	defer connections.lock.Unlock()
 	var c uint32 = rand.Uint32()
@@ -354,7 +354,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	}
 
 	// We're now connected
-	conn.MakeId()
+	conn.MakeID()
 	conn.state = StateConnected
 	conn.subs = make(map[uint32]*Subscription)
 
@@ -390,7 +390,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	DisconnRply := new(elvin.DisconnRply)
 	DisconnRply.Xid = disconnRqst.Xid
 
-	glog.Infof("client %d disconnected", conn.Id)
+	glog.Infof("client %d disconnected", conn.id)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)

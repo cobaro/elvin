@@ -36,7 +36,7 @@ type QnchAddRqst struct {
 	Keys            []Keyset
 }
 
-func (pkt *QnchAddRqst) Id() int {
+func (pkt *QnchAddRqst) ID() int {
 	return PacketQnchAddRqst
 }
 
@@ -100,7 +100,7 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 }
 
 func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, uint32(len(pkt.Names)))
 	for i := 0; i < len(pkt.Names); i++ {
 		XdrPutString(buffer, pkt.Names[i])
@@ -119,7 +119,7 @@ type QnchModRqst struct {
 	DelKeys         []Keyset
 }
 
-func (pkt *QnchModRqst) Id() int {
+func (pkt *QnchModRqst) ID() int {
 	return PacketQnchAddRqst
 }
 
@@ -213,7 +213,7 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 }
 
 func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint64(buffer, pkt.QuenchID)
 	XdrPutUint32(buffer, uint32(len(pkt.NamesAdd)))
 	for i := 0; i < len(pkt.NamesAdd); i++ {
@@ -233,7 +233,7 @@ type QnchDelRqst struct {
 	QuenchID uint64
 }
 
-func (pkt *QnchDelRqst) Id() int {
+func (pkt *QnchDelRqst) ID() int {
 	return PacketQnchDelRqst
 }
 
@@ -273,7 +273,7 @@ func (pkt *QnchDelRqst) Decode(bytes []byte) (err error) {
 }
 
 func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint64(buffer, pkt.QuenchID)
 }
 
@@ -282,7 +282,7 @@ type QnchRply struct {
 	QuenchID uint64
 }
 
-func (pkt *QnchRply) Id() int {
+func (pkt *QnchRply) ID() int {
 	return PacketQnchRply
 }
 
@@ -322,7 +322,7 @@ func (pkt *QnchRply) Decode(bytes []byte) (err error) {
 }
 
 func (pkt *QnchRply) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint64(buffer, pkt.QuenchID)
 }
 
@@ -333,7 +333,7 @@ type SubAddNotify struct {
 	SubExpr           SubAST
 }
 
-func (pkt *SubAddNotify) Id() int {
+func (pkt *SubAddNotify) ID() int {
 	return PacketSubAddNotify
 }
 
@@ -425,7 +425,7 @@ type SubModNotify struct {
 	SubExpr           SubAST
 }
 
-func (pkt *SubModNotify) Id() int {
+func (pkt *SubModNotify) ID() int {
 	return PacketSubModNotify
 }
 
@@ -515,7 +515,7 @@ type SubDelNotify struct {
 	TermId    uint64
 }
 
-func (pkt *SubDelNotify) Id() int {
+func (pkt *SubDelNotify) ID() int {
 	return PacketSubDelNotify
 }
 

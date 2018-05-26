@@ -36,7 +36,7 @@ type ConnRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *ConnRqst) Id() int {
+func (pkt *ConnRqst) ID() int {
 	return PacketConnRqst
 }
 
@@ -112,7 +112,7 @@ func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 
 func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint32(buffer, pkt.VersionMajor)
 	XdrPutUint32(buffer, pkt.VersionMinor)
@@ -128,7 +128,7 @@ type ConnRply struct {
 }
 
 // Integer value of packet type
-func (pkt *ConnRply) Id() int {
+func (pkt *ConnRply) ID() int {
 	return PacketConnRply
 }
 
@@ -172,7 +172,7 @@ func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 
 // Encode a ConnRply from a buffer
 func (pkt *ConnRply) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutNotification(buffer, pkt.Options)
 }
@@ -183,7 +183,7 @@ type DisconnRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *DisconnRqst) Id() int {
+func (pkt *DisconnRqst) ID() int {
 	return PacketDisconnRqst
 }
 
@@ -220,7 +220,7 @@ func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
 
 func (pkt *DisconnRqst) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 }
 
@@ -230,7 +230,7 @@ type DisconnRply struct {
 }
 
 // Integer value of packet type
-func (pkt *DisconnRply) Id() int {
+func (pkt *DisconnRply) ID() int {
 	return PacketDisconnRply
 }
 
@@ -267,6 +267,6 @@ func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
 
 func (pkt *DisconnRply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 }

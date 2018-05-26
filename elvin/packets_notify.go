@@ -33,7 +33,7 @@ type NotifyEmit struct {
 }
 
 // Integer value of packet type
-func (pkt *NotifyEmit) Id() int {
+func (pkt *NotifyEmit) ID() int {
 	return PacketNotifyEmit
 }
 
@@ -81,7 +81,7 @@ func (pkt *NotifyEmit) Decode(bytes []byte) (err error) {
 
 // Encode a NotifyEmit from a buffer
 func (pkt *NotifyEmit) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutNotification(buffer, pkt.NameValue)
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
@@ -95,7 +95,7 @@ type NotifyDeliver struct {
 }
 
 // Integer value of packet type
-func (pkt *NotifyDeliver) Id() int {
+func (pkt *NotifyDeliver) ID() int {
 	return PacketNotifyDeliver
 }
 
@@ -163,7 +163,7 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 
 // Encode a NotifyDeliver from a buffer
 func (pkt *NotifyDeliver) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutNotification(buffer, pkt.NameValue)
 	XdrPutInt32(buffer, int32(len(pkt.Secure)))
 	for i := 0; i < len(pkt.Secure); i++ {

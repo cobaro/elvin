@@ -34,7 +34,7 @@ type Nack struct {
 }
 
 // Integer value of packet type
-func (pkt *Nack) Id() int {
+func (pkt *Nack) ID() int {
 	return PacketNack
 }
 
@@ -92,7 +92,7 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 
 // Encode a Nack from a buffer
 func (pkt *Nack) Encode(buffer *bytes.Buffer) {
-	XdrPutInt32(buffer, int32(pkt.Id()))
+	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.Xid)
 	XdrPutUint16(buffer, pkt.ErrorCode)
 	XdrPutString(buffer, pkt.Message)
