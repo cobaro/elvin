@@ -81,10 +81,12 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.writeChannel = make(chan *bytes.Buffer)
 	client.readTerminate = make(chan int)
 	client.writeTerminate = make(chan int)
+	// Async packets
+	client.subDelivers = make(map[uint64]*Subscription)
 	// Sync Packets
 	client.connRply = make(chan *ConnRply)
 	client.disconnRply = make(chan *DisconnRply)
-
+	client.subRplys = make(map[uint32]*Subscription)
 	return client
 }
 
@@ -200,9 +202,12 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 
 	case StateConnected:
 		switch PacketId(buffer) {
+		case PacketSubRply:
+			return client.HandleSubRply(buffer)
+		case PacketNotifyDeliver:
+			return client.HandleNotifyDeliver(buffer)
 		case PacketDropWarn:
 		case PacketReserved:
-		case PacketNotifyDeliver:
 		case PacketNack:
 		case PacketDisconn:
 		case PacketQnchRply:
@@ -232,7 +237,6 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 
 	// We're now connected
 	client.SetState(StateConnected)
-	client.subs = make(map[uint64]*Subscription)
 
 	// FIXME; check options
 	// connRply.Options
@@ -252,9 +256,70 @@ func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
 
 	// We're now disconnected
 	client.SetState(StateClosed)
-	client.subs = nil // harsh but fair
+	client.subRplys = nil    // harsh but fair
+	client.subDelivers = nil // harsh but fair
 
 	// Signal the connection request
 	client.disconnRply <- disconnRply
+	return nil
+}
+
+// Handle a Subscription reply
+func (client *Client) HandleSubRply(buffer []byte) (err error) {
+	subRply := new(SubRply)
+	if err = subRply.Decode(buffer); err != nil {
+		client.closer.Close()
+		// FIXME: return error
+	}
+
+	client.mu.Lock()
+	sub, ok := client.subRplys[subRply.Xid]
+	delete(client.subRplys, subRply.Xid)
+	client.mu.Unlock()
+	if !ok {
+		client.closer.Close()
+		// FIXME: return error
+	}
+
+	var ev SubscriptionEvent
+	ev.eventType = subEventSubRply
+	ev.subRply = subRply
+
+	// Signal the connection request
+	sub.events <- ev
+	return nil
+}
+
+// Handle a Notification Deliver
+func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
+	notifyDeliver := new(NotifyDeliver)
+	if err = notifyDeliver.Decode(buffer); err != nil {
+		client.closer.Close()
+		// FIXME: return error
+	}
+
+	// Sync the map of subids. We can do this once as:
+	// * If one disappears it's ok (we don't deliver)
+	// * If one appears it's ok (subids are sparse)
+	client.mu.Lock()
+	delivers := client.subDelivers
+	client.mu.Unlock()
+
+	// foreach matching subscription deliver it
+	for _, subid := range notifyDeliver.Secure {
+		log.Printf("NotifyDeliver secure for %d", subid)
+		sub, ok := delivers[subid]
+		if ok && sub.subId == subid {
+			sub.Notifications <- notifyDeliver.NameValue
+		}
+	}
+	for _, subid := range notifyDeliver.Insecure {
+		sub, ok := client.subDelivers[subid]
+		// log.Printf("NotifyDeliver insecure for %d", subid)
+		// log.Printf("client.subDelivers = %v", client.subDelivers)
+		if ok && sub.subId == subid {
+			sub.Notifications <- notifyDeliver.NameValue
+		}
+	}
 	return nil
 }

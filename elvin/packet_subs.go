@@ -92,12 +92,15 @@ func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 }
 
 // Encode a SubAddRqst from a buffer
-func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) {
-	// FIXME: error handling
+func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xid uint32) {
+	xid = Xid()
 	XdrPutInt32(buffer, int32(pkt.Id()))
-	XdrPutUint32(buffer, pkt.Xid)
+	XdrPutUint32(buffer, xid)
+	XdrPutString(buffer, pkt.Expression)
 	XdrPutBool(buffer, pkt.AcceptInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
+
+	return
 }
 
 // Packet: SubRply

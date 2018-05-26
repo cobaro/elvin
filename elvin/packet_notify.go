@@ -134,11 +134,12 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	offset += used
 
 	for i := int32(0); i < secureCount; i++ {
-		pkt.Secure[i], used, err = XdrGetUint64(bytes[offset:])
+		val, used, err := XdrGetUint64(bytes[offset:])
 		if err != nil {
 			return err
 		}
 		offset += used
+		pkt.Secure = append(pkt.Secure, val)
 	}
 
 	insecureCount, used, err := XdrGetInt32(bytes[offset:])
@@ -148,11 +149,13 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	offset += used
 
 	for i := int32(0); i < insecureCount; i++ {
-		pkt.Insecure[i], used, err = XdrGetUint64(bytes[offset:])
+		val, used, err := XdrGetUint64(bytes[offset:])
 		if err != nil {
 			return err
 		}
 		offset += used
+		pkt.Insecure = append(pkt.Insecure, val)
+
 	}
 
 	return nil

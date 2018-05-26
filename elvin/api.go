@@ -26,6 +26,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -38,7 +39,6 @@ type Client struct {
 	KeysSub  []Keyset
 
 	// Private
-	subs           map[uint64]*Subscription
 	reader         io.Reader
 	writer         io.Writer
 	closer         io.Closer
@@ -46,20 +46,48 @@ type Client struct {
 	writeChannel   chan *bytes.Buffer
 	readTerminate  chan int
 	writeTerminate chan int
+	mu             sync.Mutex
+	subDelivers    map[uint64]*Subscription // map for NotifyDeliver lookups
 
-	// RPC responses
+	// response channels
 	connRply    chan *ConnRply
 	disconnRply chan *DisconnRply
+	subRplys    map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
 }
 
-// FIXME
+// Type of event a subscription can receive
+const (
+	subEventNotifyDeliver = iota
+	subEventNack
+	subEventSubRply
+	subEventSubModRply
+	subEventSubDelRply
+)
+
+// For lack of a union type we pass one of three packet types discriminated by eventType
+type SubscriptionEvent struct {
+	eventType     int // subEvent*
+	notifyDeliver *NotifyDeliver
+	nack          *Nack
+	subRply       *SubRply
+	// subModRply    *SubModRply
+	// subDelRply    *SubDelRply
+}
+
+// Client Subscription
 type Subscription struct {
-	fixme int
+	Expression     string                      // Subscription Expression
+	AcceptInsecure bool                        // Do we accept notifications with no security keys
+	Keys           []Keyset                    // Keys for this subscriptions
+	Notifications  chan map[string]interface{} // Notifications delivered on this channel
+	subId          uint64
+	events         chan SubscriptionEvent
 }
 
 // FIXME: define and maybe make configurable?
 const ConnectTimeout = (10 * time.Second)
 const DisconnectTimeout = (10 * time.Second)
+const SubscriptionTimeout = (10 * time.Second)
 
 // Connect this client to it's endpoint
 func (client *Client) Connect() (err error) {
@@ -111,7 +139,6 @@ func (client *Client) Connect() (err error) {
 // Disonnect this client to matchfrom it's endpoint
 func (client *Client) Disconnect() (err error) {
 
-	// FIXME: Should state change be locked?
 	if client.State() != StateConnected {
 		return fmt.Errorf("client is not connected")
 	}
@@ -156,4 +183,44 @@ func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, ke
 	client.writeChannel <- writeBuf
 
 	return nil
+}
+
+// Subscribe
+func (client *Client) Subscribe(sub *Subscription) (err error) {
+
+	if client.State() != StateConnected {
+		return fmt.Errorf("FIXME: client not connected")
+	}
+
+	pkt := new(SubAddRqst)
+	pkt.Expression = sub.Expression
+	pkt.AcceptInsecure = sub.AcceptInsecure
+	pkt.Keys = sub.Keys
+
+	sub.events = make(chan SubscriptionEvent)
+
+	writeBuf := new(bytes.Buffer)
+	xid := pkt.Encode(writeBuf)
+
+	// Map the xid back to this request along with the notifications
+	client.mu.Lock()
+	client.subRplys[xid] = sub
+	client.mu.Unlock()
+
+	client.writeChannel <- writeBuf
+
+	// Wait for the reply
+	select {
+	case subevent := <-sub.events:
+		// Track the subscription id
+		sub.subId = subevent.subRply.Subid
+		client.mu.Lock()
+		client.subDelivers[sub.subId] = sub
+		client.mu.Unlock()
+		// log.Printf("Subscribe got (%v)", subevent)
+	case <-time.After(SubscriptionTimeout):
+		err = fmt.Errorf("FIXME: timeout")
+	}
+
+	return err
 }
