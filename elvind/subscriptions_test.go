@@ -84,6 +84,6 @@ func TestMockup(t *testing.T) {
 	client.writeChannel <- writeBuf
 
 	// And bail for now
-	time.Sleep(1000 * 1000 * 1000 * 5)
+	time.Sleep(1000 * 1000 * 1000 * 1)
 
 }
