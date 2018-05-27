@@ -76,7 +76,7 @@ var ProtocolErrors map[int]string
 func init() {
 	ProtocolErrors = make(map[int]string)
 
-	ProtocolErrors[ErrorsProtocolIncompatible] = "Version %1.%2 of the protocol is incompatible" // int32 int32
+	ProtocolErrors[ErrorsProtocolIncompatible] = "Version %1.%2 of the protocol is incompatible" // int int32
 	ProtocolErrors[ErrorsAuthorizationFailure] = "Authorization failed"
 	ProtocolErrors[ErrorsAuthenticationFailure] = "Authentication failed"
 
@@ -105,8 +105,8 @@ func init() {
 	ProtocolErrors[ErrorsTooFewArgs] = "Not enough argument to function %1() at offset %2" // string, int32
 	ProtocolErrors[ErrorsInvalidRegexp] = "Bad regular expression %1 at offset %2"         // string, int32
 	ProtocolErrors[ErrorsExpIsTrivial] = "Expression compiled to a constant value"
-	ProtocolErrors[ErrorsRegexpTooComplex] = "Expression %1 too complex at position %2"    // string, int32
-	ProtocolErrors[ErrorsNestingTooDeep] = "Expression %1 nests too deeply at position %2" // string, int32
+	ProtocolErrors[ErrorsRegexpTooComplex] = "Expression %1 too complex at position %2"        // string, int32
+	ProtocolErrors[ErrorsNestingTooDeep] = "Expression %1 has nests too deeply at position %2" // string, int32
 
 	ProtocolErrors[ErrorsQuenchEmpty] = "Quench has no attribute names"
 	ProtocolErrors[ErrorsQuenchAttributeExists] = "Attribute %1 already present" // string
