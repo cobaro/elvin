@@ -71,10 +71,10 @@ const (
 // Provide a map of error code to string Each error string has a
 // number of arguments that may be substituted as a hook for message
 // localization
-var ProtocolErrors map[int]string
+var ProtocolErrors map[uint16]string
 
 func init() {
-	ProtocolErrors = make(map[int]string)
+	ProtocolErrors = make(map[uint16]string)
 
 	ProtocolErrors[ErrorsProtocolIncompatible] = "Version %1.%2 of the protocol is incompatible" // int int32
 	ProtocolErrors[ErrorsAuthorizationFailure] = "Authorization failed"
@@ -126,10 +126,7 @@ func ElvinStringToFormatString(in string) (out string) {
 				str = append(str, '%')
 				i++
 			} else if in[i+1] >= '0' && in[i+1] <= '9' {
-				str = append(str, '[')
-				str = append(str, in[i+1])
-				str = append(str, ']')
-				str = append(str, 'v')
+				str = append(str, '[', in[i+1], ']', 'v')
 				i += 1
 			}
 		}

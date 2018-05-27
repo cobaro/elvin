@@ -45,12 +45,9 @@ func (pkt *Nack) IDString() string {
 
 // Pretty print with indent
 func (pkt *Nack) IString(indent string) string {
-	return fmt.Sprintf("%sXID %v\n%sErrorCode %v\n%sMessage %v\n%sArgs %v\n",
-		indent, pkt.XID,
-		indent, pkt.ErrorCode,
-		indent, pkt.Message,
-		indent, pkt.Args,
-	)
+	return fmt.Sprintf("%sXID:%v [%d] %s",
+		indent, pkt.XID, int(pkt.ErrorCode),
+		fmt.Sprintf(ElvinStringToFormatString(pkt.Message), pkt.Args...))
 }
 
 // Pretty print without indent so generic ToString() works

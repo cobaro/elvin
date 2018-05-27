@@ -35,17 +35,24 @@ func main() {
 	endpoint := "localhost:2917"
 	ec := elvin.NewClient(endpoint, nil, nil, nil)
 
+	ec.Options = make(map[string]interface{})
+	// ec.Options["TestNack"] = 1
+	// ec.Options["TestDisconn"] = 1
+	log.Printf("Options:%v\n", ec.Options)
+
 	if err := ec.Connect(); err != nil {
 		log.Printf("%v", err)
 		os.Exit(1)
 	}
 	log.Printf("connected to %s", endpoint)
 
+	// FIXME: do a NewSubscription()
 	sub := new(elvin.Subscription)
 	sub.Expression = "require(int32)"
+	// sub.Expression = "bogus"
 	sub.AcceptInsecure = true
 	sub.Keys = nil
-	sub.Notifications = make(chan map[string]interface{}) // FIXME: do a NewSubscription()
+	sub.Notifications = make(chan map[string]interface{})
 
 	if err := ec.Subscribe(sub); err != nil {
 		log.Printf("Subscribe failed %v", err)
@@ -68,6 +75,7 @@ Loop:
 	}
 
 	// Exit a little gracefully
+	log.Printf("Disconnecting")
 	if err := ec.Disconnect(); err != nil {
 		log.Printf("%v", err)
 		os.Exit(1)

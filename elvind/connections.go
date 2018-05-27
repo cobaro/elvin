@@ -93,7 +93,7 @@ func (conn *Connection) MakeID() {
 		c++
 	}
 
-	if glog.V(3) {
+	if glog.V(4) {
 		glog.Infof("conn id is %d", c)
 	}
 	conn.id = c
@@ -346,11 +346,26 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 
 // Handle a Connection Request
 func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
-	// FIXME: no range checking
 	connRqst := new(elvin.ConnRqst)
 	if err = connRqst.Decode(buffer); err != nil {
 		conn.state = StateClosed
 		conn.closer.Close()
+	}
+
+	// Check some options
+	if _, ok := connRqst.Options["TestNack"]; ok {
+		if glog.V(3) {
+			glog.Infof("Sending Nack for options:TestNack")
+		}
+		nack := new(elvin.Nack)
+		nack.XID = connRqst.XID
+		nack.ErrorCode = elvin.ErrorsImplementationLimit
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode]
+		nack.Args = nil
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nack.Encode(buf)
+		conn.writeChannel <- buf
+		return nil
 	}
 
 	// We're now connected
@@ -506,7 +521,7 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
-		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubID]
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode]
 		nack.Args = make([]interface{}, 1)
 		nack.Args[0] = sub.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
@@ -548,7 +563,7 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
-		nack.Message = elvin.ProtocolErrors[elvin.ErrorsUnknownSubID]
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode]
 		nack.Args = make([]interface{}, 1)
 		nack.Args[0] = sub.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)

@@ -169,6 +169,8 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		switch PacketID(buffer) {
 		case PacketConnRply:
 			return client.HandleConnRply(buffer)
+		case PacketNack:
+			return client.HandleNack(buffer)
 		default:
 			return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
 		}
@@ -185,9 +187,10 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 			return client.HandleSubRply(buffer)
 		case PacketNotifyDeliver:
 			return client.HandleNotifyDeliver(buffer)
+		case PacketNack:
+			return client.HandleNack(buffer)
 		case PacketDropWarn:
 		case PacketReserved:
-		case PacketNack:
 		case PacketDisconn:
 		case PacketQnchRply:
 		case PacketSubAddNotify:
@@ -221,7 +224,7 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 	// connRply.Options
 
 	// Signal the connection request
-	client.connRply <- connRply
+	client.connReplies <- connRply
 	return nil
 }
 
@@ -235,11 +238,45 @@ func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
 
 	// We're now disconnected
 	client.SetState(StateClosed)
-	client.subRplys = nil    // harsh but fair
+	client.subReplies = nil  // harsh but fair
 	client.subDelivers = nil // harsh but fair
 
 	// Signal the connection request
-	client.disconnRply <- disconnRply
+	client.disconnReplies <- disconnRply
+	return nil
+}
+
+// Handle a Nack
+func (client *Client) HandleNack(buffer []byte) (err error) {
+	nack := new(Nack)
+	if err = nack.Decode(buffer); err != nil {
+		client.closer.Close()
+		// FIXME: return error
+	}
+
+	// A Nack can belong to multiple places so hunt it down
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
+	sub, ok := client.subReplies[nack.XID]
+	if ok {
+		delete(client.subReplies, nack.XID)
+		sub.events <- Packet(nack)
+		return nil
+	}
+
+	if client.connXID == nack.XID {
+		client.connXID = 0
+		client.connReplies <- Packet(nack)
+		return nil
+	}
+
+	// Disconn can not get a Nack
+
+	// Quench
+	// etc
+
+	fmt.Printf("Unhandled nack xid=%d, (conn:%d)\n", nack.XID, client.connXID)
 	return nil
 }
 
@@ -252,20 +289,16 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 	}
 
 	client.mu.Lock()
-	sub, ok := client.subRplys[subRply.XID]
-	delete(client.subRplys, subRply.XID)
+	sub, ok := client.subReplies[subRply.XID]
+	delete(client.subReplies, subRply.XID)
 	client.mu.Unlock()
 	if !ok {
 		client.closer.Close()
 		// FIXME: return error
 	}
 
-	var ev SubscriptionEvent
-	ev.eventType = subEventSubRply
-	ev.subRply = subRply
-
 	// Signal the connection request
-	sub.events <- ev
+	sub.events <- Packet(subRply)
 	return nil
 }
 

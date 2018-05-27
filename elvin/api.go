@@ -57,9 +57,11 @@ type Client struct {
 	subDelivers    map[uint64]*Subscription // map for NotifyDeliver lookups
 
 	// response channels
-	connRply    chan *ConnRply
-	disconnRply chan *DisconnRply
-	subRplys    map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
+	connXID        uint32                   // XID of outstanding connrqst
+	connReplies    chan Packet              // Channel for Connect() packets
+	disconnXID     uint32                   // XID of outstanding disconnrqst
+	disconnReplies chan Packet              // Channel for Connect() packets
+	subReplies     map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
 }
 
 // Types of event a subscription can receive
@@ -71,17 +73,6 @@ const (
 	subEventSubDelRply
 )
 
-// For lack of a union type we pass one of these packet types
-// discriminated by eventType. This is done to provide semantic
-// ordering guarantees.
-type SubscriptionEvent struct {
-	eventType int // subEvent*
-	nack      *Nack
-	subRply   *SubRply
-	// subModRply    *SubModRply
-	// subDelRply    *SubDelRply
-}
-
 // The Subscription type used by clients.
 type Subscription struct {
 	Expression     string                      // Subscription Expression
@@ -89,7 +80,7 @@ type Subscription struct {
 	Keys           []Keyset                    // Keys for this subscriptions
 	Notifications  chan map[string]interface{} // Notifications delivered on this channel
 	subID          uint64
-	events         chan SubscriptionEvent
+	events         chan Packet
 }
 
 // FIXME: define and maybe make configurable?
@@ -111,9 +102,9 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	// Async packets
 	client.subDelivers = make(map[uint64]*Subscription)
 	// Sync Packets
-	client.connRply = make(chan *ConnRply)
-	client.disconnRply = make(chan *DisconnRply)
-	client.subRplys = make(map[uint32]*Subscription)
+	client.connReplies = make(chan Packet)
+	client.disconnReplies = make(chan Packet)
+	client.subReplies = make(map[uint32]*Subscription)
 	return client
 }
 
@@ -139,6 +130,7 @@ func (client *Client) Connect() (err error) {
 
 	pkt := new(ConnRqst)
 	pkt.XID = XID()
+	client.connXID = pkt.XID
 	pkt.VersionMajor = 4
 	pkt.VersionMinor = 1
 	pkt.Options = client.Options
@@ -151,17 +143,31 @@ func (client *Client) Connect() (err error) {
 
 	// Wait for the reply
 	select {
-	case connRply := <-client.connRply:
+	case rply := <-client.connReplies:
+		switch rply.(type) {
+		case *ConnRply:
+			connRply := rply.(*ConnRply)
+			// FIXME: check it
+			log.Printf("We connected (xID=%d)", connRply.XID)
+			client.SetState(StateConnected)
+			break
 
-		// FIXME: check it
-		log.Printf("We connected (xID=%d)", connRply.XID)
-		client.SetState(StateConnected)
-		return nil
-
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			client.SetState(StateConnected)
+			break
+		default:
+			// FIXME: die
+			err = fmt.Errorf("Unexpected packet")
+			break
+		}
 	case <-time.After(ConnectTimeout):
 		client.SetState(StateClosed)
-		return fmt.Errorf("FIXME: timeout")
+		err = fmt.Errorf("FIXME: timeout")
 	}
+
+	return err
 }
 
 // Disonnect this client from it's endpoint
@@ -175,6 +181,7 @@ func (client *Client) Disconnect() (err error) {
 	// FIXME: in a generous world we might unsubscribe, unquench etc
 	pkt := new(DisconnRqst)
 	pkt.XID = XID()
+	client.disconnXID = pkt.XID
 
 	writeBuf := new(bytes.Buffer)
 	pkt.Encode(writeBuf)
@@ -182,16 +189,27 @@ func (client *Client) Disconnect() (err error) {
 
 	// Wait for the reply
 	select {
-	case disconnRply := <-client.disconnRply:
-		log.Printf("We disconnected (xID=%d)", disconnRply.XID)
-	case <-time.After(ConnectTimeout):
+	case rply := <-client.disconnReplies:
+		switch rply.(type) {
+		case *DisconnRply:
+			disconnRply := rply.(*DisconnRply)
+			log.Printf("We disconnected (xID=%d)", disconnRply.XID)
+			// FIXME: clean up subs
+			client.SetState(StateClosed)
+			client.closer.Close() // We need to disonnect somehow
+			break
+		default:
+			// Didn't hear back, let the client deal with that
+			err = fmt.Errorf("Unexpected packet")
+			break
+
+		}
+
+	case <-time.After(DisconnectTimeout):
 		err = fmt.Errorf("FIXME: timeout")
 	}
 
-	// FIXME: clean up subs
-	client.SetState(StateClosed)
-	client.closer.Close() // We need to disonnect somehow
-	return nil
+	return err
 }
 
 // Send a notification
@@ -225,27 +243,38 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 	pkt.AcceptInsecure = sub.AcceptInsecure
 	pkt.Keys = sub.Keys
 
-	sub.events = make(chan SubscriptionEvent)
+	sub.events = make(chan Packet)
 
 	writeBuf := new(bytes.Buffer)
 	xID := pkt.Encode(writeBuf)
 
 	// Map the XID back to this request along with the notifications
 	client.mu.Lock()
-	client.subRplys[xID] = sub
+	client.subReplies[xID] = sub
 	client.mu.Unlock()
 
 	client.writeChannel <- writeBuf
 
 	// Wait for the reply
 	select {
-	case subevent := <-sub.events:
-		// Track the subscription id
-		sub.subID = subevent.subRply.SubID
-		client.mu.Lock()
-		client.subDelivers[sub.subID] = sub
-		client.mu.Unlock()
-		// log.Printf("Subscribe got (%v)", subevent)
+	case rply := <-sub.events:
+		switch rply.(type) {
+		case *SubRply:
+			subRply := rply.(*SubRply)
+			// Track the subscription id
+			sub.subID = subRply.SubID
+			client.mu.Lock()
+			client.subDelivers[sub.subID] = sub
+			client.mu.Unlock()
+			break
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			break
+		default:
+			log.Printf("OOPS (%v)", rply)
+		}
+
 	case <-time.After(SubscriptionTimeout):
 		err = fmt.Errorf("FIXME: timeout")
 	}
