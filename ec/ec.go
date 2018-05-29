@@ -28,17 +28,27 @@ import (
 	"os/signal"
 )
 
+// Handle Disconnects stub
+func disconnector(client *elvin.Client) {
+	for {
+		disconn := <-client.DisconnChannel
+		log.Printf("Received Disconn:\n%v", disconn)
+	}
+}
+
 func main() {
 	// Argument parsing
 	flag.Parse()
 
 	endpoint := "localhost:2917"
 	ec := elvin.NewClient(endpoint, nil, nil, nil)
+	go disconnector(ec)
 
 	ec.Options = make(map[string]interface{})
+	// FIXME: At some point let's formalize these as test cases
 	// ec.Options["TestNack"] = 1
 	// ec.Options["TestDisconn"] = 1
-	log.Printf("Options:%v\n", ec.Options)
+	// log.Printf("Options:%v\n", ec.Options)
 
 	if err := ec.Connect(); err != nil {
 		log.Printf("%v", err)

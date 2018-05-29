@@ -367,6 +367,17 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 		conn.writeChannel <- buf
 		return nil
 	}
+	if _, ok := connRqst.Options["TestDisconn"]; ok {
+		if glog.V(3) {
+			glog.Infof("Sending Disconn for options:TestDisconn")
+		}
+		disconn := new(elvin.Disconn)
+		disconn.Reason = 4 // a little bogus
+		buf := bufferPool.Get().(*bytes.Buffer)
+		disconn.Encode(buf)
+		conn.writeChannel <- buf
+		return nil
+	}
 
 	// We're now connected
 	conn.MakeID()

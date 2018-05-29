@@ -163,6 +163,14 @@ func (client *Client) writeHandler() {
 // Handle a protocol packet
 func (client *Client) HandlePacket(buffer []byte) (err error) {
 
+	// log.Printf("HandlePacket received %v", PacketIDString(PacketID(buffer)))
+
+	// Packets accepted independent of Client's connection state
+	switch PacketID(buffer) {
+	case PacketDisconn:
+		return client.HandleDisconn(buffer)
+	}
+
 	// Packets dependent upon Client's connection state
 	switch client.State() {
 	case StateConnecting:
@@ -191,7 +199,6 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 			return client.HandleNack(buffer)
 		case PacketDropWarn:
 		case PacketReserved:
-		case PacketDisconn:
 		case PacketQnchRply:
 		case PacketSubAddNotify:
 		case PacketSubModNotify:
@@ -228,7 +235,7 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 	return nil
 }
 
-// Handle a Disconenction reply
+// Handle a Disconnection reply
 func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
 	disconnRply := new(DisconnRply)
 	if err = disconnRply.Decode(buffer); err != nil {
@@ -243,6 +250,34 @@ func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
 
 	// Signal the connection request
 	client.disconnReplies <- disconnRply
+	return nil
+}
+
+// Handle a Disconn
+func (client *Client) HandleDisconn(buffer []byte) (err error) {
+	disconn := new(Disconn)
+	if err = disconn.Decode(buffer); err != nil {
+		log.Printf("oops")
+		client.closer.Close()
+		// FIXME: return error
+	}
+
+	// We're now disconnected
+	client.SetState(StateClosed)
+	client.subReplies = nil  // harsh but fair
+	client.subDelivers = nil // harsh but fair
+	client.connXID = 0
+	client.disconnXID = 0
+
+	// Signal the disconect
+
+	// A client library might not be listening but we shouldn't fail
+	// so we select and ignore the default
+	client.DisconnChannel <- disconn
+	select {
+	case client.DisconnChannel <- disconn:
+	default:
+	}
 	return nil
 }
 

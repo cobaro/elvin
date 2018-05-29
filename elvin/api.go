@@ -40,10 +40,11 @@ import (
 
 type Client struct {
 	// Public
-	Endpoint string
-	Options  map[string]interface{}
-	KeysNfn  []Keyset
-	KeysSub  []Keyset
+	Endpoint       string
+	Options        map[string]interface{}
+	KeysNfn        []Keyset
+	KeysSub        []Keyset
+	DisconnChannel chan *Disconn // Clients may listen here for disconnects
 
 	// Private
 	reader         io.Reader
@@ -62,6 +63,7 @@ type Client struct {
 	disconnXID     uint32                   // XID of outstanding disconnrqst
 	disconnReplies chan Packet              // Channel for Connect() packets
 	subReplies     map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
+
 }
 
 // Types of event a subscription can receive
@@ -105,6 +107,8 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.connReplies = make(chan Packet)
 	client.disconnReplies = make(chan Packet)
 	client.subReplies = make(map[uint32]*Subscription)
+	client.DisconnChannel = make(chan *Disconn)
+
 	return client
 }
 
@@ -147,9 +151,13 @@ func (client *Client) Connect() (err error) {
 		switch rply.(type) {
 		case *ConnRply:
 			connRply := rply.(*ConnRply)
-			// FIXME: check it
-			log.Printf("We connected (xID=%d)", connRply.XID)
-			client.SetState(StateConnected)
+			// Check XID matches
+			if connRply.XID != pkt.XID {
+				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, connRply.XID)
+			} else {
+				// FIXME: Options check/save?
+				client.SetState(StateConnected)
+			}
 			break
 
 		case *Nack:
@@ -193,10 +201,14 @@ func (client *Client) Disconnect() (err error) {
 		switch rply.(type) {
 		case *DisconnRply:
 			disconnRply := rply.(*DisconnRply)
-			log.Printf("We disconnected (xID=%d)", disconnRply.XID)
-			// FIXME: clean up subs
-			client.SetState(StateClosed)
-			client.closer.Close() // We need to disonnect somehow
+			// Check XID matches
+			if disconnRply.XID != pkt.XID {
+				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, disconnRply.XID)
+			} else {
+				// FIXME: clean up cleanup
+				client.SetState(StateClosed)
+				client.closer.Close()
+			}
 			break
 		default:
 			// Didn't hear back, let the client deal with that

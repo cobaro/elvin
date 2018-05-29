@@ -270,3 +270,59 @@ func (pkt *DisconnRply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
 }
+
+// Packet: Disconn
+type Disconn struct {
+	Reason uint32
+	Args   string
+}
+
+// Integer value of packet type
+func (pkt *Disconn) ID() int {
+	return PacketDisconn
+}
+
+// String representation of packet type
+func (pkt *Disconn) IDString() string {
+	return "Disconn"
+}
+
+// Pretty print with indent
+func (pkt *Disconn) IString(indent string) string {
+	return fmt.Sprintf(
+		"%sReason: %d\n%sArgs: %s\n",
+		indent, pkt.Reason,
+		indent, pkt.Args)
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *Disconn) String() string {
+	return pkt.IString("")
+}
+
+// Decode a Disconn packet from a byte array
+func (pkt *Disconn) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4 // header
+
+	pkt.Reason, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
+	offset += used
+
+	pkt.Args, used, err = XdrGetString(bytes[offset:])
+	if err != nil {
+		return err
+	}
+	offset += used
+
+	return nil
+}
+
+func (pkt *Disconn) Encode(buffer *bytes.Buffer) {
+	// FIXME: error handling
+	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutUint32(buffer, pkt.Reason)
+	XdrPutString(buffer, pkt.Args)
+}
