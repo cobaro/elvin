@@ -56,7 +56,7 @@ func TestMockup(t *testing.T) {
 	server.writer = sw
 	server.closer = sr
 
-	server.state = StateNew
+	server.SetState(StateNew)
 	server.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
 	server.readTerminate = make(chan int)
 	server.writeTerminate = make(chan int)
@@ -65,7 +65,7 @@ func TestMockup(t *testing.T) {
 	go server.writeHandler()
 
 	// FIXME: At this point we need to think about the client library
-	client.state = StateNew
+	client.SetState(StateNew)
 	client.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
 	client.readTerminate = make(chan int)
 	client.writeTerminate = make(chan int)

@@ -30,6 +30,7 @@ import (
 	"io"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	// "time"
 )
 
@@ -41,6 +42,16 @@ const (
 	StateClosed
 )
 
+// Return state (synchronized)
+func (conn *Connection) State() uint32 {
+	return atomic.LoadUint32(&conn.state)
+}
+
+// Get state (synchronized)
+func (conn *Connection) SetState(val uint32) {
+	atomic.StoreUint32(&conn.state, val)
+}
+
 // A Connection (e.g. a socket)
 type Connection struct {
 	id             uint32
@@ -48,7 +59,7 @@ type Connection struct {
 	reader         io.Reader
 	writer         io.Writer
 	closer         io.Closer
-	state          int
+	state          uint32
 	writeChannel   chan *bytes.Buffer
 	readTerminate  chan int
 	writeTerminate chan int
@@ -101,6 +112,20 @@ func (conn *Connection) MakeID() {
 	return
 }
 
+func (conn *Connection) Close() {
+	if glog.V(4) {
+		glog.Infof("Closing client %d", conn.ID())
+	}
+	conn.readTerminate <- 1
+	conn.writeTerminate <- 1
+	conn.closer.Close()
+	connections.lock.Lock()
+	delete(connections.connections, conn.ID())
+	// FIXME: Clean up subscriptions
+	connections.lock.Unlock()
+
+}
+
 // Read n bytes from reader into buffer which must be big enough
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
@@ -122,7 +147,6 @@ func (conn *Connection) readHandler() {
 	if glog.V(2) {
 		glog.Infof("Read Handler starting")
 	}
-	defer conn.closer.Close()
 	if glog.V(2) {
 		defer glog.Infof("Read Handler exiting")
 	}
@@ -134,43 +158,32 @@ func (conn *Connection) readHandler() {
 		// Read frame header
 		length, err := readBytes(conn.reader, header, 4)
 		if length != 4 || err != nil {
-			// Deal with more errors
-			if err == io.EOF {
-				conn.writeTerminate <- 1
-			} else {
-				glog.Errorf("Read Handler error: %v", err)
-			}
-			return // We're done
+			break // We're done
 		}
 
 		// Read the protocol packet, starting with it's length
-		packetSize := int32(binary.BigEndian.Uint32(header))
+		packetSize := int(binary.BigEndian.Uint32(header))
 		// Grow our buffer if needed
-		if int(packetSize) > len(buffer) {
+		if packetSize > len(buffer) {
 			if glog.V(4) {
 				glog.Infof("Growing buffer to %d bytes", packetSize)
 			}
 			buffer = make([]byte, packetSize)
 		}
 
-		length, err = readBytes(conn.reader, buffer, int(packetSize))
-		if err != nil {
-			// Deal with more errors
-			if err == io.EOF {
-				conn.writeTerminate <- 1
-			} else {
-				glog.Errorf("Read Handler error: %v", err)
-			}
-			return // We're done
+		length, err = readBytes(conn.reader, buffer, packetSize)
+		if length != packetSize || err != nil {
+			break // We're done
 		}
 
 		// Deal with the packet
 		if err = conn.HandlePacket(buffer); err != nil {
 			glog.Errorf("Read Handler error: %v", err)
 			// FIXME: protocol error
+			break
 		}
-
 	}
+	conn.Close()
 }
 
 // Handle writing for now run as a goroutine
@@ -181,7 +194,7 @@ func (conn *Connection) writeHandler() {
 	if glog.V(2) {
 		defer glog.Infof("Write Handler exiting")
 	}
-	defer conn.closer.Close()
+	defer conn.Close()
 
 	header := make([]byte, 4)
 
@@ -194,9 +207,7 @@ func (conn *Connection) writeHandler() {
 			_, err := conn.writer.Write(header)
 			if err != nil {
 				// Deal with more errors
-				if err == io.EOF {
-					conn.closer.Close()
-				} else {
+				if err != io.EOF {
 					glog.Errorf("Unexpected write error: %v", err)
 				}
 				bufferPool.Put(buffer)
@@ -207,16 +218,14 @@ func (conn *Connection) writeHandler() {
 			_, err = buffer.WriteTo(conn.writer)
 			if err != nil {
 				// Deal with more errors
-				if err == io.EOF {
-					conn.closer.Close()
-				} else {
+				if err != io.EOF {
 					glog.Errorf("Unexpected write error: %v", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
 			}
 		case <-conn.writeTerminate:
-			return
+			return // We're done, cleanup done by read
 		}
 	}
 }
@@ -270,7 +279,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	}
 
 	// Packets dependent upon Client's connection state
-	switch conn.state {
+	switch conn.State() {
 	case StateNew:
 		// Connect and Unotify are the only valid packets without
 		// a properly established connection
@@ -348,8 +357,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	connRqst := new(elvin.ConnRqst)
 	if err = connRqst.Decode(buffer); err != nil {
-		conn.state = StateClosed
-		conn.closer.Close()
+		conn.Close()
 	}
 
 	// Check some options
@@ -381,7 +389,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 
 	// We're now connected
 	conn.MakeID()
-	conn.state = StateConnected
+	conn.SetState(StateConnected)
 	conn.subs = make(map[uint32]*Subscription)
 
 	// Respond with a Connection Reply
@@ -407,12 +415,11 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 
 	disconnRqst := new(elvin.DisconnRqst)
 	if err = disconnRqst.Decode(buffer); err != nil {
-		conn.state = StateClosed
-		conn.closer.Close()
+		conn.Close()
 	}
 
 	// We're now disconnecting
-	conn.state = StateDisconnecting
+	conn.SetState(StateDisconnecting)
 
 	// Respond with a Disconnection Reply
 	DisconnRply := new(elvin.DisconnRply)

@@ -99,7 +99,7 @@ func main() {
 			os.Exit(0)
 		case syscall.SIGUSR1:
 			connections.lock.Lock()
-			glog.Infof("Client list:")
+			glog.Infof("We have %d clients:", len(connections.connections))
 			for i, conn := range connections.connections {
 				glog.Infof("%d: %+v", i, conn)
 			}
@@ -115,9 +115,6 @@ func main() {
 				buf := bufferPool.Get().(*bytes.Buffer)
 				disconn.Encode(buf)
 				conn.writeChannel <- buf
-				// delete(connections.connections, i)
-				// conn.writeTerminate <- 1
-				// conn.closer.Close()
 			}
 			connections.lock.Unlock()
 			break
@@ -144,7 +141,7 @@ func Listener(protocol Protocol) {
 		conn.reader = c
 		conn.writer = c
 		conn.closer = c
-		conn.state = StateNew
+		conn.SetState(StateNew)
 		conn.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
 		conn.readTerminate = make(chan int)
 		conn.writeTerminate = make(chan int)
