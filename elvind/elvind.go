@@ -123,9 +123,6 @@ func main() {
 			break
 		}
 	}
-
-	return
-
 }
 
 func Listener(protocol Protocol) {
