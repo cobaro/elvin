@@ -390,7 +390,9 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	// FIXME; totally bogus
 	connRply.Options = connRqst.Options
 
-	glog.Infof("New client %d connected", conn.ID())
+	if glog.V(3) {
+		glog.Infof("New client %d connected", conn.ID())
+	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -402,7 +404,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 
 // Handle a Disconnection Request
 func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
-	// FIXME: no range checking
+
 	disconnRqst := new(elvin.DisconnRqst)
 	if err = disconnRqst.Decode(buffer); err != nil {
 		conn.state = StateClosed
@@ -416,7 +418,9 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	DisconnRply := new(elvin.DisconnRply)
 	DisconnRply.XID = disconnRqst.XID
 
-	glog.Infof("client %d disconnected", conn.ID())
+	if glog.V(3) {
+		glog.Infof("client %d disconnected", conn.ID())
+	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)

@@ -25,6 +25,18 @@ import (
 	"fmt"
 )
 
+// reasons for disconnection (Disconn packet)
+const (
+	// Defined in the Elvin spec
+	DisconnReasonReserved             = 0
+	DisconnReasonRouterShuttingDown   = 1
+	DisconnReasonRouterRedirect       = 2
+	DisconnReasonRouterProtocolErrors = 4
+
+	// Local to client library
+	DisconnReasonClientConnectionLost = 100
+)
+
 // Packet: Connection Request
 type ConnRqst struct {
 	XID          uint32

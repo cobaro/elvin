@@ -26,7 +26,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 )
 
 func main() {
@@ -61,10 +60,6 @@ func main() {
 		os.Exit(1)
 	}
 	log.Printf("disconnected")
-
-	log.Printf("sleepy")
-	time.Sleep(10 * time.Second)
-	log.Printf("exit")
 	os.Exit(0)
 }
 

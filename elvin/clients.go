@@ -55,6 +55,26 @@ func (client *Client) SetState(val uint32) {
 	atomic.StoreUint32(&client.state, val)
 }
 
+// This closes a client's sockets/endpoints and cleans state
+// returning things to where they were following a NewClient()
+// with the exception that the subscription list is maintained
+// so it can be re-established on re-connection
+func (client *Client) Close() {
+	client.mu.Lock()
+	client.SetState(StateClosed)
+	select {
+	case client.writeTerminate <- 1:
+	default:
+	}
+	// client.readTerminate <- 1
+	client.closer.Close()
+	client.subReplies = make(map[uint32]*Subscription)
+	client.connXID = 0
+	client.disconnXID = 0
+	client.wg.Wait() // Wait for reader and writer to finish
+	client.mu.Unlock()
+}
+
 // Read n bytes from reader into buffer which must be big enough
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
@@ -71,8 +91,6 @@ func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 
 // Handle reading for now run as a goroutine
 func (client *Client) readHandler() {
-	defer client.closer.Close()
-
 	header := make([]byte, 4)
 	buffer := make([]byte, 2048)
 
@@ -80,15 +98,7 @@ func (client *Client) readHandler() {
 		// Read frame header
 		length, err := readBytes(client.reader, header, 4)
 		if length != 4 || err != nil {
-			// Deal with more errors
-			if err == io.EOF {
-				client.writeTerminate <- 1
-			} else {
-				if client.State() != StateClosed {
-					log.Printf("Read Handler error: %v", err)
-				}
-			}
-			return // We're done
+			break // We're done
 		}
 
 		// Read the protocol packet, starting with it's length
@@ -99,30 +109,34 @@ func (client *Client) readHandler() {
 		}
 
 		length, err = readBytes(client.reader, buffer, int(packetSize))
-		if err != nil {
-			// Deal with more errors
-			if err == io.EOF {
-				client.writeTerminate <- 1
-			} else {
-				if client.State() != StateClosed {
-					log.Printf("Read Handler error: %v", err)
-				}
-			}
-			return // We're done
+		if length != int(packetSize) || err != nil {
+			break // We're done
 		}
 
 		// Deal with the packet
 		if err = client.HandlePacket(buffer); err != nil {
 			log.Printf("Read Handler error: %v", err)
 			// FIXME: protocol error
+			break // We're done
 		}
 
 	}
+
+	// Tell the client we lost the connection if we're supposed to be open
+	// otherwise this can socket closure on shutdown or redirect etc
+	if client.State() == StateConnected {
+		client.Close()
+		disconn := new(Disconn)
+		disconn.Reason = DisconnReasonClientConnectionLost
+		client.DisconnChannel <- disconn
+	}
+
+	client.wg.Done()
+	//log.Printf("read handler exiting")
 }
 
 // Handle writing for now run as a goroutine
 func (client *Client) writeHandler() {
-	defer client.closer.Close()
 	header := make([]byte, 4)
 
 	for {
@@ -135,26 +149,26 @@ func (client *Client) writeHandler() {
 			_, err := client.writer.Write(header)
 			if err != nil {
 				// Deal with more errors
-				if err == io.EOF {
-					client.closer.Close()
-				} else {
+				if err != io.EOF {
 					log.Printf("Unexpected write error: %v", err)
 				}
-				return // We're done, cleanup done by read
+				client.wg.Done()
+				return
 			}
 
 			// Write the packet
 			_, err = buffer.WriteTo(client.writer)
 			if err != nil {
 				// Deal with more errors
-				if err == io.EOF {
-					client.closer.Close()
-				} else {
+				if err != io.EOF {
 					log.Printf("Unexpected write error: %v", err)
 				}
-				return // We're done, cleanup done by read
+				client.wg.Done()
+				return
 			}
 		case <-client.writeTerminate:
+			// log.Printf("writeHandler exiting")
+			client.wg.Done()
 			return
 		}
 	}
@@ -163,7 +177,7 @@ func (client *Client) writeHandler() {
 // Handle a protocol packet
 func (client *Client) HandlePacket(buffer []byte) (err error) {
 
-	// log.Printf("HandlePacket received %v", PacketIDString(PacketID(buffer)))
+	// log.Printf("HandlePacket received %v (%d)", PacketIDString(PacketID(buffer)), client.State())
 
 	// Packets accepted independent of Client's connection state
 	switch PacketID(buffer) {
@@ -219,8 +233,7 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 func (client *Client) HandleConnRply(buffer []byte) (err error) {
 	connRply := new(ConnRply)
 	if err = connRply.Decode(buffer); err != nil {
-		client.SetState(StateClosed)
-		client.closer.Close()
+		client.Close()
 		// FIXME: return error
 	}
 
@@ -238,46 +251,31 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 // Handle a Disconnection reply
 func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
 	disconnRply := new(DisconnRply)
-	if err = disconnRply.Decode(buffer); err != nil {
-		client.closer.Close()
-		// FIXME: return error
+	err = disconnRply.Decode(buffer)
+	if err == nil {
+		// Signal the connection request
+		client.disconnReplies <- disconnRply
 	}
-
-	// We're now disconnected
-	client.SetState(StateClosed)
-	client.subReplies = nil  // harsh but fair
-	client.subDelivers = nil // harsh but fair
-
-	// Signal the connection request
-	client.disconnReplies <- disconnRply
-	return nil
+	return err
 }
 
 // Handle a Disconn
 func (client *Client) HandleDisconn(buffer []byte) (err error) {
 	disconn := new(Disconn)
 	if err = disconn.Decode(buffer); err != nil {
-		log.Printf("oops")
-		client.closer.Close()
 		// FIXME: return error
+		log.Printf("oops")
 	}
 
-	// We're now disconnected
-	client.SetState(StateClosed)
-	client.subReplies = nil  // harsh but fair
-	client.subDelivers = nil // harsh but fair
-	client.connXID = 0
-	client.disconnXID = 0
-
 	// Signal the disconect
-
-	// A client library might not be listening but we shouldn't fail
-	// so we select and ignore the default
-	client.DisconnChannel <- disconn
+	// If a client library isn't listening we just close the client
 	select {
 	case client.DisconnChannel <- disconn:
 	default:
+		// Reset the client
+		client.Close()
 	}
+
 	return nil
 }
 
@@ -285,7 +283,7 @@ func (client *Client) HandleDisconn(buffer []byte) (err error) {
 func (client *Client) HandleNack(buffer []byte) (err error) {
 	nack := new(Nack)
 	if err = nack.Decode(buffer); err != nil {
-		client.closer.Close()
+		client.Close()
 		// FIXME: return error
 	}
 
@@ -319,7 +317,7 @@ func (client *Client) HandleNack(buffer []byte) (err error) {
 func (client *Client) HandleSubRply(buffer []byte) (err error) {
 	subRply := new(SubRply)
 	if err = subRply.Decode(buffer); err != nil {
-		client.closer.Close()
+		client.Close()
 		// FIXME: return error
 	}
 
@@ -328,7 +326,7 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 	delete(client.subReplies, subRply.XID)
 	client.mu.Unlock()
 	if !ok {
-		client.closer.Close()
+		client.Close()
 		// FIXME: return error
 	}
 
@@ -341,7 +339,7 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 	notifyDeliver := new(NotifyDeliver)
 	if err = notifyDeliver.Decode(buffer); err != nil {
-		client.closer.Close()
+		client.Close()
 		// FIXME: return error
 	}
 
@@ -349,7 +347,7 @@ func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 	// * If one disappears it's ok (we don't deliver)
 	// * If one appears it's ok (they're sparse)
 	client.mu.Lock()
-	delivers := client.subDelivers
+	delivers := client.subscriptions
 	client.mu.Unlock()
 
 	// foreach matching subscription deliver it
@@ -361,7 +359,7 @@ func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 		}
 	}
 	for _, subID := range notifyDeliver.Insecure {
-		sub, ok := client.subDelivers[subID]
+		sub, ok := client.subscriptions[subID]
 		// log.Printf("NotifyDeliver insecure for %d", subID)
 		// log.Printf("client.subDelivers = %v", client.subDelivers)
 		if ok && sub.subID == subID {

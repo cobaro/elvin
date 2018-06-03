@@ -55,7 +55,11 @@ type Client struct {
 	readTerminate  chan int
 	writeTerminate chan int
 	mu             sync.Mutex
-	subDelivers    map[uint64]*Subscription // map for NotifyDeliver lookups
+	wg             sync.WaitGroup
+
+	// Map of all current subscriptions used for mapping NotifyDelivers
+	//  and for maintaining subscriptions across reconnection
+	subscriptions map[uint64]*Subscription
 
 	// response channels
 	connXID        uint32                   // XID of outstanding connrqst
@@ -101,8 +105,7 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.writeChannel = make(chan *bytes.Buffer)
 	client.readTerminate = make(chan int)
 	client.writeTerminate = make(chan int)
-	// Async packets
-	client.subDelivers = make(map[uint64]*Subscription)
+	client.subscriptions = make(map[uint64]*Subscription)
 	// Sync Packets
 	client.connReplies = make(chan Packet)
 	client.disconnReplies = make(chan Packet)
@@ -115,6 +118,8 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 // Connect this client to it's endpoint
 func (client *Client) Connect() (err error) {
 
+	client.mu.Lock()
+	log.Printf("Connect:1")
 	if client.State() != StateClosed {
 		return fmt.Errorf("FIXME: client already connected")
 	}
@@ -125,10 +130,12 @@ func (client *Client) Connect() (err error) {
 	if err != nil {
 		return err
 	}
+
 	client.reader = conn
 	client.writer = conn
 	client.closer = conn
 
+	client.wg.Add(2)
 	go client.readHandler()
 	go client.writeHandler()
 
@@ -140,6 +147,7 @@ func (client *Client) Connect() (err error) {
 	pkt.Options = client.Options
 	pkt.KeysNfn = client.KeysNfn
 	pkt.KeysSub = client.KeysSub
+	client.mu.Unlock()
 
 	writeBuf := new(bytes.Buffer)
 	pkt.Encode(writeBuf)
@@ -196,6 +204,7 @@ func (client *Client) Disconnect() (err error) {
 	client.writeChannel <- writeBuf
 
 	// Wait for the reply
+loop:
 	select {
 	case rply := <-client.disconnReplies:
 		switch rply.(type) {
@@ -204,21 +213,19 @@ func (client *Client) Disconnect() (err error) {
 			// Check XID matches
 			if disconnRply.XID != pkt.XID {
 				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, disconnRply.XID)
-			} else {
-				// FIXME: clean up cleanup
-				client.SetState(StateClosed)
-				client.closer.Close()
 			}
-			break
+			client.Close()
+			break loop
 		default:
 			// Didn't hear back, let the client deal with that
 			err = fmt.Errorf("Unexpected packet")
-			break
+			break loop
 
 		}
 
 	case <-time.After(DisconnectTimeout):
 		err = fmt.Errorf("FIXME: timeout")
+		break
 	}
 
 	return err
@@ -276,7 +283,7 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 			// Track the subscription id
 			sub.subID = subRply.SubID
 			client.mu.Lock()
-			client.subDelivers[sub.subID] = sub
+			client.subscriptions[sub.subID] = sub
 			client.mu.Unlock()
 			break
 		case *Nack:

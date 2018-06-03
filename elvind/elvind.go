@@ -23,10 +23,12 @@ package main
 import (
 	"bytes"
 	"flag"
+	"github.com/cobaro/elvin/elvin"
 	"github.com/golang/glog"
 	"net"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -41,7 +43,7 @@ func main() {
 	}
 
 	if glog.V(2) {
-		glog.Infof("Config: %v", *config)
+		glog.Infof("Config: %+v", *config)
 	}
 
 	// Check Protocols and set up listeners
@@ -76,9 +78,54 @@ func main() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt)
 
-	glog.Info("Exiting on ", <-ch)
-	glog.Flush()
-	os.Exit(0)
+	// FIXME: These will go away as things develop but for now
+	// they're convenient
+
+	// State reporting on SIGUSR1 (testing/debugging)
+	signal.Notify(ch, syscall.SIGUSR1)
+
+	// Failover on SIGUSR2 (testing)
+	if config.DoFailover && len(config.FailoverHosts) > 0 {
+		// FIXME: elvin://
+		signal.Notify(ch, syscall.SIGUSR2)
+	}
+
+	for {
+		sig := <-ch
+		switch sig {
+		case os.Interrupt:
+			glog.Info("Exiting on ", sig)
+			glog.Flush()
+			os.Exit(0)
+		case syscall.SIGUSR1:
+			connections.lock.Lock()
+			glog.Infof("Client list:")
+			for i, conn := range connections.connections {
+				glog.Infof("%d: %+v", i, conn)
+			}
+			connections.lock.Unlock()
+			break
+		case syscall.SIGUSR2:
+			disconn := new(elvin.Disconn)
+			disconn.Reason = 2 // Redirect
+			disconn.Args = config.FailoverHosts[0].Address
+			glog.Infof("Disconn: %+v", disconn)
+			connections.lock.Lock()
+			for _, conn := range connections.connections {
+				buf := bufferPool.Get().(*bytes.Buffer)
+				disconn.Encode(buf)
+				conn.writeChannel <- buf
+				// delete(connections.connections, i)
+				// conn.writeTerminate <- 1
+				// conn.closer.Close()
+			}
+			connections.lock.Unlock()
+			break
+		}
+	}
+
+	return
+
 }
 
 func Listener(protocol Protocol) {

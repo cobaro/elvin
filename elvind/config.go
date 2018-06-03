@@ -34,6 +34,8 @@ type Protocol struct {
 
 type Configuration struct {
 	Protocols      []Protocol
+	FailoverHosts  []Protocol
+	DoFailover     bool
 	MaxConnections int
 }
 
