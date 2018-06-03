@@ -128,7 +128,10 @@ func (client *Client) readHandler() {
 		client.Close()
 		disconn := new(Disconn)
 		disconn.Reason = DisconnReasonClientConnectionLost
-		client.DisconnChannel <- disconn
+		select {
+		case client.DisconnChannel <- disconn:
+		default:
+		}
 	}
 
 	client.wg.Done()
@@ -229,12 +232,30 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 	return fmt.Errorf("Error: %s received and not handled", PacketIDString(PacketID(buffer)))
 }
 
+// On a protocol error we want to alert the client and reset the connection
+func (client *Client) ProtocolError(err error) {
+
+	// Log
+	log.Println(err)
+
+	// Kill the connection and clean up
+	client.Close()
+
+	// Tell the client (if they are listening)
+	disconn := new(Disconn)
+	disconn.Reason = DisconnReasonClientConnectionLost
+	select {
+	case client.DisconnChannel <- disconn:
+	default:
+	}
+
+}
+
 // Handle a Connection Reply
 func (client *Client) HandleConnRply(buffer []byte) (err error) {
 	connRply := new(ConnRply)
 	if err = connRply.Decode(buffer); err != nil {
-		client.Close()
-		// FIXME: return error
+		client.ProtocolError(err)
 	}
 
 	// We're now connected
@@ -243,7 +264,7 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 	// FIXME; check options
 	// connRply.Options
 
-	// Signal the connection request
+	// Signal the connection requestor
 	client.connReplies <- connRply
 	return nil
 }
@@ -251,20 +272,19 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 // Handle a Disconnection reply
 func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
 	disconnRply := new(DisconnRply)
-	err = disconnRply.Decode(buffer)
-	if err == nil {
-		// Signal the connection request
-		client.disconnReplies <- disconnRply
+	if err = disconnRply.Decode(buffer); err != nil {
+		client.ProtocolError(err)
 	}
-	return err
+	// Signal the disconnection requestor
+	client.disconnReplies <- disconnRply
+	return nil
 }
 
 // Handle a Disconn
 func (client *Client) HandleDisconn(buffer []byte) (err error) {
 	disconn := new(Disconn)
 	if err = disconn.Decode(buffer); err != nil {
-		// FIXME: return error
-		log.Printf("oops")
+		client.ProtocolError(err)
 	}
 
 	// Signal the disconect
@@ -283,8 +303,7 @@ func (client *Client) HandleDisconn(buffer []byte) (err error) {
 func (client *Client) HandleNack(buffer []byte) (err error) {
 	nack := new(Nack)
 	if err = nack.Decode(buffer); err != nil {
-		client.Close()
-		// FIXME: return error
+		client.ProtocolError(err)
 	}
 
 	// A Nack can belong to multiple places so hunt it down
@@ -304,21 +323,16 @@ func (client *Client) HandleNack(buffer []byte) (err error) {
 		return nil
 	}
 
-	// Disconn can not get a Nack
+	// FIXME: Quench packets
 
-	// Quench
-	// etc
-
-	fmt.Printf("Unhandled nack xid=%d, (conn:%d)\n", nack.XID, client.connXID)
-	return nil
+	return fmt.Errorf("Unhandled nack xid=%d, (conn:%d)\n", nack.XID, client.connXID)
 }
 
 // Handle a Subscription reply
 func (client *Client) HandleSubRply(buffer []byte) (err error) {
 	subRply := new(SubRply)
 	if err = subRply.Decode(buffer); err != nil {
-		client.Close()
-		// FIXME: return error
+		client.ProtocolError(err)
 	}
 
 	client.mu.Lock()
@@ -339,8 +353,7 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 	notifyDeliver := new(NotifyDeliver)
 	if err = notifyDeliver.Decode(buffer); err != nil {
-		client.Close()
-		// FIXME: return error
+		client.ProtocolError(err)
 	}
 
 	// Sync the map of subIDs. We can do this once as:

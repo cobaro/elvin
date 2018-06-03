@@ -64,6 +64,10 @@ func disconnector(client *elvin.Client) {
 			log.Printf("FIXME: connection lost")
 			os.Exit(1)
 
+		case elvin.DisconnReasonClientProtocolErrors:
+			log.Printf("client library detected protocol errors")
+			os.Exit(1)
+
 		default:
 			log.Printf("Disconn: unknown reason: %d", disconn.Reason)
 			os.Exit(1)

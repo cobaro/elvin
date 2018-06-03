@@ -34,7 +34,8 @@ const (
 	DisconnReasonRouterProtocolErrors = 4
 
 	// Local to client library
-	DisconnReasonClientConnectionLost = 100
+	DisconnReasonClientConnectionLost = 100 // e.g., econnlost
+	DisconnReasonClientProtocolErrors = 101 // e.g., packet decoding failed
 )
 
 // Packet: Connection Request
