@@ -63,23 +63,23 @@ func (client *Client) Close() {
 	client.mu.Lock()
 	client.SetState(StateClosed)
 	select {
-	case client.writeTerminate <- 1:
+	case client.writeTerminate <- 1: // Will close the socket
 	default:
+		client.closer.Close()
 	}
 	// client.readTerminate <- 1
-	client.closer.Close()
 	client.subReplies = make(map[uint32]*Subscription)
 	client.connXID = 0
 	client.disconnXID = 0
-	client.wg.Wait() // Wait for reader and writer to finish
 	client.mu.Unlock()
+	client.wg.Wait() // Wait for reader and writer to finish
 }
 
 // Read n bytes from reader into buffer which must be big enough
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
-		//log.Printf("offset = %d, numToRead = %d", offset, numToRead)
+		// log.Printf("offset = %d, numToRead = %d", offset, numToRead)
 		length, err := reader.Read(buffer[offset:numToRead])
 		if err != nil {
 			return offset + length, err
@@ -124,7 +124,11 @@ func (client *Client) readHandler() {
 
 	// Tell the client we lost the connection if we're supposed to be open
 	// otherwise this can be socket closure on shutdown or redirect etc
-	client.writeTerminate <- 1
+	select {
+	case client.writeTerminate <- 1:
+	default:
+	}
+
 	if client.State() == StateConnected {
 		disconn := new(Disconn)
 		disconn.Reason = DisconnReasonClientConnectionLost
@@ -142,6 +146,7 @@ func (client *Client) readHandler() {
 func (client *Client) writeHandler() {
 	header := make([]byte, 4)
 
+	defer client.Close()
 	for {
 		select {
 		case buffer := <-client.writeChannel:

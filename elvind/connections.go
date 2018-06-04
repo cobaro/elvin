@@ -192,7 +192,7 @@ func (conn *Connection) readHandler() {
 
 // Handle writing for now run as a goroutine
 func (conn *Connection) writeHandler() {
-	if glog.V(3) {
+	if glog.V(4) {
 		glog.Infof("Write Handler starting")
 	}
 	if glog.V(4) {
