@@ -248,24 +248,14 @@ func XdrGetValue(bytes []byte) (val interface{}, used int, err error) {
 	switch elementType {
 	case NotificationInt32:
 		value, used, err = XdrGetInt32(bytes[offset:])
-		break
-
 	case NotificationInt64:
 		value, used, err = XdrGetInt64(bytes[offset:])
-		break
-
 	case NotificationFloat64:
 		value, used, err = XdrGetFloat64(bytes[offset:])
-		break
-
 	case NotificationString:
 		value, used, err = XdrGetString(bytes[offset:])
-		break
-
 	case NotificationOpaque:
 		value, used, err = XdrGetOpaque(bytes[offset:])
-		break
-
 	default:
 		return nil, offset, errors.New("Marshalling failed: unknown element type")
 	}
@@ -278,14 +268,11 @@ func XdrGetValue(bytes []byte) (val interface{}, used int, err error) {
 	return value, offset, nil
 }
 
-// Put a value
+// Put a value. If restrictToNotify is true then we'll fail on invalid types
 func XdrPutValue(buffer *bytes.Buffer, value interface{}) {
 
 	// Value
-	switch typ := value.(type) {
-	case int:
-		XdrPutInt32(buffer, 1)
-		XdrPutInt32(buffer, int32(value.(int)))
+	switch value.(type) {
 	case int32:
 		XdrPutInt32(buffer, 1)
 		XdrPutInt32(buffer, value.(int32))
@@ -302,9 +289,7 @@ func XdrPutValue(buffer *bytes.Buffer, value interface{}) {
 		XdrPutInt32(buffer, 5)
 		XdrPutOpaque(buffer, value.([]uint8))
 	default:
-		XdrPutInt32(buffer, 0)
-		// FIXME: This seems harsh in it's be strict what you send
-		panic(fmt.Sprintf("What *type* is: %v", typ))
+		panic(fmt.Sprintf("Bad *type* in XdrPutValue: %v", value))
 	}
 	return
 }

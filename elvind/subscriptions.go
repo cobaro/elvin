@@ -38,9 +38,9 @@ func Parse(subexpr string) (ast *elvin.AST, n *elvin.Nack) {
 	if subexpr == "bogus" {
 		nack := new(elvin.Nack)
 		nack.ErrorCode = elvin.ErrorsParsing
-		nack.Message = elvin.ProtocolErrors[elvin.ErrorsParsing]
+		nack.Message = elvin.ProtocolErrors[elvin.ErrorsParsing].Message
 		nack.Args = make([]interface{}, 2)
-		nack.Args[0] = 0
+		nack.Args[0] = int32(0)
 		nack.Args[1] = "bogus"
 		return nil, nack
 	}

@@ -26,6 +26,7 @@ import (
 )
 
 // Packet: Nack
+
 type Nack struct {
 	XID       uint32
 	ErrorCode uint16
@@ -78,12 +79,52 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	pkt.Args, used, err = XdrGetValues(bytes[offset:])
-	if err != nil {
-		return err
+	// The type of the arguments is defined by the ErrorCode so we
+	// look this up in NackArgs
+	nackArgs, ok := ProtocolErrors[pkt.ErrorCode]
+	if !ok {
+		return // Nothing we can do
 	}
-	offset += used
 
+	// Arg values
+	pkt.Args = make([]interface{}, nackArgs.NumArgs)
+	for i := 0; i < nackArgs.NumArgs; i++ {
+		switch nackArgs.ArgTypes[i].(type) {
+		case int32:
+			pkt.Args[i], used, err = XdrGetInt32(bytes[offset:])
+			if err != nil {
+				return err
+			}
+		case uint32:
+			pkt.Args[i], used, err = XdrGetUint32(bytes[offset:])
+			if err != nil {
+				return err
+			}
+		case int64:
+			pkt.Args[i], used, err = XdrGetInt64(bytes[offset:])
+			if err != nil {
+				return err
+			}
+		case uint64:
+			pkt.Args[i], used, err = XdrGetUint64(bytes[offset:])
+			if err != nil {
+				return err
+			}
+		case float64:
+			pkt.Args[i], used, err = XdrGetFloat64(bytes[offset:])
+			if err != nil {
+				return err
+			}
+		case string:
+			pkt.Args[i], used, err = XdrGetString(bytes[offset:])
+			if err != nil {
+				return err
+			}
+		default:
+			panic(fmt.Sprintf("Bad *type* in Nack arg %d", i))
+		}
+		offset += used
+	}
 	return nil
 }
 
@@ -93,5 +134,35 @@ func (pkt *Nack) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint16(buffer, pkt.ErrorCode)
 	XdrPutString(buffer, pkt.Message)
-	XdrPutValues(buffer, pkt.Args)
+
+	// The type of the arguments is defined by the ErrorCode so we
+	// look this up in NackArgs
+	nackArgs, ok := ProtocolErrors[pkt.ErrorCode]
+	if !ok {
+		return // Nothing we can do
+	}
+
+	// Arg values
+	for i := 0; i < nackArgs.NumArgs; i++ {
+		value := nackArgs.ArgTypes[i]
+		switch nackArgs.ArgTypes[i].(type) {
+		case int32:
+			XdrPutInt32(buffer, value.(int32))
+		case uint32:
+			XdrPutUint32(buffer, value.(uint32))
+		case int64:
+			XdrPutInt64(buffer, value.(int64))
+		case uint64:
+			XdrPutUint64(buffer, value.(uint64))
+		case float64:
+			XdrPutFloat64(buffer, value.(float64))
+		case string:
+			XdrPutString(buffer, value.(string))
+		case []byte:
+			XdrPutOpaque(buffer, value.([]uint8))
+		default:
+			panic(fmt.Sprintf("Bad *type* in Nack arg: %v", value))
+		}
+	}
+	return
 }

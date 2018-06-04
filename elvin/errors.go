@@ -71,46 +71,53 @@ const (
 // Provide a map of error code to string Each error string has a
 // number of arguments that may be substituted as a hook for message
 // localization
-var ProtocolErrors map[uint16]string
+const MaxNackArgs = 3
+
+type NackArgs struct {
+	Message  string
+	NumArgs  int
+	ArgTypes [MaxNackArgs]interface{}
+}
+
+var ProtocolErrors map[uint16]NackArgs
 
 func init() {
-	ProtocolErrors = make(map[uint16]string)
+	ProtocolErrors = make(map[uint16]NackArgs)
 
-	ProtocolErrors[ErrorsProtocolIncompatible] = "Version %1.%2 of the protocol is incompatible" // int int32
-	ProtocolErrors[ErrorsAuthorizationFailure] = "Authorization failed"
-	ProtocolErrors[ErrorsAuthenticationFailure] = "Authentication failed"
+	ProtocolErrors[ErrorsProtocolIncompatible] = NackArgs{"Incompatible protocol version", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsAuthorizationFailure] = NackArgs{"Authorization failed", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsAuthenticationFailure] = NackArgs{"Authentication failed", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
 
-	ProtocolErrors[ErrorsProtocolError] = "Protocol Error"
-	ProtocolErrors[ErrorsUnknownSubID] = "Unknown subscription id %1"    // uint64
-	ProtocolErrors[ErrorsUnknownQuenchID] = "Unknown quench id %1"       // uint64
-	ProtocolErrors[ErrorsBadKeyScheme] = "Bad key scheme %1"             // uint32
-	ProtocolErrors[ErrorsBadKeysetIndex] = "Bad keyset index %1:%2"      // uint32, int32
-	ProtocolErrors[ErrorsBadUTF8] = "Invalid UTF8 string at position %1" // int32, int32
+	ProtocolErrors[ErrorsProtocolError] = NackArgs{"Protocol Error", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsUnknownSubID] = NackArgs{"Unknown subscription id %1", 1, [MaxNackArgs]interface{}{uint64(0), nil, nil}}
+	ProtocolErrors[ErrorsUnknownQuenchID] = NackArgs{"Unknown quench id %1", 1, [MaxNackArgs]interface{}{uint64(0), nil, nil}}
+	ProtocolErrors[ErrorsBadKeyScheme] = NackArgs{"Bad key scheme %1", 1, [MaxNackArgs]interface{}{uint32(0), nil, nil}}
+	ProtocolErrors[ErrorsBadKeysetIndex] = NackArgs{"Bad keyset index %1:%2", 2, [MaxNackArgs]interface{}{uint32(0), int32(0), nil}}
+	ProtocolErrors[ErrorsBadUTF8] = NackArgs{"Invalid UTF8 string at position %1", 2, [MaxNackArgs]interface{}{int32(0), nil, nil}}
 
-	ProtocolErrors[ErrorsNoSuchKey] = "No such key"
-	ProtocolErrors[ErrorsKeyExists] = "Key already exists"
-	ProtocolErrors[ErrorsBadKey] = "Key is invalid"
-	ProtocolErrors[ErrorsNothingToDo] = "Request contained no keys"
-	ProtocolErrors[ErrorsQOSLimit] = "Request out of bounds: %1" // string
-	ProtocolErrors[ErrorsImplementationLimit] = "Request out of range"
-	ProtocolErrors[ErrorsNotImplemented] = "Request unimplemented"
+	ProtocolErrors[ErrorsNoSuchKey] = NackArgs{"No such key", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsKeyExists] = NackArgs{"Key already exists", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsBadKey] = NackArgs{"Key is invalid", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsNothingToDo] = NackArgs{"Request contained no keys", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsQOSLimit] = NackArgs{"Request out of bounds: %1", 1, [MaxNackArgs]interface{}{"", nil, nil}}
+	ProtocolErrors[ErrorsImplementationLimit] = NackArgs{"Request out of range", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsNotImplemented] = NackArgs{"Request unimplemented", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
 
-	ProtocolErrors[ErrorsParsing] = "Parse error before %2 at position %1" // string, int32
+	ProtocolErrors[ErrorsParsing] = NackArgs{"Parse error before %2 at position %1", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
+	ProtocolErrors[ErrorsInvalidToken] = NackArgs{"Parse error at token %1 offset %2", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
+	ProtocolErrors[ErrorsUnterminatedString] = NackArgs{"Unterminated string at offset %1", 1, [MaxNackArgs]interface{}{int32(0), nil, nil}}
+	ProtocolErrors[ErrorsUnknownFunction] = NackArgs{"Unknown function at offset %1", 1, [MaxNackArgs]interface{}{int32(0), nil, nil}}
+	ProtocolErrors[ErrorsOverflow] = NackArgs{"Numeric constant overflow at offset %1", 1, [MaxNackArgs]interface{}{int32(0), nil, nil}}
+	ProtocolErrors[ErrorsTypeMismatch] = NackArgs{"Type mismatch between %1 and %2 at offset %3", 3, [MaxNackArgs]interface{}{"", "", int32(0)}}
+	ProtocolErrors[ErrorsTooFewArgs] = NackArgs{"Not enough argument to function %1() at offset %2", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
+	ProtocolErrors[ErrorsInvalidRegexp] = NackArgs{"Bad regular expression %1 at offset %2", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
+	ProtocolErrors[ErrorsExpIsTrivial] = NackArgs{"Expression compiled to a constant value", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsRegexpTooComplex] = NackArgs{"Expression %1 too complex at position %2", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
+	ProtocolErrors[ErrorsNestingTooDeep] = NackArgs{"Expression %1 has nests too deeply at position %2", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
 
-	ProtocolErrors[ErrorsInvalidToken] = "Parse error at token %1 offset %2"               // string, int32
-	ProtocolErrors[ErrorsUnterminatedString] = "Unterminated string at offset %1"          // int32
-	ProtocolErrors[ErrorsUnknownFunction] = "Unknown function at offset %1"                // int32
-	ProtocolErrors[ErrorsOverflow] = "Numeric constant overflow at offset %1"              // int32
-	ProtocolErrors[ErrorsTypeMismatch] = "Type mismatch between %1 and %2 at offset %3"    // string, string, int32
-	ProtocolErrors[ErrorsTooFewArgs] = "Not enough argument to function %1() at offset %2" // string, int32
-	ProtocolErrors[ErrorsInvalidRegexp] = "Bad regular expression %1 at offset %2"         // string, int32
-	ProtocolErrors[ErrorsExpIsTrivial] = "Expression compiled to a constant value"
-	ProtocolErrors[ErrorsRegexpTooComplex] = "Expression %1 too complex at position %2"        // string, int32
-	ProtocolErrors[ErrorsNestingTooDeep] = "Expression %1 has nests too deeply at position %2" // string, int32
-
-	ProtocolErrors[ErrorsQuenchEmpty] = "Quench has no attribute names"
-	ProtocolErrors[ErrorsQuenchAttributeExists] = "Attribute %1 already present" // string
-	ProtocolErrors[ErrorsQuenchNoSuchAttribute] = "No such attribute: %1"        // string
+	ProtocolErrors[ErrorsQuenchEmpty] = NackArgs{"Quench has no attribute names", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
+	ProtocolErrors[ErrorsQuenchAttributeExists] = NackArgs{"Attribute %1 already present", 1, [MaxNackArgs]interface{}{"", nil, nil}}
+	ProtocolErrors[ErrorsQuenchNoSuchAttribute] = NackArgs{"No such attribute: %1", 1, [MaxNackArgs]interface{}{"", nil, nil}}
 }
 
 // Convert elvin positional formatting to golang style

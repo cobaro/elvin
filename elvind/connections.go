@@ -368,7 +368,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 		nack := new(elvin.Nack)
 		nack.XID = connRqst.XID
 		nack.ErrorCode = elvin.ErrorsImplementationLimit
-		nack.Message = elvin.ProtocolErrors[nack.ErrorCode]
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = nil
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
@@ -543,7 +543,7 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
-		nack.Message = elvin.ProtocolErrors[nack.ErrorCode]
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
 		nack.Args[0] = sub.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
@@ -572,11 +572,11 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 }
 
 func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
-	// FIXME: no range checking
 	subModRqst := new(elvin.SubModRqst)
 	err = subModRqst.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
+		return err
 	}
 
 	// If modify fails then nack and disconn
@@ -584,15 +584,17 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
+		nack.XID = subModRqst.XID
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
-		nack.Message = elvin.ProtocolErrors[nack.ErrorCode]
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = sub.SubID
+		nack.Args[0] = uint64(subModRqst.SubID)
+
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
 
-		// FIXME Disconnect as that's a protocol violation
+		// FIXME Disconnect if that's a repeated protocol violation?
 		return nil
 	}
 

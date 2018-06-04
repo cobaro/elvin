@@ -123,9 +123,9 @@ func (client *Client) readHandler() {
 	}
 
 	// Tell the client we lost the connection if we're supposed to be open
-	// otherwise this can socket closure on shutdown or redirect etc
+	// otherwise this can be socket closure on shutdown or redirect etc
+	client.writeTerminate <- 1
 	if client.State() == StateConnected {
-		client.Close()
 		disconn := new(Disconn)
 		disconn.Reason = DisconnReasonClientConnectionLost
 		select {

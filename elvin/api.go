@@ -89,6 +89,16 @@ type Subscription struct {
 	events         chan Packet
 }
 
+func (sub *Subscription) addKeys(keys []Keyset) {
+	// FIXME: implement
+	return
+}
+
+func (sub *Subscription) delKeys(keys []Keyset) {
+	// FIXME: implement
+	return
+}
+
 // FIXME: define and maybe make configurable?
 const ConnectTimeout = (10 * time.Second)
 const DisconnectTimeout = (10 * time.Second)
@@ -119,7 +129,6 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 func (client *Client) Connect() (err error) {
 
 	client.mu.Lock()
-	log.Printf("Connect:1")
 	if client.State() != StateClosed {
 		return fmt.Errorf("FIXME: client already connected")
 	}
@@ -297,6 +306,77 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 	case <-time.After(SubscriptionTimeout):
 		err = fmt.Errorf("FIXME: timeout")
 	}
+
+	client.mu.Lock()
+	delete(client.subReplies, xID)
+	client.mu.Unlock()
+
+	return err
+}
+
+// Modify a subscription
+// If the expression is empty ("") it will remain unchanged
+// Similarly the keysets to add and delete may be empty. It is not an
+// error if the added keys already exist or to delete keys that do not
+// already exist
+func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptInsecure bool, AddKeys []Keyset, DelKeys []Keyset) (err error) {
+
+	if client.State() != StateConnected {
+		return fmt.Errorf("FIXME: client not connected")
+	}
+
+	pkt := new(SubModRqst)
+	pkt.SubID = sub.subID
+	pkt.Expression = expr
+	pkt.AcceptInsecure = acceptInsecure
+	pkt.AddKeys = AddKeys
+	pkt.DelKeys = DelKeys
+
+	writeBuf := new(bytes.Buffer)
+	xID := pkt.Encode(writeBuf)
+
+	// Map the XID back to this request along with the notifications
+	client.mu.Lock()
+	client.subReplies[xID] = sub
+	client.mu.Unlock()
+
+	client.writeChannel <- writeBuf
+
+	// Wait for the reply
+	select {
+	case rply := <-sub.events:
+		switch rply.(type) {
+		case *SubRply:
+			subRply := rply.(*SubRply)
+			// Check the subscription id
+			if sub.subID != subRply.SubID {
+				log.Printf("FIXME: Protocol violation (%v)", rply)
+			}
+
+			// Update the local subscription details
+			if len(expr) > 0 {
+				sub.Expression = expr
+			}
+			sub.AcceptInsecure = acceptInsecure
+			sub.addKeys(AddKeys)
+			sub.delKeys(DelKeys)
+
+			break
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			break
+		default:
+			log.Printf("OOPS (%v)", rply)
+		}
+
+	case <-time.After(SubscriptionTimeout):
+		err = fmt.Errorf("FIXME: timeout")
+	}
+
+	client.mu.Lock()
+	delete(client.subReplies, xID)
+	client.mu.Unlock()
 
 	return err
 }
