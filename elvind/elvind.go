@@ -142,8 +142,8 @@ func Listener(protocol Protocol) {
 		conn.writer = c
 		conn.closer = c
 		conn.SetState(StateNew)
-		conn.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
-		conn.readTerminate = make(chan int)
+		// Some queuing allowed to smooth things out
+		conn.writeChannel = make(chan *bytes.Buffer, 4)
 		conn.writeTerminate = make(chan int)
 
 		go conn.readHandler()

@@ -61,7 +61,6 @@ type Connection struct {
 	closer         io.Closer
 	state          uint32
 	writeChannel   chan *bytes.Buffer
-	readTerminate  chan int
 	writeTerminate chan int
 }
 
@@ -114,10 +113,12 @@ func (conn *Connection) MakeID() {
 
 func (conn *Connection) Close() {
 	if glog.V(4) {
-		glog.Infof("Closing client %d", conn.ID())
+		glog.Infof("Close()ing client %d", conn.ID())
 	}
-	conn.readTerminate <- 1
-	conn.writeTerminate <- 1
+	select {
+	case conn.writeTerminate <- 1:
+	default:
+	}
 	conn.closer.Close()
 	connections.lock.Lock()
 	delete(connections.connections, conn.ID())
@@ -130,7 +131,7 @@ func (conn *Connection) Close() {
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
-		if glog.V(4) {
+		if glog.V(5) {
 			glog.Infof("offset = %d, numToRead = %d", offset, numToRead)
 		}
 		length, err := reader.Read(buffer[offset:numToRead])
@@ -144,10 +145,10 @@ func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 
 // Handle reading for now run as a goroutine
 func (conn *Connection) readHandler() {
-	if glog.V(2) {
+	if glog.V(4) {
 		glog.Infof("Read Handler starting")
 	}
-	if glog.V(2) {
+	if glog.V(4) {
 		defer glog.Infof("Read Handler exiting")
 	}
 
@@ -183,18 +184,20 @@ func (conn *Connection) readHandler() {
 			break
 		}
 	}
+	if glog.V(4) {
+		glog.Infof("Read Handler Close()")
+	}
 	conn.Close()
 }
 
 // Handle writing for now run as a goroutine
 func (conn *Connection) writeHandler() {
-	if glog.V(2) {
+	if glog.V(3) {
 		glog.Infof("Write Handler starting")
 	}
-	if glog.V(2) {
+	if glog.V(4) {
 		defer glog.Infof("Write Handler exiting")
 	}
-	defer conn.Close()
 
 	header := make([]byte, 4)
 
