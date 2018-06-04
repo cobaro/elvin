@@ -380,3 +380,58 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 
 	return err
 }
+
+// Delete a subscription
+func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
+
+	if client.State() != StateConnected {
+		return fmt.Errorf("FIXME: client not connected")
+	}
+
+	pkt := new(SubDelRqst)
+	pkt.SubID = sub.subID
+
+	writeBuf := new(bytes.Buffer)
+	xID := pkt.Encode(writeBuf)
+
+	// Map the XID back to this request along with the notifications
+	client.mu.Lock()
+	client.subReplies[xID] = sub
+	client.mu.Unlock()
+
+	client.writeChannel <- writeBuf
+
+	// Wait for the reply
+	select {
+	case rply := <-sub.events:
+		switch rply.(type) {
+		case *SubRply:
+			subRply := rply.(*SubRply)
+			// Check the subscription id
+			if sub.subID != subRply.SubID {
+				log.Printf("FIXME: Protocol violation (%v)", rply)
+			}
+			// Delete the local subscription details
+			client.mu.Lock()
+			delete(client.subscriptions, sub.subID)
+			client.mu.Unlock()
+
+			break
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			break
+		default:
+			log.Printf("OOPS (%v)", rply)
+		}
+
+	case <-time.After(SubscriptionTimeout):
+		err = fmt.Errorf("FIXME: timeout")
+	}
+
+	client.mu.Lock()
+	delete(client.subReplies, xID)
+	client.mu.Unlock()
+
+	return err
+}

@@ -153,7 +153,6 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 
 // Encode a SubRply from a buffer
 func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
-	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
 	XdrPutUint64(buffer, pkt.SubID)
@@ -209,11 +208,12 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 }
 
 // Encode a SubDelRqst from a buffer
-func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) {
-	// FIXME: error handling
+func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
-	XdrPutUint32(buffer, pkt.XID)
+	XdrPutUint32(buffer, xID)
 	XdrPutUint64(buffer, pkt.SubID)
+	return
 }
 
 // Packet: SubModRqst

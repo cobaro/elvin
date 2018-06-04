@@ -130,6 +130,12 @@ Loop:
 		}
 	}
 
+	if err := ec.SubscriptionDelete(sub); err != nil {
+		log.Printf("SubDel failed %v", err)
+	} else {
+		log.Printf("SubDel succeeded %v", sub)
+	}
+
 	// Exit a little gracefully
 	log.Printf("Disconnecting")
 	if err := ec.Disconnect(); err != nil {
