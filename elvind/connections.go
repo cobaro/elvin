@@ -56,6 +56,7 @@ func (conn *Connection) SetState(val uint32) {
 type Connection struct {
 	id             uint32
 	subs           map[uint32]*Subscription
+	quenches       map[uint32]*Quench
 	reader         io.Reader
 	writer         io.Writer
 	closer         io.Closer
@@ -241,23 +242,24 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	}
 	switch elvin.PacketID(buffer) {
 
-	// Packets a router should never receive
+	// Client side packets a router shouldn't receive
 	case elvin.PacketDropWarn:
 	case elvin.PacketReserved:
 	case elvin.PacketNotifyDeliver:
 	case elvin.PacketNack:
 	case elvin.PacketConnRply:
 	case elvin.PacketDisconnRply:
+	case elvin.PacketQnchRply:
+	case elvin.PacketSubAddNotify:
+	case elvin.PacketSubModNotify:
+	case elvin.PacketSubDelNotify:
+	case elvin.PacketSubRply:
 		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 
 	// Protocol Packets not planned for the short term
 	case elvin.PacketSvrRqst:
 	case elvin.PacketSvrAdvt:
 	case elvin.PacketSvrAdvtClose:
-	case elvin.PacketQnchAddRqst:
-	case elvin.PacketQnchModRqst:
-	case elvin.PacketQnchDelRqst:
-	case elvin.PacketQnchRply:
 	case elvin.PacketClstJoinRqst:
 	case elvin.PacketClstJoinRply:
 	case elvin.PacketClstTerms:
@@ -275,9 +277,6 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case elvin.PacketServerReport:
 	case elvin.PacketServerNack:
 	case elvin.PacketServerStatsReport:
-	case elvin.PacketSubAddNotify:
-	case elvin.PacketSubModNotify:
-	case elvin.PacketSubDelNotify:
 		return fmt.Errorf("UnimplementedError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
 
@@ -316,8 +315,12 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 			return conn.HandleSubModRqst(buffer)
 		case elvin.PacketSubDelRqst:
 			return conn.HandleSubDelRqst(buffer)
-		case elvin.PacketSubRply:
-			return errors.New("FIXME: Packet SubRply")
+		case elvin.PacketQnchAddRqst:
+			return conn.HandleQnchAddRqst(buffer)
+		case elvin.PacketQnchModRqst:
+			return conn.HandleQnchModRqst(buffer)
+		case elvin.PacketQnchDelRqst:
+			return conn.HandleQnchDelRqst(buffer)
 		case elvin.PacketTestConn:
 			return errors.New("FIXME: Packet TestConn")
 		case elvin.PacketConfConn:
@@ -394,6 +397,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	conn.MakeID()
 	conn.SetState(StateConnected)
 	conn.subs = make(map[uint32]*Subscription)
+	conn.quenches = make(map[uint32]*Quench)
 
 	// Respond with a Connection Reply
 	connRply := new(elvin.ConnRply)
@@ -451,7 +455,6 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 
 // Handle a NotifyEmit
 func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
-	// FIXME: no range checking
 	ne := new(elvin.NotifyEmit)
 	err = ne.Decode(buffer)
 
@@ -483,7 +486,6 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 
 // Handle a Subscription Add
 func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
-	// FIXME: no range checking
 	subRqst := new(elvin.SubAddRqst)
 	err = subRqst.Decode(buffer)
 	if err != nil {
@@ -533,7 +535,6 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 
 // Handle a Subscription Delete
 func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
-	// FIXME: no range checking
 	subDelRqst := new(elvin.SubDelRqst)
 	err = subDelRqst.Decode(buffer)
 	if err != nil {
@@ -639,5 +640,57 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	buf := bufferPool.Get().(*bytes.Buffer)
 	subRply.Encode(buf)
 	conn.writeChannel <- buf
+	return nil
+}
+
+// Handle a Quench Add
+func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
+	quenchRequest := new(elvin.QnchAddRqst)
+	err = quenchRequest.Decode(buffer)
+	if err != nil {
+		// FIXME: Protocol violation
+	}
+
+	// FIXME: what checking do we need to do here
+
+	// Create a quench and add it to the quench store
+	var quench Quench
+	quench.Names = quenchRequest.Names
+	quench.DeliverInsecure = quenchRequest.DeliverInsecure
+	quench.Keys = quenchRequest.Keys
+
+	// Create a unique quench id
+	var q uint32 = rand.Uint32()
+	for {
+		_, err := conn.quenches[q]
+		if !err {
+			break
+		}
+		q++
+	}
+	conn.quenches[q] = &quench
+	quench.QuenchID = (uint64(conn.ID()) << 32) | uint64(q)
+
+	// FIXME: send quench to sub engine
+
+	// Respond with a QuenchReply
+	quenchReply := new(elvin.QnchRply)
+	quenchReply.XID = quenchRequest.XID
+	quenchReply.QuenchID = quench.QuenchID
+
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	quenchReply.Encode(buf)
+	conn.writeChannel <- buf
+	return nil
+}
+
+func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
+	glog.Info("FIXME:implement QnchModRqst")
+	return nil
+}
+
+func (conn *Connection) HandleQnchDelRqst(buffer []byte) (err error) {
+	glog.Info("FIXME:implement QnchDelRqst")
 	return nil
 }

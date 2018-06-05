@@ -69,6 +69,7 @@ func (client *Client) Close() {
 	}
 	// client.readTerminate <- 1
 	client.subReplies = make(map[uint32]*Subscription)
+	client.quenchReplies = make(map[uint32]*Quench)
 	client.connXID = 0
 	client.disconnXID = 0
 	client.mu.Unlock()
@@ -215,13 +216,14 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		switch PacketID(buffer) {
 		case PacketSubRply:
 			return client.HandleSubRply(buffer)
+		case PacketQnchRply:
+			return client.HandleQuenchRply(buffer)
 		case PacketNotifyDeliver:
 			return client.HandleNotifyDeliver(buffer)
 		case PacketNack:
 			return client.HandleNack(buffer)
 		case PacketDropWarn:
 		case PacketReserved:
-		case PacketQnchRply:
 		case PacketSubAddNotify:
 		case PacketSubModNotify:
 		case PacketSubDelNotify:
@@ -349,8 +351,30 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 		// FIXME: return error
 	}
 
-	// Signal the connection request
+	// Signal the subscription
 	sub.events <- Packet(subRply)
+	return nil
+}
+
+// Handle a Qeunch reply
+func (client *Client) HandleQuenchRply(buffer []byte) (err error) {
+	quenchRply := new(QnchRply)
+	if err = quenchRply.Decode(buffer); err != nil {
+		client.ProtocolError(err)
+	}
+
+	client.mu.Lock()
+	quench, ok := client.quenchReplies[quenchRply.XID]
+	delete(client.quenchReplies, quenchRply.XID)
+	client.mu.Unlock()
+	if !ok {
+		fmt.Println("FIXME: Lost quench reply:", quenchRply.XID)
+		client.Close()
+		// FIXME: return error
+	}
+
+	// Signal the quench
+	quench.events <- Packet(quenchRply)
 	return nil
 }
 

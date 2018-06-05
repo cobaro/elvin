@@ -58,8 +58,12 @@ type Client struct {
 	wg             sync.WaitGroup
 
 	// Map of all current subscriptions used for mapping NotifyDelivers
-	//  and for maintaining subscriptions across reconnection
+	// and for maintaining subscriptions across reconnection
 	subscriptions map[uint64]*Subscription
+
+	// Map of all current quenches used for mapping quench Notifications
+	// and for maintaining quenches across reconnection
+	quenches map[uint64]*Quench
 
 	// response channels
 	connXID        uint32                   // XID of outstanding connrqst
@@ -67,16 +71,20 @@ type Client struct {
 	disconnXID     uint32                   // XID of outstanding disconnrqst
 	disconnReplies chan Packet              // Channel for Connect() packets
 	subReplies     map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
+	quenchReplies  map[uint32]*Quench       // map QuenchAdd/Mod/Del/Nack
 
 }
 
-// Types of event a subscription can receive
+// Types of events subscription and quenches can receive
 const (
-	subEventNotifyDeliver = iota
-	subEventNack
-	subEventSubRply
-	subEventSubModRply
-	subEventSubDelRply
+	subEventNack          = iota // To sub or quench
+	subEventNotifyDeliver        // To sub
+	subEventSubRply              // To sub
+	subEventSubModRply           // To sub
+	subEventSubDelRply           // To sub
+	quenchEventAddNotify         // To quench
+	quenchEventModNotify         // To quench
+	quenchEventDelNotify         // To quench
 )
 
 // The Subscription type used by clients.
@@ -85,8 +93,8 @@ type Subscription struct {
 	AcceptInsecure bool                        // Do we accept notifications with no security keys
 	Keys           []Keyset                    // Keys for this subscriptions
 	Notifications  chan map[string]interface{} // Notifications delivered on this channel
-	subID          uint64
-	events         chan Packet
+	subID          uint64                      // private id
+	events         chan Packet                 // synchronous replies
 }
 
 func (sub *Subscription) addKeys(keys []Keyset) {
@@ -99,10 +107,21 @@ func (sub *Subscription) delKeys(keys []Keyset) {
 	return
 }
 
+// The Quench type used by clients.
+type Quench struct {
+	Names               []string    // Quench terms
+	DeliverInsecure     bool        // Do we deliver with no security keys
+	Keys                []Keyset    // Keys for this quench
+	QuenchNotifications chan Packet // Sub{Add|Del|Mod}Notify delivers
+	quenchID            uint64      // private id
+	events              chan Packet // synchronous replies
+}
+
 // FIXME: define and maybe make configurable?
 const ConnectTimeout = (10 * time.Second)
 const DisconnectTimeout = (10 * time.Second)
 const SubscriptionTimeout = (10 * time.Second)
+const QuenchTimeout = (10 * time.Second)
 
 // Create a new client.
 // Using new(Client) will not result in proper initialization
@@ -116,10 +135,12 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.readTerminate = make(chan int)
 	client.writeTerminate = make(chan int)
 	client.subscriptions = make(map[uint64]*Subscription)
+	client.quenches = make(map[uint64]*Quench)
 	// Sync Packets
 	client.connReplies = make(chan Packet)
 	client.disconnReplies = make(chan Packet)
 	client.subReplies = make(map[uint32]*Subscription)
+	client.quenchReplies = make(map[uint32]*Quench)
 	client.DisconnChannel = make(chan *Disconn)
 
 	return client
@@ -431,6 +452,61 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 
 	client.mu.Lock()
 	delete(client.subReplies, xID)
+	client.mu.Unlock()
+
+	return err
+}
+
+// Subscribe this client to the subscription
+func (client *Client) Quench(quench *Quench) (err error) {
+
+	if client.State() != StateConnected {
+		return fmt.Errorf("FIXME: client not connected")
+	}
+
+	pkt := new(QnchAddRqst)
+	pkt.Names = quench.Names
+	pkt.DeliverInsecure = quench.DeliverInsecure
+	pkt.Keys = quench.Keys
+
+	quench.events = make(chan Packet)
+
+	writeBuf := new(bytes.Buffer)
+	xID := pkt.Encode(writeBuf)
+
+	// Map the XID back to this request along with the notifications
+	client.mu.Lock()
+	client.quenchReplies[xID] = quench
+	client.mu.Unlock()
+
+	client.writeChannel <- writeBuf
+
+	// Wait for the reply
+	select {
+	case rply := <-quench.events:
+		switch rply.(type) {
+		case *QnchRply:
+			quenchRply := rply.(*QnchRply)
+			// Track the quench id
+			quench.quenchID = quenchRply.QuenchID
+			client.mu.Lock()
+			client.quenches[quench.quenchID] = quench
+			client.mu.Unlock()
+			break
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			break
+		default:
+			log.Printf("OOPS (%v)", rply)
+		}
+
+	case <-time.After(QuenchTimeout):
+		err = fmt.Errorf("FIXME: timeout")
+	}
+
+	client.mu.Lock()
+	delete(client.quenchReplies, xID)
 	client.mu.Unlock()
 
 	return err

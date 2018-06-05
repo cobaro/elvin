@@ -76,6 +76,7 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
+	pkt.Names = make([]string, nameCount)
 	for i := uint32(0); i < nameCount; i++ {
 		pkt.Names[i], used, err = XdrGetString(bytes[offset:])
 		if err != nil {
@@ -99,14 +100,18 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutInt32(buffer, int32(xID))
 	XdrPutUint32(buffer, uint32(len(pkt.Names)))
 	for i := 0; i < len(pkt.Names); i++ {
 		XdrPutString(buffer, pkt.Names[i])
 	}
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
+
+	return
 }
 
 type QnchModRqst struct {
@@ -212,8 +217,10 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutInt32(buffer, int32(xID))
 	XdrPutUint64(buffer, pkt.QuenchID)
 	XdrPutUint32(buffer, uint32(len(pkt.NamesAdd)))
 	for i := 0; i < len(pkt.NamesAdd); i++ {
@@ -226,6 +233,8 @@ func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) {
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.AddKeys)
 	XdrPutKeys(buffer, pkt.DelKeys)
+
+	return
 }
 
 type QnchDelRqst struct {
@@ -272,9 +281,13 @@ func (pkt *QnchDelRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutInt32(buffer, int32(xID))
 	XdrPutUint64(buffer, pkt.QuenchID)
+
+	return
 }
 
 type QnchRply struct {
@@ -323,6 +336,7 @@ func (pkt *QnchRply) Decode(bytes []byte) (err error) {
 
 func (pkt *QnchRply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutInt32(buffer, int32(pkt.XID))
 	XdrPutUint64(buffer, pkt.QuenchID)
 }
 
