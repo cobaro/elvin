@@ -81,6 +81,10 @@ type NackArgs struct {
 
 var ProtocolErrors map[uint16]NackArgs
 
+// Note that the spec has some unsigned types specified here but also
+// wants to marshall them as a Value that only supports signed types.
+// This implementations resolves this by using signed types for subscription
+// and quench IDs
 func init() {
 	ProtocolErrors = make(map[uint16]NackArgs)
 
@@ -89,10 +93,10 @@ func init() {
 	ProtocolErrors[ErrorsAuthenticationFailure] = NackArgs{"Authentication failed", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
 
 	ProtocolErrors[ErrorsProtocolError] = NackArgs{"Protocol Error", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
-	ProtocolErrors[ErrorsUnknownSubID] = NackArgs{"Unknown subscription id %1", 1, [MaxNackArgs]interface{}{uint64(0), nil, nil}}
-	ProtocolErrors[ErrorsUnknownQuenchID] = NackArgs{"Unknown quench id %1", 1, [MaxNackArgs]interface{}{uint64(0), nil, nil}}
-	ProtocolErrors[ErrorsBadKeyScheme] = NackArgs{"Bad key scheme %1", 1, [MaxNackArgs]interface{}{uint32(0), nil, nil}}
-	ProtocolErrors[ErrorsBadKeysetIndex] = NackArgs{"Bad keyset index %1:%2", 2, [MaxNackArgs]interface{}{uint32(0), int32(0), nil}}
+	ProtocolErrors[ErrorsUnknownSubID] = NackArgs{"Unknown subscription id %1", 1, [MaxNackArgs]interface{}{int64(0), nil, nil}}
+	ProtocolErrors[ErrorsUnknownQuenchID] = NackArgs{"Unknown quench id %1", 1, [MaxNackArgs]interface{}{int64(0), nil, nil}}
+	ProtocolErrors[ErrorsBadKeyScheme] = NackArgs{"Bad key scheme %1", 1, [MaxNackArgs]interface{}{int32(0), nil, nil}}
+	ProtocolErrors[ErrorsBadKeysetIndex] = NackArgs{"Bad keyset index %1:%2", 2, [MaxNackArgs]interface{}{int32(0), int32(0), nil}}
 	ProtocolErrors[ErrorsBadUTF8] = NackArgs{"Invalid UTF8 string at position %1", 2, [MaxNackArgs]interface{}{int32(0), nil, nil}}
 
 	ProtocolErrors[ErrorsNoSuchKey] = NackArgs{"No such key", 0, [MaxNackArgs]interface{}{nil, nil, nil}}

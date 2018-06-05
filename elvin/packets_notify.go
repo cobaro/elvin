@@ -90,8 +90,8 @@ func (pkt *NotifyEmit) Encode(buffer *bytes.Buffer) {
 // Packet: NotifyDeliver
 type NotifyDeliver struct {
 	NameValue map[string]interface{}
-	Secure    []uint64
-	Insecure  []uint64
+	Secure    []int64
+	Insecure  []int64
 }
 
 // Integer value of packet type
@@ -134,7 +134,7 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	offset += used
 
 	for i := int32(0); i < secureCount; i++ {
-		val, used, err := XdrGetUint64(bytes[offset:])
+		val, used, err := XdrGetInt64(bytes[offset:])
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	offset += used
 
 	for i := int32(0); i < insecureCount; i++ {
-		val, used, err := XdrGetUint64(bytes[offset:])
+		val, used, err := XdrGetInt64(bytes[offset:])
 		if err != nil {
 			return err
 		}
@@ -167,10 +167,10 @@ func (pkt *NotifyDeliver) Encode(buffer *bytes.Buffer) {
 	XdrPutNotification(buffer, pkt.NameValue)
 	XdrPutInt32(buffer, int32(len(pkt.Secure)))
 	for i := 0; i < len(pkt.Secure); i++ {
-		XdrPutUint64(buffer, pkt.Secure[i])
+		XdrPutInt64(buffer, pkt.Secure[i])
 	}
 	XdrPutInt32(buffer, int32(len(pkt.Insecure)))
 	for i := 0; i < len(pkt.Insecure); i++ {
-		XdrPutUint64(buffer, pkt.Insecure[i])
+		XdrPutInt64(buffer, pkt.Insecure[i])
 	}
 }

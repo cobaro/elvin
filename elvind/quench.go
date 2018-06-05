@@ -26,7 +26,7 @@ import (
 
 // A Subscription
 type Quench struct {
-	QuenchID        uint64
+	QuenchID        int64
 	DeliverInsecure bool
 	Keys            []elvin.Keyset
 	Names           []string

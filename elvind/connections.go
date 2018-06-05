@@ -54,9 +54,9 @@ func (conn *Connection) SetState(val uint32) {
 
 // A Connection (e.g. a socket)
 type Connection struct {
-	id             uint32
-	subs           map[uint32]*Subscription
-	quenches       map[uint32]*Quench
+	id             int32
+	subs           map[int32]*Subscription
+	quenches       map[int32]*Quench
 	reader         io.Reader
 	writer         io.Writer
 	closer         io.Closer
@@ -75,19 +75,19 @@ var bufferPool = sync.Pool{
 // Global connections
 
 type Connections struct {
-	connections map[uint32]*Connection // initialized in init()
-	lock        sync.Mutex             // initialized automatically
+	connections map[int32]*Connection // initialized in init()
+	lock        sync.Mutex            // initialized automatically
 }
 
 var connections Connections
 
 func init() {
 	// rand.New(rand.NewSource(time.Now().UnixNano()))
-	connections.connections = make(map[uint32]*Connection)
+	connections.connections = make(map[int32]*Connection)
 }
 
 // Return our unique 32 bit unsigned identifier
-func (conn *Connection) ID() uint32 {
+func (conn *Connection) ID() int32 {
 	return conn.id
 }
 
@@ -95,7 +95,7 @@ func (conn *Connection) ID() uint32 {
 func (conn *Connection) MakeID() {
 	connections.lock.Lock()
 	defer connections.lock.Unlock()
-	var c uint32 = rand.Uint32()
+	var c int32 = rand.Int31()
 	for {
 		_, err := connections.connections[c]
 		if !err {
@@ -396,8 +396,8 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	// We're now connected
 	conn.MakeID()
 	conn.SetState(StateConnected)
-	conn.subs = make(map[uint32]*Subscription)
-	conn.quenches = make(map[uint32]*Quench)
+	conn.subs = make(map[int32]*Subscription)
+	conn.quenches = make(map[int32]*Quench)
 
 	// Respond with a Connection Reply
 	connRply := new(elvin.ConnRply)
@@ -470,10 +470,10 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 
 	for connid, connection := range connections.connections {
 		if len(connection.subs) > 0 {
-			nd.Insecure = make([]uint64, len(connection.subs))
+			nd.Insecure = make([]int64, len(connection.subs))
 			i := 0
 			for id, _ := range connection.subs {
-				nd.Insecure[i] = uint64(connid)<<32 | uint64(id)
+				nd.Insecure[i] = int64(connid)<<32 | int64(id)
 				i++
 			}
 			buf := bufferPool.Get().(*bytes.Buffer)
@@ -508,7 +508,7 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	sub.Keys = subRqst.Keys
 
 	// Create a unique sub id
-	var s uint32 = rand.Uint32()
+	var s int32 = rand.Int31()
 	for {
 		_, err := conn.subs[s]
 		if !err {
@@ -517,7 +517,7 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 		s++
 	}
 	conn.subs[s] = &sub
-	sub.SubID = (uint64(conn.ID()) << 32) | uint64(s)
+	sub.SubID = (int64(conn.ID()) << 32) | int64(s)
 
 	// FIXME: send subscription addition to sub engine
 
@@ -525,6 +525,9 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	subRply := new(elvin.SubRply)
 	subRply.XID = subRqst.XID
 	subRply.SubID = sub.SubID
+	if glog.V(4) {
+		glog.Infof("Connection:%d New subscription:%d (%d)", conn.ID(), s, sub.SubID)
+	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -542,7 +545,7 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	}
 
 	// If deletion fails then nack and disconn
-	idx := uint32(subDelRqst.SubID & 0xfffffffff)
+	idx := int32(subDelRqst.SubID & 0xfffffffff)
 	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
@@ -584,7 +587,7 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	}
 
 	// If modify fails then nack and disconn
-	idx := uint32(subModRqst.SubID & 0xfffffffff)
+	idx := int32(subModRqst.SubID & 0xfffffffff)
 	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
@@ -660,7 +663,7 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 	quench.Keys = quenchRequest.Keys
 
 	// Create a unique quench id
-	var q uint32 = rand.Uint32()
+	var q int32 = rand.Int31()
 	for {
 		_, err := conn.quenches[q]
 		if !err {
@@ -669,7 +672,7 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 		q++
 	}
 	conn.quenches[q] = &quench
-	quench.QuenchID = (uint64(conn.ID()) << 32) | uint64(q)
+	quench.QuenchID = (int64(conn.ID()) << 32) | int64(q)
 
 	// FIXME: send quench to sub engine
 
@@ -678,6 +681,9 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 	quenchReply.XID = quenchRequest.XID
 	quenchReply.QuenchID = quench.QuenchID
 
+	if glog.V(4) {
+		glog.Infof("Connection:%d New quench:%d (%d)", conn.ID(), q, quench.QuenchID)
+	}
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	quenchReply.Encode(buf)

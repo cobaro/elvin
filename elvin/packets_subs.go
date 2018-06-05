@@ -105,7 +105,7 @@ func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 // Packet: SubRply
 type SubRply struct {
 	XID   uint32
-	SubID uint64
+	SubID int64
 }
 
 // Integer value of packet type
@@ -142,7 +142,7 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	pkt.SubID, used, err = XdrGetUint64(bytes[offset:])
+	pkt.SubID, used, err = XdrGetInt64(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -155,13 +155,13 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
-	XdrPutUint64(buffer, pkt.SubID)
+	XdrPutInt64(buffer, pkt.SubID)
 }
 
 // Packet: SubDelRqst
 type SubDelRqst struct {
 	XID   uint32
-	SubID uint64
+	SubID int64
 }
 
 // Integer value of packet type
@@ -198,7 +198,7 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	pkt.SubID, used, err = XdrGetUint64(bytes[offset:])
+	pkt.SubID, used, err = XdrGetInt64(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -212,14 +212,14 @@ func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, xID)
-	XdrPutUint64(buffer, pkt.SubID)
+	XdrPutInt64(buffer, pkt.SubID)
 	return
 }
 
 // Packet: SubModRqst
 type SubModRqst struct {
 	XID            uint32
-	SubID          uint64
+	SubID          int64
 	Expression     string
 	AcceptInsecure bool
 	AddKeys        []Keyset
@@ -264,7 +264,7 @@ func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	pkt.SubID, used, err = XdrGetUint64(bytes[offset:])
+	pkt.SubID, used, err = XdrGetInt64(bytes[offset:])
 	if err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func (pkt *SubModRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, xID)
-	XdrPutUint64(buffer, pkt.SubID)
+	XdrPutInt64(buffer, pkt.SubID)
 	XdrPutString(buffer, pkt.Expression)
 	XdrPutBool(buffer, pkt.AcceptInsecure)
 	XdrPutKeys(buffer, pkt.AddKeys)

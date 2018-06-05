@@ -59,11 +59,11 @@ type Client struct {
 
 	// Map of all current subscriptions used for mapping NotifyDelivers
 	// and for maintaining subscriptions across reconnection
-	subscriptions map[uint64]*Subscription
+	subscriptions map[int64]*Subscription
 
 	// Map of all current quenches used for mapping quench Notifications
 	// and for maintaining quenches across reconnection
-	quenches map[uint64]*Quench
+	quenches map[int64]*Quench
 
 	// response channels
 	connXID        uint32                   // XID of outstanding connrqst
@@ -93,7 +93,7 @@ type Subscription struct {
 	AcceptInsecure bool                        // Do we accept notifications with no security keys
 	Keys           []Keyset                    // Keys for this subscriptions
 	Notifications  chan map[string]interface{} // Notifications delivered on this channel
-	subID          uint64                      // private id
+	subID          int64                       // private id
 	events         chan Packet                 // synchronous replies
 }
 
@@ -113,7 +113,7 @@ type Quench struct {
 	DeliverInsecure     bool        // Do we deliver with no security keys
 	Keys                []Keyset    // Keys for this quench
 	QuenchNotifications chan Packet // Sub{Add|Del|Mod}Notify delivers
-	quenchID            uint64      // private id
+	quenchID            int64       // private id
 	events              chan Packet // synchronous replies
 }
 
@@ -134,8 +134,8 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.writeChannel = make(chan *bytes.Buffer)
 	client.readTerminate = make(chan int)
 	client.writeTerminate = make(chan int)
-	client.subscriptions = make(map[uint64]*Subscription)
-	client.quenches = make(map[uint64]*Quench)
+	client.subscriptions = make(map[int64]*Subscription)
+	client.quenches = make(map[int64]*Quench)
 	// Sync Packets
 	client.connReplies = make(chan Packet)
 	client.disconnReplies = make(chan Packet)
