@@ -79,53 +79,24 @@ func (pkt *Nack) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	// The type of the arguments is defined by the ErrorCode so we
-	// look this up in NackArgs
-	nackArgs, ok := ProtocolErrors[pkt.ErrorCode]
-	if !ok {
-		return // Nothing we can do
+	// Read the number of arguments
+	argCount, used, err := XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
 	}
+	offset += used
 
 	// Arg values
-	pkt.Args = make([]interface{}, nackArgs.NumArgs)
-	for i := 0; i < nackArgs.NumArgs; i++ {
-		switch nackArgs.ArgTypes[i].(type) {
-		case int32:
-			pkt.Args[i], used, err = XdrGetInt32(bytes[offset:])
-			if err != nil {
-				return err
-			}
-		case uint32:
-			pkt.Args[i], used, err = XdrGetUint32(bytes[offset:])
-			if err != nil {
-				return err
-			}
-		case int64:
-			pkt.Args[i], used, err = XdrGetInt64(bytes[offset:])
-			if err != nil {
-				return err
-			}
-		case uint64:
-			pkt.Args[i], used, err = XdrGetUint64(bytes[offset:])
-			if err != nil {
-				return err
-			}
-		case float64:
-			pkt.Args[i], used, err = XdrGetFloat64(bytes[offset:])
-			if err != nil {
-				return err
-			}
-		case string:
-			pkt.Args[i], used, err = XdrGetString(bytes[offset:])
-			if err != nil {
-				return err
-			}
-		default:
-			panic(fmt.Sprintf("Bad *type* in Nack arg %d", i))
+	pkt.Args = make([]interface{}, argCount)
+	for i := 0; i < int(argCount); i++ {
+		pkt.Args[i], used, err = XdrGetValue(bytes[offset:])
+		if err != nil {
+			return err
 		}
 		offset += used
 	}
-	return nil
+
+	return
 }
 
 // Encode a Nack from a buffer
@@ -135,34 +106,9 @@ func (pkt *Nack) Encode(buffer *bytes.Buffer) {
 	XdrPutUint16(buffer, pkt.ErrorCode)
 	XdrPutString(buffer, pkt.Message)
 
-	// The type of the arguments is defined by the ErrorCode so we
-	// look this up in NackArgs
-	nackArgs, ok := ProtocolErrors[pkt.ErrorCode]
-	if !ok {
-		return // Nothing we can do
+	// Args
+	XdrPutUint32(buffer, uint32(len(pkt.Args)))
+	for i := 0; i < len(pkt.Args); i++ {
+		XdrPutValue(buffer, pkt.Args[i])
 	}
-
-	// Arg values
-	for i := 0; i < nackArgs.NumArgs; i++ {
-		value := nackArgs.ArgTypes[i]
-		switch nackArgs.ArgTypes[i].(type) {
-		case int32:
-			XdrPutInt32(buffer, value.(int32))
-		case uint32:
-			XdrPutUint32(buffer, value.(uint32))
-		case int64:
-			XdrPutInt64(buffer, value.(int64))
-		case uint64:
-			XdrPutUint64(buffer, value.(uint64))
-		case float64:
-			XdrPutFloat64(buffer, value.(float64))
-		case string:
-			XdrPutString(buffer, value.(string))
-		case []byte:
-			XdrPutOpaque(buffer, value.([]uint8))
-		default:
-			panic(fmt.Sprintf("Bad *type* in Nack arg: %v", value))
-		}
-	}
-	return
 }

@@ -74,17 +74,17 @@ const (
 const MaxNackArgs = 3
 
 type NackArgs struct {
-	Message  string
-	NumArgs  int
-	ArgTypes [MaxNackArgs]interface{}
+	Message string
+	NumArgs int
+	Args    [MaxNackArgs]interface{}
 }
 
 var ProtocolErrors map[uint16]NackArgs
 
 // Note that the spec has some unsigned types specified here but also
 // wants to marshall them as a Value that only supports signed types.
-// This implementations resolves this by using signed types for subscription
-// and quench IDs
+// This implementation resolves this by using signed types for both
+// subscription and quench IDs
 func init() {
 	ProtocolErrors = make(map[uint16]NackArgs)
 
