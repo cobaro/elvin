@@ -658,7 +658,10 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 
 	// Create a quench and add it to the quench store
 	var quench Quench
-	quench.Names = quenchRequest.Names
+	quench.Names = make(map[string]bool)
+	for name, _ := range quenchRequest.Names {
+		quench.Names[name] = true
+	}
 	quench.DeliverInsecure = quenchRequest.DeliverInsecure
 	quench.Keys = quenchRequest.Keys
 
@@ -682,7 +685,7 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 	quenchReply.QuenchID = quench.QuenchID
 
 	if glog.V(4) {
-		glog.Infof("Connection:%d New quench:%d (%d)", conn.ID(), q, quench.QuenchID)
+		glog.Infof("Connection:%d New quench:%d %+v", conn.ID(), quench.QuenchID, quench)
 	}
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -692,7 +695,55 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 }
 
 func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
-	glog.Info("FIXME:implement QnchModRqst")
+	quenchModRequest := new(elvin.QnchModRqst)
+	err = quenchModRequest.Decode(buffer)
+	if err != nil {
+		// FIXME: Protocol violation
+	}
+
+	// If modify fails then nack and disconn
+	idx := int32(quenchModRequest.QuenchID & 0xfffffffff)
+	quench, exists := conn.quenches[idx]
+	if !exists {
+		nack := new(elvin.Nack)
+		nack.XID = quenchModRequest.XID
+		nack.ErrorCode = elvin.ErrorsUnknownQuenchID
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
+		nack.Args = make([]interface{}, 1)
+		nack.Args[0] = uint64(quenchModRequest.QuenchID)
+
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nack.Encode(buf)
+		conn.writeChannel <- buf
+
+		// FIXME Disconnect if that's a repeated protocol violation?
+		return nil
+	}
+
+	for name, _ := range quenchModRequest.AddNames {
+		quench.Names[name] = true
+	}
+	for name, _ := range quenchModRequest.DelNames {
+		delete(quench.Names, name)
+	}
+	quench.DeliverInsecure = quenchModRequest.DeliverInsecure
+	// FIXME: implement key changes
+
+	// FIXME: Pass on change to engine
+
+	// Respond with a QuenchReply
+	quenchReply := new(elvin.QnchRply)
+	quenchReply.XID = quenchModRequest.XID
+	quenchReply.QuenchID = quench.QuenchID
+
+	if glog.V(4) {
+		glog.Infof("Connection:%d  quench:%d modified %+v", conn.ID(), quench.QuenchID, quench)
+	}
+
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	quenchReply.Encode(buf)
+	conn.writeChannel <- buf
 	return nil
 }
 

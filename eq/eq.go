@@ -98,7 +98,7 @@ func main() {
 
 	// FIXME: do a NewSubscription()
 	quench := new(elvin.Quench)
-	quench.Names = []string{"int32"}
+	quench.Names = map[string]bool{"int32": true, "float64": true}
 	quench.DeliverInsecure = true
 	quench.Keys = nil
 	quench.QuenchNotifications = make(chan elvin.Packet)
@@ -107,6 +107,14 @@ func main() {
 		log.Printf("Quench failed %v", err)
 	} else {
 		log.Printf("Quench succeeded %v", *quench)
+	}
+
+	addNames := map[string]bool{"int64": true}
+	delNames := map[string]bool{"float64": true}
+	if err := eq.QuenchModify(quench, addNames, delNames, true, nil, nil); err != nil {
+		log.Printf("Quench mod failed %v", err)
+	} else {
+		log.Printf("Quench mod succeeded %v", *quench)
 	}
 
 	ch := make(chan os.Signal)

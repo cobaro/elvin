@@ -109,12 +109,22 @@ func (sub *Subscription) delKeys(keys []Keyset) {
 
 // The Quench type used by clients.
 type Quench struct {
-	Names               []string    // Quench terms
-	DeliverInsecure     bool        // Do we deliver with no security keys
-	Keys                []Keyset    // Keys for this quench
-	QuenchNotifications chan Packet // Sub{Add|Del|Mod}Notify delivers
-	quenchID            int64       // private id
-	events              chan Packet // synchronous replies
+	Names               map[string]bool // Quench terms
+	DeliverInsecure     bool            // Do we deliver with no security keys
+	Keys                []Keyset        // Keys for this quench
+	QuenchNotifications chan Packet     // Sub{Add|Del|Mod}Notify delivers
+	quenchID            int64           // private id
+	events              chan Packet     // synchronous replies
+}
+
+func (quench *Quench) addKeys(keys []Keyset) {
+	// FIXME: implement
+	return
+}
+
+func (quench *Quench) delKeys(keys []Keyset) {
+	// FIXME: implement
+	return
 }
 
 // FIXME: define and maybe make configurable?
@@ -492,6 +502,72 @@ func (client *Client) Quench(quench *Quench) (err error) {
 			client.mu.Lock()
 			client.quenches[quench.quenchID] = quench
 			client.mu.Unlock()
+			break
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			break
+		default:
+			log.Printf("OOPS (%v)", rply)
+		}
+
+	case <-time.After(QuenchTimeout):
+		err = fmt.Errorf("FIXME: timeout")
+	}
+
+	client.mu.Lock()
+	delete(client.quenchReplies, xID)
+	client.mu.Unlock()
+
+	return err
+}
+
+// Modify a Quench
+func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, delNames map[string]bool, deliverInsecure bool, addKeys []Keyset, delKeys []Keyset) (err error) {
+
+	if client.State() != StateConnected {
+		return fmt.Errorf("FIXME: client not connected")
+	}
+
+	pkt := new(QnchModRqst)
+	pkt.QuenchID = quench.quenchID
+	pkt.AddNames = addNames
+	pkt.DelNames = delNames
+	pkt.DeliverInsecure = deliverInsecure
+	pkt.AddKeys = addKeys
+	pkt.DelKeys = delKeys
+
+	writeBuf := new(bytes.Buffer)
+	xID := pkt.Encode(writeBuf)
+
+	// Map the XID back to this request along with the notifications
+	client.mu.Lock()
+	client.quenchReplies[xID] = quench
+	client.mu.Unlock()
+
+	client.writeChannel <- writeBuf
+
+	// Wait for the reply
+	select {
+	case rply := <-quench.events:
+		switch rply.(type) {
+		case *QnchRply:
+			quenchRply := rply.(*QnchRply)
+			// Check the quench id
+			if quench.quenchID != quenchRply.QuenchID {
+				log.Printf("FIXME: Protocol violation (%v)", rply)
+			}
+
+			quench.DeliverInsecure = deliverInsecure
+			quench.addKeys(addKeys)
+			quench.delKeys(delKeys)
+			for name, _ := range addNames {
+				quench.Names[name] = true
+			}
+			for name, _ := range delNames {
+				delete(quench.Names, name)
+			}
+
 			break
 		case *Nack:
 			nack := rply.(*Nack)

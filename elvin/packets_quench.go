@@ -31,7 +31,7 @@ type SubAST struct {
 
 type QnchAddRqst struct {
 	XID             uint32
-	Names           []string
+	Names           map[string]bool
 	DeliverInsecure bool
 	Keys            []Keyset
 }
@@ -76,12 +76,13 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	pkt.Names = make([]string, nameCount)
+	pkt.Names = make(map[string]bool)
 	for i := uint32(0); i < nameCount; i++ {
-		pkt.Names[i], used, err = XdrGetString(bytes[offset:])
+		name, used, err := XdrGetString(bytes[offset:])
 		if err != nil {
 			return err
 		}
+		pkt.Names[name] = true
 		offset += used
 	}
 
@@ -105,8 +106,8 @@ func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(xID))
 	XdrPutUint32(buffer, uint32(len(pkt.Names)))
-	for i := 0; i < len(pkt.Names); i++ {
-		XdrPutString(buffer, pkt.Names[i])
+	for name, _ := range pkt.Names {
+		XdrPutString(buffer, name)
 	}
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
@@ -117,15 +118,15 @@ func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 type QnchModRqst struct {
 	XID             uint32
 	QuenchID        int64
-	NamesAdd        []string
-	NamesDel        []string
+	AddNames        map[string]bool
+	DelNames        map[string]bool
 	DeliverInsecure bool
 	AddKeys         []Keyset
 	DelKeys         []Keyset
 }
 
 func (pkt *QnchModRqst) ID() int {
-	return PacketQnchAddRqst
+	return PacketQnchModRqst
 }
 
 func (pkt *QnchModRqst) IDString() string {
@@ -136,15 +137,15 @@ func (pkt *QnchModRqst) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
 			"%sQuenchID: %d\n"+
-			"%sNamesAdd: %v\n"+
-			"%sNamesDel: %v\n"+
+			"%sAddNames: %v\n"+
+			"%sDelNames: %v\n"+
 			"%sDeliverInsecure: %v\n"+
 			"%sAddKeys: %v\n"+
 			"%sDelKeys: %v\n",
 		indent, pkt.XID,
 		indent, pkt.QuenchID,
-		indent, pkt.NamesAdd,
-		indent, pkt.NamesDel,
+		indent, pkt.AddNames,
+		indent, pkt.DelNames,
 		indent, pkt.DeliverInsecure,
 		indent, pkt.AddKeys,
 		indent, pkt.DelKeys)
@@ -170,29 +171,35 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 	}
 	offset += used
 
-	namesAddCount, used, err := XdrGetUint32(bytes[offset:])
+	addNamesCount, used, err := XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
 	offset += used
-	for i := uint32(0); i < namesAddCount; i++ {
-		pkt.NamesAdd[i], used, err = XdrGetString(bytes[offset:])
+
+	pkt.AddNames = make(map[string]bool)
+	for i := uint32(0); i < addNamesCount; i++ {
+		name, used, err := XdrGetString(bytes[offset:])
 		if err != nil {
 			return err
 		}
+		pkt.AddNames[name] = true
 		offset += used
 	}
 
-	namesDelCount, used, err := XdrGetUint32(bytes[offset:])
+	delNamesCount, used, err := XdrGetUint32(bytes[offset:])
 	if err != nil {
 		return err
 	}
 	offset += used
-	for i := uint32(0); i < namesDelCount; i++ {
-		pkt.NamesDel[i], used, err = XdrGetString(bytes[offset:])
+
+	pkt.DelNames = make(map[string]bool)
+	for i := uint32(0); i < delNamesCount; i++ {
+		name, used, err := XdrGetString(bytes[offset:])
 		if err != nil {
 			return err
 		}
+		pkt.DelNames[name] = true
 		offset += used
 	}
 
@@ -222,13 +229,13 @@ func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(xID))
 	XdrPutInt64(buffer, pkt.QuenchID)
-	XdrPutUint32(buffer, uint32(len(pkt.NamesAdd)))
-	for i := 0; i < len(pkt.NamesAdd); i++ {
-		XdrPutString(buffer, pkt.NamesAdd[i])
+	XdrPutUint32(buffer, uint32(len(pkt.AddNames)))
+	for name, _ := range pkt.AddNames {
+		XdrPutString(buffer, name)
 	}
-	XdrPutUint32(buffer, uint32(len(pkt.NamesDel)))
-	for i := 0; i < len(pkt.NamesDel); i++ {
-		XdrPutString(buffer, pkt.NamesDel[i])
+	XdrPutUint32(buffer, uint32(len(pkt.DelNames)))
+	for name, _ := range pkt.DelNames {
+		XdrPutString(buffer, name)
 	}
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.AddKeys)

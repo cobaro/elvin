@@ -29,5 +29,5 @@ type Quench struct {
 	QuenchID        int64
 	DeliverInsecure bool
 	Keys            []elvin.Keyset
-	Names           []string
+	Names           map[string]bool // easy insert/delete, values irrelevant
 }
