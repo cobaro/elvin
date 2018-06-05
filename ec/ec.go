@@ -143,6 +143,6 @@ Loop:
 		os.Exit(1)
 	}
 
-	log.Printf("disconnected")
+	log.Printf("Disconnected")
 	os.Exit(0)
 }

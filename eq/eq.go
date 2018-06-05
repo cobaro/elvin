@@ -131,11 +131,11 @@ Loop:
 		}
 	}
 
-	//	if err := eq.QuenchDelete(sub); err != nil {
-	//		log.Printf("QuenchDel failed %v", err)
-	//	} else {
-	//		log.Printf("QuenchDel succeeded %v", sub)
-	//	}
+	if err := eq.QuenchDelete(quench); err != nil {
+		log.Printf("QuenchDel failed %v", err)
+	} else {
+		log.Printf("QuenchDel succeeded %v", quench)
+	}
 
 	// Exit a little gracefully
 	log.Printf("Disconnecting")
@@ -144,6 +144,6 @@ Loop:
 		os.Exit(1)
 	}
 
-	log.Printf("disconnected")
+	log.Printf("Disconnected")
 	os.Exit(0)
 }

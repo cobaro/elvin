@@ -546,13 +546,14 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 
 	// If deletion fails then nack and disconn
 	idx := int32(subDelRqst.SubID & 0xfffffffff)
-	sub, exists := conn.subs[idx]
+	_, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
+		nack.XID = subDelRqst.XID
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = sub.SubID
+		nack.Args[0] = subDelRqst.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -595,7 +596,7 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = uint64(subModRqst.SubID)
+		nack.Args[0] = subModRqst.SubID
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
@@ -710,7 +711,7 @@ func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
 		nack.ErrorCode = elvin.ErrorsUnknownQuenchID
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = uint64(quenchModRequest.QuenchID)
+		nack.Args[0] = quenchModRequest.QuenchID
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
@@ -748,6 +749,43 @@ func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
 }
 
 func (conn *Connection) HandleQnchDelRqst(buffer []byte) (err error) {
-	glog.Info("FIXME:implement QnchDelRqst")
+	quenchDelRqst := new(elvin.QnchDelRqst)
+	err = quenchDelRqst.Decode(buffer)
+	if err != nil {
+		// FIXME: Protocol violation
+	}
+
+	// If deletion fails then nack and disconn
+	idx := int32(quenchDelRqst.QuenchID & 0xfffffffff)
+	_, exists := conn.quenches[idx]
+	if !exists {
+		nack := new(elvin.Nack)
+		nack.XID = quenchDelRqst.XID
+		nack.ErrorCode = elvin.ErrorsUnknownQuenchID
+		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
+		nack.Args = make([]interface{}, 1)
+		nack.Args[0] = quenchDelRqst.QuenchID
+		buf := bufferPool.Get().(*bytes.Buffer)
+		nack.Encode(buf)
+		conn.writeChannel <- buf
+
+		// FIXME Disconnect as that's a protocol violation
+		return nil
+	}
+
+	// Remove it from the connection
+	delete(conn.quenches, idx)
+
+	// Respond with a QnchRply
+	quenchReply := new(elvin.QnchRply)
+	quenchReply.XID = quenchDelRqst.XID
+	quenchReply.QuenchID = quenchDelRqst.QuenchID
+
+	// FIXME: send quench deletion to sub engine
+
+	// Encode that into a buffer for the write handler
+	buf := bufferPool.Get().(*bytes.Buffer)
+	quenchReply.Encode(buf)
+	conn.writeChannel <- buf
 	return nil
 }

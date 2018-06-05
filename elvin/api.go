@@ -587,3 +587,57 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 
 	return err
 }
+
+func (client *Client) QuenchDelete(quench *Quench) (err error) {
+
+	if client.State() != StateConnected {
+		return fmt.Errorf("FIXME: client not connected")
+	}
+
+	pkt := new(QnchDelRqst)
+	pkt.QuenchID = quench.quenchID
+
+	writeBuf := new(bytes.Buffer)
+	xID := pkt.Encode(writeBuf)
+
+	// Map the XID back to this request along with the notifications
+	client.mu.Lock()
+	client.quenchReplies[xID] = quench
+	client.mu.Unlock()
+
+	client.writeChannel <- writeBuf
+
+	// Wait for the reply
+	select {
+	case rply := <-quench.events:
+		switch rply.(type) {
+		case *QnchRply:
+			quenchRply := rply.(*QnchRply)
+			// Check the quench id
+			if quench.quenchID != quenchRply.QuenchID {
+				log.Printf("FIXME: Protocol violation (%v)", rply)
+			}
+			// Delete the local quench details
+			client.mu.Lock()
+			delete(client.quenches, quench.quenchID)
+			client.mu.Unlock()
+
+			break
+		case *Nack:
+			nack := rply.(*Nack)
+			err = fmt.Errorf(nack.String())
+			break
+		default:
+			log.Printf("OOPS (%v)", rply)
+		}
+
+	case <-time.After(QuenchTimeout):
+		err = fmt.Errorf("FIXME: timeout")
+	}
+
+	client.mu.Lock()
+	delete(client.quenchReplies, xID)
+	client.mu.Unlock()
+
+	return err
+}
