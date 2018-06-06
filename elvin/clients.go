@@ -123,13 +123,14 @@ func (client *Client) readHandler() {
 
 	}
 
-	// Tell the client we lost the connection if we're supposed to be open
-	// otherwise this can be socket closure on shutdown or redirect etc
+	// Tell the write handler to exit too
 	select {
 	case client.writeTerminate <- 1:
 	default:
 	}
 
+	// Tell the client we lost the connection if we're supposed to be open
+	// otherwise this can be socket closure on shutdown or redirect etc
 	if client.State() == StateConnected {
 		disconn := new(Disconn)
 		disconn.Reason = DisconnReasonClientConnectionLost
@@ -140,7 +141,7 @@ func (client *Client) readHandler() {
 	}
 
 	client.wg.Done()
-	//log.Printf("read handler exiting")
+	// log.Printf("read handler exiting")
 }
 
 // Handle writing for now run as a goroutine

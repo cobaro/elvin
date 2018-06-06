@@ -211,17 +211,13 @@ func (client *Client) Connect() (err error) {
 				// FIXME: Options check/save?
 				client.SetState(StateConnected)
 			}
-			break
-
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			client.SetState(StateConnected)
-			break
 		default:
 			// FIXME: die
 			err = fmt.Errorf("Unexpected packet")
-			break
 		}
 	case <-time.After(ConnectTimeout):
 		client.SetState(StateClosed)
@@ -249,7 +245,6 @@ func (client *Client) Disconnect() (err error) {
 	client.writeChannel <- writeBuf
 
 	// Wait for the reply
-loop:
 	select {
 	case reply := <-client.disconnReplies:
 		switch reply.(type) {
@@ -260,17 +255,15 @@ loop:
 				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, disconnReply.XID)
 			}
 			client.Close()
-			break loop
+			return err
 		default:
 			// Didn't hear back, let the client deal with that
-			err = fmt.Errorf("Unexpected packet")
-			break loop
-
+			err = fmt.Errorf("FIXME: Unexpected packet")
+			return err
 		}
 
 	case <-time.After(DisconnectTimeout):
 		err = fmt.Errorf("FIXME: timeout")
-		break
 	}
 
 	return err
@@ -330,13 +323,11 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 			client.mu.Lock()
 			client.subscriptions[sub.subID] = sub
 			client.mu.Unlock()
-			break
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
-			break
 		default:
-			log.Printf("OOPS (%v)", reply)
+			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
 		}
 
 	case <-time.After(SubscriptionTimeout):
@@ -396,14 +387,11 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 			sub.AcceptInsecure = acceptInsecure
 			sub.addKeys(AddKeys)
 			sub.delKeys(DelKeys)
-
-			break
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
-			break
 		default:
-			log.Printf("OOPS (%v)", reply)
+			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
 		}
 
 	case <-time.After(SubscriptionTimeout):
@@ -451,14 +439,11 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 			client.mu.Lock()
 			delete(client.subscriptions, sub.subID)
 			client.mu.Unlock()
-
-			break
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
-			break
 		default:
-			log.Printf("OOPS (%v)", reply)
+			err = fmt.Errorf("FIXME:OOPS (%v)", reply)
 		}
 
 	case <-time.After(SubscriptionTimeout):
@@ -507,13 +492,11 @@ func (client *Client) Quench(quench *Quench) (err error) {
 			client.mu.Lock()
 			client.quenches[quench.quenchID] = quench
 			client.mu.Unlock()
-			break
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
-			break
 		default:
-			log.Printf("OOPS (%v)", reply)
+			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
 		}
 
 	case <-time.After(QuenchTimeout):
@@ -573,13 +556,11 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 				delete(quench.Names, name)
 			}
 
-			break
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
-			break
 		default:
-			log.Printf("OOPS (%v)", reply)
+			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
 		}
 
 	case <-time.After(QuenchTimeout):
@@ -627,13 +608,11 @@ func (client *Client) QuenchDelete(quench *Quench) (err error) {
 			delete(client.quenches, quench.quenchID)
 			client.mu.Unlock()
 
-			break
 		case *Nack:
 			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
-			break
 		default:
-			log.Printf("OOPS (%v)", reply)
+			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
 		}
 
 	case <-time.After(QuenchTimeout):
