@@ -247,32 +247,32 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	case elvin.PacketReserved:
 	case elvin.PacketNotifyDeliver:
 	case elvin.PacketNack:
-	case elvin.PacketConnRply:
-	case elvin.PacketDisconnRply:
-	case elvin.PacketQnchRply:
+	case elvin.PacketConnReply:
+	case elvin.PacketDisconnReply:
+	case elvin.PacketQuenchReply:
 	case elvin.PacketSubAddNotify:
 	case elvin.PacketSubModNotify:
 	case elvin.PacketSubDelNotify:
-	case elvin.PacketSubRply:
+	case elvin.PacketSubReply:
 		return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 
 	// Protocol Packets not planned for the short term
-	case elvin.PacketSvrRqst:
+	case elvin.PacketSvrRequest:
 	case elvin.PacketSvrAdvt:
 	case elvin.PacketSvrAdvtClose:
-	case elvin.PacketClstJoinRqst:
-	case elvin.PacketClstJoinRply:
+	case elvin.PacketClstJoinRequest:
+	case elvin.PacketClstJoinReply:
 	case elvin.PacketClstTerms:
 	case elvin.PacketClstNotify:
 	case elvin.PacketClstRedir:
 	case elvin.PacketClstLeave:
-	case elvin.PacketFedConnRqst:
-	case elvin.PacketFedConnRply:
+	case elvin.PacketFedConnRequest:
+	case elvin.PacketFedConnReply:
 	case elvin.PacketFedSubReplace:
 	case elvin.PacketFedNotify:
 	case elvin.PacketFedSubDiff:
-	case elvin.PacketFailoverConnRqst:
-	case elvin.PacketFailoverConnRply:
+	case elvin.PacketFailoverConnRequest:
+	case elvin.PacketFailoverConnReply:
 	case elvin.PacketFailoverMaster:
 	case elvin.PacketServerReport:
 	case elvin.PacketServerNack:
@@ -286,8 +286,8 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		// Connect and Unotify are the only valid packets without
 		// a properly established connection
 		switch elvin.PacketID(buffer) {
-		case elvin.PacketConnRqst:
-			return conn.HandleConnRqst(buffer)
+		case elvin.PacketConnRequest:
+			return conn.HandleConnRequest(buffer)
 		case elvin.PacketUnotify:
 			return errors.New("FIXME: Packet Unotify")
 		default:
@@ -299,28 +299,28 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 
 		// FIXME: implement or move this lot in the short term
 		switch elvin.PacketID(buffer) {
-		case elvin.PacketDisconnRqst:
-			return conn.HandleDisconnRqst(buffer)
+		case elvin.PacketDisconnRequest:
+			return conn.HandleDisconnRequest(buffer)
 		case elvin.PacketDisconn:
 			return errors.New("FIXME: Packet Disconn")
-		case elvin.PacketSecRqst:
-			return errors.New("FIXME: Packet SecRqst")
-		case elvin.PacketSecRply:
-			return errors.New("FIXME: Packet SecRply")
+		case elvin.PacketSecRequest:
+			return errors.New("FIXME: Packet SecRequest")
+		case elvin.PacketSecReply:
+			return errors.New("FIXME: Packet SecReply")
 		case elvin.PacketNotifyEmit:
 			return conn.HandleNotifyEmit(buffer)
-		case elvin.PacketSubAddRqst:
-			return conn.HandleSubAddRqst(buffer)
-		case elvin.PacketSubModRqst:
-			return conn.HandleSubModRqst(buffer)
-		case elvin.PacketSubDelRqst:
-			return conn.HandleSubDelRqst(buffer)
-		case elvin.PacketQnchAddRqst:
-			return conn.HandleQnchAddRqst(buffer)
-		case elvin.PacketQnchModRqst:
-			return conn.HandleQnchModRqst(buffer)
-		case elvin.PacketQnchDelRqst:
-			return conn.HandleQnchDelRqst(buffer)
+		case elvin.PacketSubAddRequest:
+			return conn.HandleSubAddRequest(buffer)
+		case elvin.PacketSubModRequest:
+			return conn.HandleSubModRequest(buffer)
+		case elvin.PacketSubDelRequest:
+			return conn.HandleSubDelRequest(buffer)
+		case elvin.PacketQuenchAddRequest:
+			return conn.HandleQuenchAddRequest(buffer)
+		case elvin.PacketQuenchModRequest:
+			return conn.HandleQuenchModRequest(buffer)
+		case elvin.PacketQuenchDelRequest:
+			return conn.HandleQuenchDelRequest(buffer)
 		case elvin.PacketTestConn:
 			return errors.New("FIXME: Packet TestConn")
 		case elvin.PacketConfConn:
@@ -329,16 +329,16 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 			return errors.New("FIXME: Packet Ack")
 		case elvin.PacketStatusUpdate:
 			return errors.New("FIXME: Packet StatusUpdate")
-		case elvin.PacketAuthRqst:
-			return errors.New("FIXME: Packet AuthRqst")
+		case elvin.PacketAuthRequest:
+			return errors.New("FIXME: Packet AuthRequest")
 		case elvin.PacketAuthCont:
 			return errors.New("FIXME: Packet AuthCont")
 		case elvin.PacketAuthAck:
 			return errors.New("FIXME: Packet AuthAck")
-		case elvin.PacketQosRqst:
-			return errors.New("FIXME: Packet QosRqst")
-		case elvin.PacketQosRply:
-			return errors.New("FIXME: Packet QosRply")
+		case elvin.PacketQosRequest:
+			return errors.New("FIXME: Packet QosRequest")
+		case elvin.PacketQosReply:
+			return errors.New("FIXME: Packet QosReply")
 		case elvin.PacketActivate:
 			return errors.New("FIXME: Packet Activate")
 		case elvin.PacketStandby:
@@ -360,19 +360,19 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 }
 
 // Handle a Connection Request
-func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
-	connRqst := new(elvin.ConnRqst)
-	if err = connRqst.Decode(buffer); err != nil {
+func (conn *Connection) HandleConnRequest(buffer []byte) (err error) {
+	connRequest := new(elvin.ConnRequest)
+	if err = connRequest.Decode(buffer); err != nil {
 		conn.Close()
 	}
 
 	// Check some options
-	if _, ok := connRqst.Options["TestNack"]; ok {
+	if _, ok := connRequest.Options["TestNack"]; ok {
 		if glog.V(3) {
 			glog.Infof("Sending Nack for options:TestNack")
 		}
 		nack := new(elvin.Nack)
-		nack.XID = connRqst.XID
+		nack.XID = connRequest.XID
 		nack.ErrorCode = elvin.ErrorsImplementationLimit
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = nil
@@ -381,7 +381,7 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 		conn.writeChannel <- buf
 		return nil
 	}
-	if _, ok := connRqst.Options["TestDisconn"]; ok {
+	if _, ok := connRequest.Options["TestDisconn"]; ok {
 		if glog.V(3) {
 			glog.Infof("Sending Disconn for options:TestDisconn")
 		}
@@ -400,10 +400,10 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 	conn.quenches = make(map[int32]*Quench)
 
 	// Respond with a Connection Reply
-	connRply := new(elvin.ConnRply)
-	connRply.XID = connRqst.XID
+	connReply := new(elvin.ConnReply)
+	connReply.XID = connRequest.XID
 	// FIXME; totally bogus
-	connRply.Options = connRqst.Options
+	connReply.Options = connRequest.Options
 
 	if glog.V(3) {
 		glog.Infof("New client %d connected", conn.ID())
@@ -411,17 +411,17 @@ func (conn *Connection) HandleConnRqst(buffer []byte) (err error) {
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
-	connRply.Encode(buf)
+	connReply.Encode(buf)
 	conn.writeChannel <- buf
 
 	return nil
 }
 
 // Handle a Disconnection Request
-func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
+func (conn *Connection) HandleDisconnRequest(buffer []byte) (err error) {
 
-	disconnRqst := new(elvin.DisconnRqst)
-	if err = disconnRqst.Decode(buffer); err != nil {
+	disconnRequest := new(elvin.DisconnRequest)
+	if err = disconnRequest.Decode(buffer); err != nil {
 		conn.Close()
 	}
 
@@ -429,8 +429,8 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 	conn.SetState(StateDisconnecting)
 
 	// Respond with a Disconnection Reply
-	DisconnRply := new(elvin.DisconnRply)
-	DisconnRply.XID = disconnRqst.XID
+	DisconnReply := new(elvin.DisconnReply)
+	DisconnReply.XID = disconnRequest.XID
 
 	if glog.V(3) {
 		glog.Infof("client %d disconnected", conn.ID())
@@ -438,7 +438,7 @@ func (conn *Connection) HandleDisconnRqst(buffer []byte) (err error) {
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
-	DisconnRply.Encode(buf)
+	DisconnReply.Encode(buf)
 	conn.writeChannel <- buf
 
 	for subID, _ := range conn.subs {
@@ -485,16 +485,16 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 }
 
 // Handle a Subscription Add
-func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
-	subRqst := new(elvin.SubAddRqst)
-	err = subRqst.Decode(buffer)
+func (conn *Connection) HandleSubAddRequest(buffer []byte) (err error) {
+	subRequest := new(elvin.SubAddRequest)
+	err = subRequest.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
 	}
 
-	ast, nack := Parse(subRqst.Expression)
+	ast, nack := Parse(subRequest.Expression)
 	if nack != nil {
-		nack.XID = subRqst.XID
+		nack.XID = subRequest.XID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -504,8 +504,8 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 	// Create a subscription and add it to the subscription store
 	var sub Subscription
 	sub.Ast = ast
-	sub.AcceptInsecure = subRqst.AcceptInsecure
-	sub.Keys = subRqst.Keys
+	sub.AcceptInsecure = subRequest.AcceptInsecure
+	sub.Keys = subRequest.Keys
 
 	// Create a unique sub id
 	var s int32 = rand.Int31()
@@ -521,39 +521,39 @@ func (conn *Connection) HandleSubAddRqst(buffer []byte) (err error) {
 
 	// FIXME: send subscription addition to sub engine
 
-	// Respond with a SubRply
-	subRply := new(elvin.SubRply)
-	subRply.XID = subRqst.XID
-	subRply.SubID = sub.SubID
+	// Respond with a SubReply
+	subReply := new(elvin.SubReply)
+	subReply.XID = subRequest.XID
+	subReply.SubID = sub.SubID
 	if glog.V(4) {
 		glog.Infof("Connection:%d New subscription:%d (%d)", conn.ID(), s, sub.SubID)
 	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
-	subRply.Encode(buf)
+	subReply.Encode(buf)
 	conn.writeChannel <- buf
 	return nil
 }
 
 // Handle a Subscription Delete
-func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
-	subDelRqst := new(elvin.SubDelRqst)
-	err = subDelRqst.Decode(buffer)
+func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
+	subDelRequest := new(elvin.SubDelRequest)
+	err = subDelRequest.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
 	}
 
 	// If deletion fails then nack and disconn
-	idx := int32(subDelRqst.SubID & 0xfffffffff)
+	idx := int32(subDelRequest.SubID & 0xfffffffff)
 	_, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
-		nack.XID = subDelRqst.XID
+		nack.XID = subDelRequest.XID
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = subDelRqst.SubID
+		nack.Args[0] = subDelRequest.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -565,38 +565,38 @@ func (conn *Connection) HandleSubDelRqst(buffer []byte) (err error) {
 	// Remove it from the connection
 	delete(conn.subs, idx)
 
-	// Respond with a SubRply
-	subRply := new(elvin.SubRply)
-	subRply.XID = subDelRqst.XID
-	subRply.SubID = subDelRqst.SubID
+	// Respond with a SubReply
+	subReply := new(elvin.SubReply)
+	subReply.XID = subDelRequest.XID
+	subReply.SubID = subDelRequest.SubID
 
 	// FIXME: send subscription deletion to sub engine
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
-	subRply.Encode(buf)
+	subReply.Encode(buf)
 	conn.writeChannel <- buf
 	return nil
 }
 
-func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
-	subModRqst := new(elvin.SubModRqst)
-	err = subModRqst.Decode(buffer)
+func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
+	subModRequest := new(elvin.SubModRequest)
+	err = subModRequest.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
 		return err
 	}
 
 	// If modify fails then nack and disconn
-	idx := int32(subModRqst.SubID & 0xfffffffff)
+	idx := int32(subModRequest.SubID & 0xfffffffff)
 	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
-		nack.XID = subModRqst.XID
+		nack.XID = subModRequest.XID
 		nack.ErrorCode = elvin.ErrorsUnknownSubID
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = subModRqst.SubID
+		nack.Args[0] = subModRequest.SubID
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
@@ -610,10 +610,10 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	// FIXME: And any update to the sub should be all or nothing
 
 	// Check the subscription expression. Empty is ok. Incorrect means bail.
-	if len(subModRqst.Expression) > 0 {
-		ast, nack := Parse(subModRqst.Expression)
+	if len(subModRequest.Expression) > 0 {
+		ast, nack := Parse(subModRequest.Expression)
 		if nack != nil {
-			nack.XID = subModRqst.XID
+			nack.XID = subModRequest.XID
 			buf := bufferPool.Get().(*bytes.Buffer)
 			nack.Encode(buf)
 			conn.writeChannel <- buf
@@ -623,33 +623,33 @@ func (conn *Connection) HandleSubModRqst(buffer []byte) (err error) {
 	}
 
 	// AcceptInsecure is the only piece that must have a value - and it is allowed to be the same
-	sub.AcceptInsecure = subModRqst.AcceptInsecure
+	sub.AcceptInsecure = subModRequest.AcceptInsecure
 
 	// We ignore deletion requests that don't exist
-	if len(subModRqst.DelKeys) > 0 {
+	if len(subModRequest.DelKeys) > 0 {
 		// FIXME: implement
 	}
 
 	// We ignore addition requests that already exist
-	if len(subModRqst.AddKeys) > 0 {
+	if len(subModRequest.AddKeys) > 0 {
 		// FIXME: implement
 	}
 
-	// Respond with a SubRply
-	subRply := new(elvin.SubRply)
-	subRply.XID = subModRqst.XID
-	subRply.SubID = subModRqst.SubID
+	// Respond with a SubReply
+	subReply := new(elvin.SubReply)
+	subReply.XID = subModRequest.XID
+	subReply.SubID = subModRequest.SubID
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
-	subRply.Encode(buf)
+	subReply.Encode(buf)
 	conn.writeChannel <- buf
 	return nil
 }
 
 // Handle a Quench Add
-func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
-	quenchRequest := new(elvin.QnchAddRqst)
+func (conn *Connection) HandleQuenchAddRequest(buffer []byte) (err error) {
+	quenchRequest := new(elvin.QuenchAddRequest)
 	err = quenchRequest.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
@@ -681,7 +681,7 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 	// FIXME: send quench to sub engine
 
 	// Respond with a QuenchReply
-	quenchReply := new(elvin.QnchRply)
+	quenchReply := new(elvin.QuenchReply)
 	quenchReply.XID = quenchRequest.XID
 	quenchReply.QuenchID = quench.QuenchID
 
@@ -695,8 +695,8 @@ func (conn *Connection) HandleQnchAddRqst(buffer []byte) (err error) {
 	return nil
 }
 
-func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
-	quenchModRequest := new(elvin.QnchModRqst)
+func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
+	quenchModRequest := new(elvin.QuenchModRequest)
 	err = quenchModRequest.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
@@ -733,7 +733,7 @@ func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
 	// FIXME: Pass on change to engine
 
 	// Respond with a QuenchReply
-	quenchReply := new(elvin.QnchRply)
+	quenchReply := new(elvin.QuenchReply)
 	quenchReply.XID = quenchModRequest.XID
 	quenchReply.QuenchID = quench.QuenchID
 
@@ -748,23 +748,23 @@ func (conn *Connection) HandleQnchModRqst(buffer []byte) (err error) {
 	return nil
 }
 
-func (conn *Connection) HandleQnchDelRqst(buffer []byte) (err error) {
-	quenchDelRqst := new(elvin.QnchDelRqst)
-	err = quenchDelRqst.Decode(buffer)
+func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
+	quenchDelRequest := new(elvin.QuenchDelRequest)
+	err = quenchDelRequest.Decode(buffer)
 	if err != nil {
 		// FIXME: Protocol violation
 	}
 
 	// If deletion fails then nack and disconn
-	idx := int32(quenchDelRqst.QuenchID & 0xfffffffff)
+	idx := int32(quenchDelRequest.QuenchID & 0xfffffffff)
 	_, exists := conn.quenches[idx]
 	if !exists {
 		nack := new(elvin.Nack)
-		nack.XID = quenchDelRqst.XID
+		nack.XID = quenchDelRequest.XID
 		nack.ErrorCode = elvin.ErrorsUnknownQuenchID
 		nack.Message = elvin.ProtocolErrors[nack.ErrorCode].Message
 		nack.Args = make([]interface{}, 1)
-		nack.Args[0] = quenchDelRqst.QuenchID
+		nack.Args[0] = quenchDelRequest.QuenchID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
 		conn.writeChannel <- buf
@@ -776,10 +776,10 @@ func (conn *Connection) HandleQnchDelRqst(buffer []byte) (err error) {
 	// Remove it from the connection
 	delete(conn.quenches, idx)
 
-	// Respond with a QnchRply
-	quenchReply := new(elvin.QnchRply)
-	quenchReply.XID = quenchDelRqst.XID
-	quenchReply.QuenchID = quenchDelRqst.QuenchID
+	// Respond with a QuenchReply
+	quenchReply := new(elvin.QuenchReply)
+	quenchReply.XID = quenchDelRequest.XID
+	quenchReply.QuenchID = quenchDelRequest.QuenchID
 
 	// FIXME: send quench deletion to sub engine
 

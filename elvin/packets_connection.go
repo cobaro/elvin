@@ -39,7 +39,7 @@ const (
 )
 
 // Packet: Connection Request
-type ConnRqst struct {
+type ConnRequest struct {
 	XID          uint32
 	VersionMajor uint32
 	VersionMinor uint32
@@ -49,17 +49,17 @@ type ConnRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *ConnRqst) ID() int {
-	return PacketConnRqst
+func (pkt *ConnRequest) ID() int {
+	return PacketConnRequest
 }
 
 // String representation of packet type
-func (pkt *ConnRqst) IDString() string {
-	return "ConnRqst"
+func (pkt *ConnRequest) IDString() string {
+	return "ConnRequest"
 }
 
 // Pretty print with indent
-func (pkt *ConnRqst) IString(indent string) string {
+func (pkt *ConnRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
 			"%sVersionMajor %d\n"+
@@ -76,12 +76,12 @@ func (pkt *ConnRqst) IString(indent string) string {
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *ConnRqst) String() string {
+func (pkt *ConnRequest) String() string {
 	return pkt.IString("")
 }
 
-// Decode a ConnRqst packet from a byte array
-func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
+// Decode a ConnRequest packet from a byte array
+func (pkt *ConnRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -123,7 +123,7 @@ func (pkt *ConnRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *ConnRequest) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
@@ -135,23 +135,23 @@ func (pkt *ConnRqst) Encode(buffer *bytes.Buffer) {
 }
 
 // Packet: Connection Reply
-type ConnRply struct {
+type ConnReply struct {
 	XID     uint32
 	Options map[string]interface{}
 }
 
 // Integer value of packet type
-func (pkt *ConnRply) ID() int {
-	return PacketConnRply
+func (pkt *ConnReply) ID() int {
+	return PacketConnReply
 }
 
 // String representation of packet type
-func (pkt *ConnRply) IDString() string {
-	return "ConnRply"
+func (pkt *ConnReply) IDString() string {
+	return "ConnReply"
 }
 
 // Pretty print with indent
-func (pkt *ConnRply) IString(indent string) string {
+func (pkt *ConnReply) IString(indent string) string {
 	return fmt.Sprintf("%sXID: %d\n%sOptions %v\n",
 		indent, pkt.XID,
 		indent, pkt.Options)
@@ -159,12 +159,12 @@ func (pkt *ConnRply) IString(indent string) string {
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *ConnRply) String() string {
+func (pkt *ConnReply) String() string {
 	return pkt.IString("")
 }
 
-// Decode a ConnRply packet from a byte array
-func (pkt *ConnRply) Decode(bytes []byte) (err error) {
+// Decode a ConnReply packet from a byte array
+func (pkt *ConnReply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -183,42 +183,42 @@ func (pkt *ConnRply) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-// Encode a ConnRply from a buffer
-func (pkt *ConnRply) Encode(buffer *bytes.Buffer) {
+// Encode a ConnReply from a buffer
+func (pkt *ConnReply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
 	XdrPutNotification(buffer, pkt.Options)
 }
 
 // Packet: Disconnection Request
-type DisconnRqst struct {
+type DisconnRequest struct {
 	XID uint32
 }
 
 // Integer value of packet type
-func (pkt *DisconnRqst) ID() int {
-	return PacketDisconnRqst
+func (pkt *DisconnRequest) ID() int {
+	return PacketDisconnRequest
 }
 
 // String representation of packet type
-func (pkt *DisconnRqst) IDString() string {
-	return "DisconnRqst"
+func (pkt *DisconnRequest) IDString() string {
+	return "DisconnRequest"
 }
 
 // Pretty print with indent
-func (pkt *DisconnRqst) IString(indent string) string {
+func (pkt *DisconnRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n",
 		indent, pkt.XID)
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *DisconnRqst) String() string {
+func (pkt *DisconnRequest) String() string {
 	return pkt.IString("")
 }
 
-// Decode a DisconnRqst packet from a byte array
-func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
+// Decode a DisconnRequest packet from a byte array
+func (pkt *DisconnRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -231,41 +231,41 @@ func (pkt *DisconnRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *DisconnRqst) Encode(buffer *bytes.Buffer) {
+func (pkt *DisconnRequest) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
 }
 
 // Packet: Disconnection Request
-type DisconnRply struct {
+type DisconnReply struct {
 	XID uint32
 }
 
 // Integer value of packet type
-func (pkt *DisconnRply) ID() int {
-	return PacketDisconnRply
+func (pkt *DisconnReply) ID() int {
+	return PacketDisconnReply
 }
 
 // String representation of packet type
-func (pkt *DisconnRply) IDString() string {
-	return "DisconnRply"
+func (pkt *DisconnReply) IDString() string {
+	return "DisconnReply"
 }
 
 // Pretty print with indent
-func (pkt *DisconnRply) IString(indent string) string {
+func (pkt *DisconnReply) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n",
 		indent, pkt.XID)
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *DisconnRply) String() string {
+func (pkt *DisconnReply) String() string {
 	return pkt.IString("")
 }
 
-// Decode a DisconnRply packet from a byte array
-func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
+// Decode a DisconnReply packet from a byte array
+func (pkt *DisconnReply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -278,7 +278,7 @@ func (pkt *DisconnRply) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *DisconnRply) Encode(buffer *bytes.Buffer) {
+func (pkt *DisconnReply) Encode(buffer *bytes.Buffer) {
 	// FIXME: error handling
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)

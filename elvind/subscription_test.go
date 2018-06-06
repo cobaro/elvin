@@ -71,8 +71,8 @@ func TestMockup(t *testing.T) {
 	go client.readHandler()  // Bogus
 	go client.writeHandler() // Bogus
 
-	// Make a ConnRqst and feed it to the client's writer
-	pkt := new(elvin.ConnRqst)
+	// Make a ConnRequest and feed it to the client's writer
+	pkt := new(elvin.ConnRequest)
 	pkt.XID = XID()
 	pkt.VersionMajor = 4
 	pkt.VersionMinor = 4

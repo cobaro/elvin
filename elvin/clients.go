@@ -200,8 +200,8 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 	switch client.State() {
 	case StateConnecting:
 		switch PacketID(buffer) {
-		case PacketConnRply:
-			return client.HandleConnRply(buffer)
+		case PacketConnReply:
+			return client.HandleConnReply(buffer)
 		case PacketNack:
 			return client.HandleNack(buffer)
 		default:
@@ -210,16 +210,16 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 
 	case StateDisconnecting:
 		switch PacketID(buffer) {
-		case PacketDisconnRply:
-			return client.HandleDisconnRply(buffer)
+		case PacketDisconnReply:
+			return client.HandleDisconnReply(buffer)
 		}
 
 	case StateConnected:
 		switch PacketID(buffer) {
-		case PacketSubRply:
-			return client.HandleSubRply(buffer)
-		case PacketQnchRply:
-			return client.HandleQuenchRply(buffer)
+		case PacketSubReply:
+			return client.HandleSubReply(buffer)
+		case PacketQuenchReply:
+			return client.HandleQuenchReply(buffer)
 		case PacketNotifyDeliver:
 			return client.HandleNotifyDeliver(buffer)
 		case PacketNack:
@@ -263,9 +263,9 @@ func (client *Client) ProtocolError(err error) {
 }
 
 // Handle a Connection Reply
-func (client *Client) HandleConnRply(buffer []byte) (err error) {
-	connRply := new(ConnRply)
-	if err = connRply.Decode(buffer); err != nil {
+func (client *Client) HandleConnReply(buffer []byte) (err error) {
+	connReply := new(ConnReply)
+	if err = connReply.Decode(buffer); err != nil {
 		client.ProtocolError(err)
 	}
 
@@ -273,21 +273,21 @@ func (client *Client) HandleConnRply(buffer []byte) (err error) {
 	client.SetState(StateConnected)
 
 	// FIXME; check options
-	// connRply.Options
+	// connReply.Options
 
 	// Signal the connection requestor
-	client.connReplies <- connRply
+	client.connReplies <- connReply
 	return nil
 }
 
 // Handle a Disconnection reply
-func (client *Client) HandleDisconnRply(buffer []byte) (err error) {
-	disconnRply := new(DisconnRply)
-	if err = disconnRply.Decode(buffer); err != nil {
+func (client *Client) HandleDisconnReply(buffer []byte) (err error) {
+	disconnReply := new(DisconnReply)
+	if err = disconnReply.Decode(buffer); err != nil {
 		client.ProtocolError(err)
 	}
 	// Signal the disconnection requestor
-	client.disconnReplies <- disconnRply
+	client.disconnReplies <- disconnReply
 	return nil
 }
 
@@ -340,15 +340,15 @@ func (client *Client) HandleNack(buffer []byte) (err error) {
 }
 
 // Handle a Subscription reply
-func (client *Client) HandleSubRply(buffer []byte) (err error) {
-	subRply := new(SubRply)
-	if err = subRply.Decode(buffer); err != nil {
+func (client *Client) HandleSubReply(buffer []byte) (err error) {
+	subReply := new(SubReply)
+	if err = subReply.Decode(buffer); err != nil {
 		client.ProtocolError(err)
 	}
 
 	client.mu.Lock()
-	sub, ok := client.subReplies[subRply.XID]
-	delete(client.subReplies, subRply.XID)
+	sub, ok := client.subReplies[subReply.XID]
+	delete(client.subReplies, subReply.XID)
 	client.mu.Unlock()
 	if !ok {
 		client.Close()
@@ -356,29 +356,29 @@ func (client *Client) HandleSubRply(buffer []byte) (err error) {
 	}
 
 	// Signal the subscription
-	sub.events <- Packet(subRply)
+	sub.events <- Packet(subReply)
 	return nil
 }
 
 // Handle a Qeunch reply
-func (client *Client) HandleQuenchRply(buffer []byte) (err error) {
-	quenchRply := new(QnchRply)
-	if err = quenchRply.Decode(buffer); err != nil {
+func (client *Client) HandleQuenchReply(buffer []byte) (err error) {
+	quenchReply := new(QuenchReply)
+	if err = quenchReply.Decode(buffer); err != nil {
 		client.ProtocolError(err)
 	}
 
 	client.mu.Lock()
-	quench, ok := client.quenchReplies[quenchRply.XID]
-	delete(client.quenchReplies, quenchRply.XID)
+	quench, ok := client.quenchReplies[quenchReply.XID]
+	delete(client.quenchReplies, quenchReply.XID)
 	client.mu.Unlock()
 	if !ok {
-		fmt.Println("FIXME: Lost quench reply:", quenchRply.XID)
+		fmt.Println("FIXME: Lost quench reply:", quenchReply.XID)
 		client.Close()
 		// FIXME: return error
 	}
 
 	// Signal the quench
-	quench.events <- Packet(quenchRply)
+	quench.events <- Packet(quenchReply)
 	return nil
 }
 

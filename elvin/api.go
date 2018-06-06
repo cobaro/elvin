@@ -79,9 +79,9 @@ type Client struct {
 const (
 	subEventNack          = iota // To sub or quench
 	subEventNotifyDeliver        // To sub
-	subEventSubRply              // To sub
-	subEventSubModRply           // To sub
-	subEventSubDelRply           // To sub
+	subEventSubReply             // To sub
+	subEventSubModReply          // To sub
+	subEventSubDelReply          // To sub
 	quenchEventAddNotify         // To quench
 	quenchEventModNotify         // To quench
 	quenchEventDelNotify         // To quench
@@ -184,7 +184,7 @@ func (client *Client) Connect() (err error) {
 	go client.readHandler()
 	go client.writeHandler()
 
-	pkt := new(ConnRqst)
+	pkt := new(ConnRequest)
 	pkt.XID = XID()
 	client.connXID = pkt.XID
 	pkt.VersionMajor = 4
@@ -200,13 +200,13 @@ func (client *Client) Connect() (err error) {
 
 	// Wait for the reply
 	select {
-	case rply := <-client.connReplies:
-		switch rply.(type) {
-		case *ConnRply:
-			connRply := rply.(*ConnRply)
+	case reply := <-client.connReplies:
+		switch reply.(type) {
+		case *ConnReply:
+			connReply := reply.(*ConnReply)
 			// Check XID matches
-			if connRply.XID != pkt.XID {
-				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, connRply.XID)
+			if connReply.XID != pkt.XID {
+				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, connReply.XID)
 			} else {
 				// FIXME: Options check/save?
 				client.SetState(StateConnected)
@@ -214,7 +214,7 @@ func (client *Client) Connect() (err error) {
 			break
 
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			client.SetState(StateConnected)
 			break
@@ -240,7 +240,7 @@ func (client *Client) Disconnect() (err error) {
 	client.SetState(StateDisconnecting)
 
 	// FIXME: in a generous world we might unsubscribe, unquench etc
-	pkt := new(DisconnRqst)
+	pkt := new(DisconnRequest)
 	pkt.XID = XID()
 	client.disconnXID = pkt.XID
 
@@ -251,13 +251,13 @@ func (client *Client) Disconnect() (err error) {
 	// Wait for the reply
 loop:
 	select {
-	case rply := <-client.disconnReplies:
-		switch rply.(type) {
-		case *DisconnRply:
-			disconnRply := rply.(*DisconnRply)
+	case reply := <-client.disconnReplies:
+		switch reply.(type) {
+		case *DisconnReply:
+			disconnReply := reply.(*DisconnReply)
 			// Check XID matches
-			if disconnRply.XID != pkt.XID {
-				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, disconnRply.XID)
+			if disconnReply.XID != pkt.XID {
+				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, disconnReply.XID)
 			}
 			client.Close()
 			break loop
@@ -302,7 +302,7 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 		return fmt.Errorf("FIXME: client not connected")
 	}
 
-	pkt := new(SubAddRqst)
+	pkt := new(SubAddRequest)
 	pkt.Expression = sub.Expression
 	pkt.AcceptInsecure = sub.AcceptInsecure
 	pkt.Keys = sub.Keys
@@ -321,22 +321,22 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 
 	// Wait for the reply
 	select {
-	case rply := <-sub.events:
-		switch rply.(type) {
-		case *SubRply:
-			subRply := rply.(*SubRply)
+	case reply := <-sub.events:
+		switch reply.(type) {
+		case *SubReply:
+			subReply := reply.(*SubReply)
 			// Track the subscription id
-			sub.subID = subRply.SubID
+			sub.subID = subReply.SubID
 			client.mu.Lock()
 			client.subscriptions[sub.subID] = sub
 			client.mu.Unlock()
 			break
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			break
 		default:
-			log.Printf("OOPS (%v)", rply)
+			log.Printf("OOPS (%v)", reply)
 		}
 
 	case <-time.After(SubscriptionTimeout):
@@ -361,7 +361,7 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 		return fmt.Errorf("FIXME: client not connected")
 	}
 
-	pkt := new(SubModRqst)
+	pkt := new(SubModRequest)
 	pkt.SubID = sub.subID
 	pkt.Expression = expr
 	pkt.AcceptInsecure = acceptInsecure
@@ -380,13 +380,13 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 
 	// Wait for the reply
 	select {
-	case rply := <-sub.events:
-		switch rply.(type) {
-		case *SubRply:
-			subRply := rply.(*SubRply)
+	case reply := <-sub.events:
+		switch reply.(type) {
+		case *SubReply:
+			subReply := reply.(*SubReply)
 			// Check the subscription id
-			if sub.subID != subRply.SubID {
-				log.Printf("FIXME: Protocol violation (%v)", rply)
+			if sub.subID != subReply.SubID {
+				log.Printf("FIXME: Protocol violation (%v)", reply)
 			}
 
 			// Update the local subscription details
@@ -399,11 +399,11 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 
 			break
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			break
 		default:
-			log.Printf("OOPS (%v)", rply)
+			log.Printf("OOPS (%v)", reply)
 		}
 
 	case <-time.After(SubscriptionTimeout):
@@ -424,7 +424,7 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 		return fmt.Errorf("FIXME: client not connected")
 	}
 
-	pkt := new(SubDelRqst)
+	pkt := new(SubDelRequest)
 	pkt.SubID = sub.subID
 
 	writeBuf := new(bytes.Buffer)
@@ -439,13 +439,13 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 
 	// Wait for the reply
 	select {
-	case rply := <-sub.events:
-		switch rply.(type) {
-		case *SubRply:
-			subRply := rply.(*SubRply)
+	case reply := <-sub.events:
+		switch reply.(type) {
+		case *SubReply:
+			subReply := reply.(*SubReply)
 			// Check the subscription id
-			if sub.subID != subRply.SubID {
-				log.Printf("FIXME: Protocol violation (%v)", rply)
+			if sub.subID != subReply.SubID {
+				log.Printf("FIXME: Protocol violation (%v)", reply)
 			}
 			// Delete the local subscription details
 			client.mu.Lock()
@@ -454,11 +454,11 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 
 			break
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			break
 		default:
-			log.Printf("OOPS (%v)", rply)
+			log.Printf("OOPS (%v)", reply)
 		}
 
 	case <-time.After(SubscriptionTimeout):
@@ -479,7 +479,7 @@ func (client *Client) Quench(quench *Quench) (err error) {
 		return fmt.Errorf("FIXME: client not connected")
 	}
 
-	pkt := new(QnchAddRqst)
+	pkt := new(QuenchAddRequest)
 	pkt.Names = quench.Names
 	pkt.DeliverInsecure = quench.DeliverInsecure
 	pkt.Keys = quench.Keys
@@ -498,22 +498,22 @@ func (client *Client) Quench(quench *Quench) (err error) {
 
 	// Wait for the reply
 	select {
-	case rply := <-quench.events:
-		switch rply.(type) {
-		case *QnchRply:
-			quenchRply := rply.(*QnchRply)
+	case reply := <-quench.events:
+		switch reply.(type) {
+		case *QuenchReply:
+			quenchReply := reply.(*QuenchReply)
 			// Track the quench id
-			quench.quenchID = quenchRply.QuenchID
+			quench.quenchID = quenchReply.QuenchID
 			client.mu.Lock()
 			client.quenches[quench.quenchID] = quench
 			client.mu.Unlock()
 			break
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			break
 		default:
-			log.Printf("OOPS (%v)", rply)
+			log.Printf("OOPS (%v)", reply)
 		}
 
 	case <-time.After(QuenchTimeout):
@@ -534,7 +534,7 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 		return fmt.Errorf("FIXME: client not connected")
 	}
 
-	pkt := new(QnchModRqst)
+	pkt := new(QuenchModRequest)
 	pkt.QuenchID = quench.quenchID
 	pkt.AddNames = addNames
 	pkt.DelNames = delNames
@@ -554,13 +554,13 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 
 	// Wait for the reply
 	select {
-	case rply := <-quench.events:
-		switch rply.(type) {
-		case *QnchRply:
-			quenchRply := rply.(*QnchRply)
+	case reply := <-quench.events:
+		switch reply.(type) {
+		case *QuenchReply:
+			quenchReply := reply.(*QuenchReply)
 			// Check the quench id
-			if quench.quenchID != quenchRply.QuenchID {
-				log.Printf("FIXME: Protocol violation (%v)", rply)
+			if quench.quenchID != quenchReply.QuenchID {
+				log.Printf("FIXME: Protocol violation (%v)", reply)
 			}
 
 			quench.DeliverInsecure = deliverInsecure
@@ -575,11 +575,11 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 
 			break
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			break
 		default:
-			log.Printf("OOPS (%v)", rply)
+			log.Printf("OOPS (%v)", reply)
 		}
 
 	case <-time.After(QuenchTimeout):
@@ -599,7 +599,7 @@ func (client *Client) QuenchDelete(quench *Quench) (err error) {
 		return fmt.Errorf("FIXME: client not connected")
 	}
 
-	pkt := new(QnchDelRqst)
+	pkt := new(QuenchDelRequest)
 	pkt.QuenchID = quench.quenchID
 
 	writeBuf := new(bytes.Buffer)
@@ -614,13 +614,13 @@ func (client *Client) QuenchDelete(quench *Quench) (err error) {
 
 	// Wait for the reply
 	select {
-	case rply := <-quench.events:
-		switch rply.(type) {
-		case *QnchRply:
-			quenchRply := rply.(*QnchRply)
+	case reply := <-quench.events:
+		switch reply.(type) {
+		case *QuenchReply:
+			quenchReply := reply.(*QuenchReply)
 			// Check the quench id
-			if quench.quenchID != quenchRply.QuenchID {
-				log.Printf("FIXME: Protocol violation (%v)", rply)
+			if quench.quenchID != quenchReply.QuenchID {
+				log.Printf("FIXME: Protocol violation (%v)", reply)
 			}
 			// Delete the local quench details
 			client.mu.Lock()
@@ -629,11 +629,11 @@ func (client *Client) QuenchDelete(quench *Quench) (err error) {
 
 			break
 		case *Nack:
-			nack := rply.(*Nack)
+			nack := reply.(*Nack)
 			err = fmt.Errorf(nack.String())
 			break
 		default:
-			log.Printf("OOPS (%v)", rply)
+			log.Printf("OOPS (%v)", reply)
 		}
 
 	case <-time.After(QuenchTimeout):

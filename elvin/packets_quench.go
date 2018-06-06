@@ -29,22 +29,22 @@ type SubAST struct {
 	dummy int
 }
 
-type QnchAddRqst struct {
+type QuenchAddRequest struct {
 	XID             uint32
 	Names           map[string]bool
 	DeliverInsecure bool
 	Keys            []Keyset
 }
 
-func (pkt *QnchAddRqst) ID() int {
-	return PacketQnchAddRqst
+func (pkt *QuenchAddRequest) ID() int {
+	return PacketQuenchAddRequest
 }
 
-func (pkt *QnchAddRqst) IDString() string {
-	return "QnchAddRqst"
+func (pkt *QuenchAddRequest) IDString() string {
+	return "QuenchAddRequest"
 }
 
-func (pkt *QnchAddRqst) IString(indent string) string {
+func (pkt *QuenchAddRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
 			"%sNames: %v\n"+
@@ -56,11 +56,11 @@ func (pkt *QnchAddRqst) IString(indent string) string {
 		indent, pkt.Keys)
 }
 
-func (pkt *QnchAddRqst) String() string {
+func (pkt *QuenchAddRequest) String() string {
 	return pkt.IString("")
 }
 
-func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
+func (pkt *QuenchAddRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -101,7 +101,7 @@ func (pkt *QnchAddRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+func (pkt *QuenchAddRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(xID))
@@ -115,7 +115,7 @@ func (pkt *QnchAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
-type QnchModRqst struct {
+type QuenchModRequest struct {
 	XID             uint32
 	QuenchID        int64
 	AddNames        map[string]bool
@@ -125,15 +125,15 @@ type QnchModRqst struct {
 	DelKeys         []Keyset
 }
 
-func (pkt *QnchModRqst) ID() int {
-	return PacketQnchModRqst
+func (pkt *QuenchModRequest) ID() int {
+	return PacketQuenchModRequest
 }
 
-func (pkt *QnchModRqst) IDString() string {
-	return "QnchModRqst"
+func (pkt *QuenchModRequest) IDString() string {
+	return "QuenchModRequest"
 }
 
-func (pkt *QnchModRqst) IString(indent string) string {
+func (pkt *QuenchModRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
 			"%sQuenchID: %d\n"+
@@ -151,11 +151,11 @@ func (pkt *QnchModRqst) IString(indent string) string {
 		indent, pkt.DelKeys)
 }
 
-func (pkt *QnchModRqst) String() string {
+func (pkt *QuenchModRequest) String() string {
 	return pkt.IString("")
 }
 
-func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
+func (pkt *QuenchModRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -224,7 +224,7 @@ func (pkt *QnchModRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+func (pkt *QuenchModRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(xID))
@@ -244,20 +244,20 @@ func (pkt *QnchModRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
-type QnchDelRqst struct {
+type QuenchDelRequest struct {
 	XID      uint32
 	QuenchID int64
 }
 
-func (pkt *QnchDelRqst) ID() int {
-	return PacketQnchDelRqst
+func (pkt *QuenchDelRequest) ID() int {
+	return PacketQuenchDelRequest
 }
 
-func (pkt *QnchDelRqst) IDString() string {
-	return "QnchDelRqst"
+func (pkt *QuenchDelRequest) IDString() string {
+	return "QuenchDelRequest"
 }
 
-func (pkt *QnchDelRqst) IString(indent string) string {
+func (pkt *QuenchDelRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
 			"%sQuenchID: %d\n",
@@ -265,11 +265,11 @@ func (pkt *QnchDelRqst) IString(indent string) string {
 		indent, pkt.QuenchID)
 }
 
-func (pkt *QnchDelRqst) String() string {
+func (pkt *QuenchDelRequest) String() string {
 	return pkt.IString("")
 }
 
-func (pkt *QnchDelRqst) Decode(bytes []byte) (err error) {
+func (pkt *QuenchDelRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -288,7 +288,7 @@ func (pkt *QnchDelRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+func (pkt *QuenchDelRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(xID))
@@ -297,20 +297,20 @@ func (pkt *QnchDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
-type QnchRply struct {
+type QuenchReply struct {
 	XID      uint32
 	QuenchID int64
 }
 
-func (pkt *QnchRply) ID() int {
-	return PacketQnchRply
+func (pkt *QuenchReply) ID() int {
+	return PacketQuenchReply
 }
 
-func (pkt *QnchRply) IDString() string {
-	return "QnchRply"
+func (pkt *QuenchReply) IDString() string {
+	return "QuenchReply"
 }
 
-func (pkt *QnchRply) IString(indent string) string {
+func (pkt *QuenchReply) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
 			"%sQuenchID: %d\n",
@@ -318,11 +318,11 @@ func (pkt *QnchRply) IString(indent string) string {
 		indent, pkt.QuenchID)
 }
 
-func (pkt *QnchRply) String() string {
+func (pkt *QuenchReply) String() string {
 	return pkt.IString("")
 }
 
-func (pkt *QnchRply) Decode(bytes []byte) (err error) {
+func (pkt *QuenchReply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -341,7 +341,7 @@ func (pkt *QnchRply) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-func (pkt *QnchRply) Encode(buffer *bytes.Buffer) {
+func (pkt *QuenchReply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(pkt.XID))
 	XdrPutInt64(buffer, pkt.QuenchID)

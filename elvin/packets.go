@@ -26,63 +26,63 @@ import (
 )
 
 const (
-	PacketReserved          = 0
-	PacketSvrRqst           = 16
-	PacketSvrAdvt           = 17
-	PacketSvrAdvtClose      = 18
-	PacketUnotify           = 32
-	PacketNack              = 48
-	PacketConnRqst          = 49
-	PacketConnRply          = 50
-	PacketDisconnRqst       = 51
-	PacketDisconnRply       = 52
-	PacketDisconn           = 53
-	PacketSecRqst           = 54
-	PacketSecRply           = 55
-	PacketNotifyEmit        = 56
-	PacketNotifyDeliver     = 57
-	PacketSubAddRqst        = 58
-	PacketSubModRqst        = 59
-	PacketSubDelRqst        = 60
-	PacketSubRply           = 61
-	PacketDropWarn          = 62
-	PacketTestConn          = 63
-	PacketConfConn          = 64
-	PacketAck               = 65
-	PacketStatusUpdate      = 66
-	PacketAuthRqst          = 67
-	PacketAuthCont          = 68
-	PacketAuthAck           = 69
-	PacketQosRqst           = 70
-	PacketQosRply           = 71
-	PacketQnchAddRqst       = 80
-	PacketQnchModRqst       = 81
-	PacketQnchDelRqst       = 82
-	PacketQnchRply          = 83
-	PacketSubAddNotify      = 84
-	PacketSubModNotify      = 85
-	PacketSubDelNotify      = 86
-	PacketActivate          = 128
-	PacketStandby           = 129
-	PacketRestart           = 130
-	PacketShutdown          = 131
-	PacketServerReport      = 132
-	PacketServerNack        = 133
-	PacketServerStatsReport = 134
-	PacketClstJoinRqst      = 160
-	PacketClstJoinRply      = 161
-	PacketClstTerms         = 162
-	PacketClstNotify        = 163
-	PacketClstRedir         = 164
-	PacketClstLeave         = 165
-	PacketFedConnRqst       = 192
-	PacketFedConnRply       = 193
-	PacketFedSubReplace     = 194
-	PacketFedNotify         = 195
-	PacketFedSubDiff        = 196
-	PacketFailoverConnRqst  = 224
-	PacketFailoverConnRply  = 225
-	PacketFailoverMaster    = 226
+	PacketReserved            = 0
+	PacketSvrRequest          = 16
+	PacketSvrAdvt             = 17
+	PacketSvrAdvtClose        = 18
+	PacketUnotify             = 32
+	PacketNack                = 48
+	PacketConnRequest         = 49
+	PacketConnReply           = 50
+	PacketDisconnRequest      = 51
+	PacketDisconnReply        = 52
+	PacketDisconn             = 53
+	PacketSecRequest          = 54
+	PacketSecReply            = 55
+	PacketNotifyEmit          = 56
+	PacketNotifyDeliver       = 57
+	PacketSubAddRequest       = 58
+	PacketSubModRequest       = 59
+	PacketSubDelRequest       = 60
+	PacketSubReply            = 61
+	PacketDropWarn            = 62
+	PacketTestConn            = 63
+	PacketConfConn            = 64
+	PacketAck                 = 65
+	PacketStatusUpdate        = 66
+	PacketAuthRequest         = 67
+	PacketAuthCont            = 68
+	PacketAuthAck             = 69
+	PacketQosRequest          = 70
+	PacketQosReply            = 71
+	PacketQuenchAddRequest    = 80
+	PacketQuenchModRequest    = 81
+	PacketQuenchDelRequest    = 82
+	PacketQuenchReply         = 83
+	PacketSubAddNotify        = 84
+	PacketSubModNotify        = 85
+	PacketSubDelNotify        = 86
+	PacketActivate            = 128
+	PacketStandby             = 129
+	PacketRestart             = 130
+	PacketShutdown            = 131
+	PacketServerReport        = 132
+	PacketServerNack          = 133
+	PacketServerStatsReport   = 134
+	PacketClstJoinRequest     = 160
+	PacketClstJoinReply       = 161
+	PacketClstTerms           = 162
+	PacketClstNotify          = 163
+	PacketClstRedir           = 164
+	PacketClstLeave           = 165
+	PacketFedConnRequest      = 192
+	PacketFedConnReply        = 193
+	PacketFedSubReplace       = 194
+	PacketFedNotify           = 195
+	PacketFedSubDiff          = 196
+	PacketFailoverConnRequest = 224
+	PacketFailoverConnReply   = 225
+	PacketFailoverMaster      = 226
 )
 
 // In a protocol packet the type is encoded
@@ -95,8 +95,8 @@ func PacketIDString(packetID int) string {
 	switch packetID {
 	case PacketReserved:
 		return "Reserved"
-	case PacketSvrRqst:
-		return "SvrRqst"
+	case PacketSvrRequest:
+		return "SvrRequest"
 	case PacketSvrAdvt:
 		return "SvrAdvt"
 	case PacketSvrAdvtClose:
@@ -105,32 +105,32 @@ func PacketIDString(packetID int) string {
 		return "Unotify"
 	case PacketNack:
 		return "Nack"
-	case PacketConnRqst:
-		return "ConnRqst"
-	case PacketConnRply:
-		return "ConnRply"
-	case PacketDisconnRqst:
-		return "DisconnRqst"
-	case PacketDisconnRply:
-		return "DisconnRply"
+	case PacketConnRequest:
+		return "ConnRequest"
+	case PacketConnReply:
+		return "ConnReply"
+	case PacketDisconnRequest:
+		return "DisconnRequest"
+	case PacketDisconnReply:
+		return "DisconnReply"
 	case PacketDisconn:
 		return "Disconn"
-	case PacketSecRqst:
-		return "SecRqst"
-	case PacketSecRply:
-		return "SecRply"
+	case PacketSecRequest:
+		return "SecRequest"
+	case PacketSecReply:
+		return "SecReply"
 	case PacketNotifyEmit:
 		return "NotifyEmit"
 	case PacketNotifyDeliver:
 		return "NotifyDeliver"
-	case PacketSubAddRqst:
-		return "SubAddRqst"
-	case PacketSubModRqst:
-		return "SubModRqst"
-	case PacketSubDelRqst:
-		return "SubDelRqst"
-	case PacketSubRply:
-		return "SubRply"
+	case PacketSubAddRequest:
+		return "SubAddRequest"
+	case PacketSubModRequest:
+		return "SubModRequest"
+	case PacketSubDelRequest:
+		return "SubDelRequest"
+	case PacketSubReply:
+		return "SubReply"
 	case PacketDropWarn:
 		return "DropWarn"
 	case PacketTestConn:
@@ -141,24 +141,24 @@ func PacketIDString(packetID int) string {
 		return "Ack"
 	case PacketStatusUpdate:
 		return "StatusUpdate"
-	case PacketAuthRqst:
-		return "AuthRqst"
+	case PacketAuthRequest:
+		return "AuthRequest"
 	case PacketAuthCont:
 		return "AuthCont"
 	case PacketAuthAck:
 		return "AuthAck"
-	case PacketQosRqst:
-		return "QosRqst"
-	case PacketQosRply:
-		return "QosRply"
-	case PacketQnchAddRqst:
-		return "QnchAddRqst"
-	case PacketQnchModRqst:
-		return "QnchModRqst"
-	case PacketQnchDelRqst:
-		return "QnchDelRqst"
-	case PacketQnchRply:
-		return "QnchRply"
+	case PacketQosRequest:
+		return "QosRequest"
+	case PacketQosReply:
+		return "QosReply"
+	case PacketQuenchAddRequest:
+		return "QuenchAddRequest"
+	case PacketQuenchModRequest:
+		return "QuenchModRequest"
+	case PacketQuenchDelRequest:
+		return "QuenchDelRequest"
+	case PacketQuenchReply:
+		return "QuenchReply"
 	case PacketSubAddNotify:
 		return "SubAddNotify"
 	case PacketSubModNotify:
@@ -179,10 +179,10 @@ func PacketIDString(packetID int) string {
 		return "ServerNack"
 	case PacketServerStatsReport:
 		return "ServerStatsReport"
-	case PacketClstJoinRqst:
-		return "ClstJoinRqst"
-	case PacketClstJoinRply:
-		return "ClstJoinRply"
+	case PacketClstJoinRequest:
+		return "ClstJoinRequest"
+	case PacketClstJoinReply:
+		return "ClstJoinReply"
 	case PacketClstTerms:
 		return "ClstTerms"
 	case PacketClstNotify:
@@ -191,20 +191,20 @@ func PacketIDString(packetID int) string {
 		return "ClstRedir"
 	case PacketClstLeave:
 		return "ClstLeave"
-	case PacketFedConnRqst:
-		return "FedConnRqst"
-	case PacketFedConnRply:
-		return "FedConnRply"
+	case PacketFedConnRequest:
+		return "FedConnRequest"
+	case PacketFedConnReply:
+		return "FedConnReply"
 	case PacketFedSubReplace:
 		return "FedSubReplace"
 	case PacketFedNotify:
 		return "FedNotify"
 	case PacketFedSubDiff:
 		return "FedSubDiff"
-	case PacketFailoverConnRqst:
-		return "FailoverConnRqst"
-	case PacketFailoverConnRply:
-		return "FailoverConnRply"
+	case PacketFailoverConnRequest:
+		return "FailoverConnRequest"
+	case PacketFailoverConnReply:
+		return "FailoverConnReply"
 	case PacketFailoverMaster:
 		return "FailoverMaster"
 	default:

@@ -25,8 +25,8 @@ import (
 	"fmt"
 )
 
-// Packet: SubAddRqst
-type SubAddRqst struct {
+// Packet: SubAddRequest
+type SubAddRequest struct {
 	XID            uint32
 	Expression     string
 	AcceptInsecure bool
@@ -34,17 +34,17 @@ type SubAddRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *SubAddRqst) ID() int {
-	return PacketSubAddRqst
+func (pkt *SubAddRequest) ID() int {
+	return PacketSubAddRequest
 }
 
 // String representation of packet type
-func (pkt *SubAddRqst) IDString() string {
-	return "SubAddRqst"
+func (pkt *SubAddRequest) IDString() string {
+	return "SubAddRequest"
 }
 
 // Pretty print with indent
-func (pkt *SubAddRqst) IString(indent string) string {
+func (pkt *SubAddRequest) IString(indent string) string {
 	return fmt.Sprintf("%sXID %v\n%sExpression %v\n%sAcceptInsecure %v\n%sKeys %v\n",
 		indent, pkt.XID,
 		indent, pkt.Expression,
@@ -54,12 +54,12 @@ func (pkt *SubAddRqst) IString(indent string) string {
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *SubAddRqst) String() string {
+func (pkt *SubAddRequest) String() string {
 	return pkt.IString("")
 }
 
-// Decode a SubAddRqst packet from a byte array
-func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
+// Decode a SubAddRequest packet from a byte array
+func (pkt *SubAddRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -90,8 +90,8 @@ func (pkt *SubAddRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-// Encode a SubAddRqst from a buffer
-func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+// Encode a SubAddRequest from a buffer
+func (pkt *SubAddRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, xID)
@@ -102,24 +102,24 @@ func (pkt *SubAddRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
-// Packet: SubRply
-type SubRply struct {
+// Packet: SubReply
+type SubReply struct {
 	XID   uint32
 	SubID int64
 }
 
 // Integer value of packet type
-func (pkt *SubRply) ID() int {
-	return PacketSubRply
+func (pkt *SubReply) ID() int {
+	return PacketSubReply
 }
 
 // String representation of packet type
-func (pkt *SubRply) IDString() string {
-	return "SubRply"
+func (pkt *SubReply) IDString() string {
+	return "SubReply"
 }
 
 // Pretty print with indent
-func (pkt *SubRply) IString(indent string) string {
+func (pkt *SubReply) IString(indent string) string {
 	return fmt.Sprintf("%sXID %v\n%sSubID %v\n",
 		indent, pkt.XID,
 		indent, pkt.SubID,
@@ -127,12 +127,12 @@ func (pkt *SubRply) IString(indent string) string {
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *SubRply) String() string {
+func (pkt *SubReply) String() string {
 	return pkt.IString("")
 }
 
-// Decode a SubRply packet from a byte array
-func (pkt *SubRply) Decode(bytes []byte) (err error) {
+// Decode a SubReply packet from a byte array
+func (pkt *SubReply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -151,31 +151,31 @@ func (pkt *SubRply) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-// Encode a SubRply from a buffer
-func (pkt *SubRply) Encode(buffer *bytes.Buffer) {
+// Encode a SubReply from a buffer
+func (pkt *SubReply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, pkt.XID)
 	XdrPutInt64(buffer, pkt.SubID)
 }
 
-// Packet: SubDelRqst
-type SubDelRqst struct {
+// Packet: SubDelRequest
+type SubDelRequest struct {
 	XID   uint32
 	SubID int64
 }
 
 // Integer value of packet type
-func (pkt *SubDelRqst) ID() int {
-	return PacketSubDelRqst
+func (pkt *SubDelRequest) ID() int {
+	return PacketSubDelRequest
 }
 
 // String representation of packet type
-func (pkt *SubDelRqst) IDString() string {
-	return "SubDelRqst"
+func (pkt *SubDelRequest) IDString() string {
+	return "SubDelRequest"
 }
 
 // Pretty print with indent
-func (pkt *SubDelRqst) IString(indent string) string {
+func (pkt *SubDelRequest) IString(indent string) string {
 	return fmt.Sprintf("%sXID %v\n%sSubID %v\n",
 		indent, pkt.XID,
 		indent, pkt.SubID,
@@ -183,12 +183,12 @@ func (pkt *SubDelRqst) IString(indent string) string {
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *SubDelRqst) String() string {
+func (pkt *SubDelRequest) String() string {
 	return pkt.IString("")
 }
 
-// Decode a SubDelRqst packet from a byte array
-func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
+// Decode a SubDelRequest packet from a byte array
+func (pkt *SubDelRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -207,8 +207,8 @@ func (pkt *SubDelRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-// Encode a SubDelRqst from a buffer
-func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+// Encode a SubDelRequest from a buffer
+func (pkt *SubDelRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, xID)
@@ -216,8 +216,8 @@ func (pkt *SubDelRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
-// Packet: SubModRqst
-type SubModRqst struct {
+// Packet: SubModRequest
+type SubModRequest struct {
 	XID            uint32
 	SubID          int64
 	Expression     string
@@ -227,17 +227,17 @@ type SubModRqst struct {
 }
 
 // Integer value of packet type
-func (pkt *SubModRqst) ID() int {
-	return PacketSubModRqst
+func (pkt *SubModRequest) ID() int {
+	return PacketSubModRequest
 }
 
 // String representation of packet type
-func (pkt *SubModRqst) IDString() string {
-	return "SubModRqst"
+func (pkt *SubModRequest) IDString() string {
+	return "SubModRequest"
 }
 
 // Pretty print with indent
-func (pkt *SubModRqst) IString(indent string) string {
+func (pkt *SubModRequest) IString(indent string) string {
 	return fmt.Sprintf("%sXID %v\n%sSubID %v\n%sExpression %v\n%sAcceptInsecure %v\n%sAddKeys %v\n%sDelKeys %v\n",
 		indent, pkt.XID,
 		indent, pkt.SubID,
@@ -249,12 +249,12 @@ func (pkt *SubModRqst) IString(indent string) string {
 }
 
 // Pretty print without indent so generic ToString() works
-func (pkt *SubModRqst) String() string {
+func (pkt *SubModRequest) String() string {
 	return pkt.IString("")
 }
 
-// Decode a SubModRqst packet from a byte array
-func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
+// Decode a SubModRequest packet from a byte array
+func (pkt *SubModRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
 
@@ -297,8 +297,8 @@ func (pkt *SubModRqst) Decode(bytes []byte) (err error) {
 	return nil
 }
 
-// Encode a SubModRqst from a buffer
-func (pkt *SubModRqst) Encode(buffer *bytes.Buffer) (xID uint32) {
+// Encode a SubModRequest from a buffer
+func (pkt *SubModRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutUint32(buffer, xID)
