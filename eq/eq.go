@@ -101,7 +101,7 @@ func main() {
 	quench.Names = map[string]bool{"int32": true, "float64": true}
 	quench.DeliverInsecure = true
 	quench.Keys = nil
-	quench.QuenchNotifications = make(chan elvin.Packet)
+	quench.Notifications = make(chan elvin.QuenchNotification)
 
 	if err := eq.Quench(quench); err != nil {
 		log.Printf("Quench failed %v", err)
@@ -126,7 +126,7 @@ Loop:
 		case sig := <-ch:
 			log.Printf("Exiting on %v", sig)
 			break Loop
-		case pkt := <-quench.QuenchNotifications:
+		case pkt := <-quench.Notifications:
 			log.Printf("Received quench:\n%v", pkt)
 		}
 	}

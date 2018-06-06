@@ -107,14 +107,19 @@ func (sub *Subscription) delKeys(keys []Keyset) {
 	return
 }
 
+type QuenchNotification struct {
+	TermID  uint64
+	SubExpr SubAST
+}
+
 // The Quench type used by clients.
 type Quench struct {
-	Names               map[string]bool // Quench terms
-	DeliverInsecure     bool            // Do we deliver with no security keys
-	Keys                []Keyset        // Keys for this quench
-	QuenchNotifications chan Packet     // Sub{Add|Del|Mod}Notify delivers
-	quenchID            int64           // private id
-	events              chan Packet     // synchronous replies
+	Names           map[string]bool         // Quench terms
+	DeliverInsecure bool                    // Deliver with no security keys?
+	Keys            []Keyset                // Keys for this quench
+	Notifications   chan QuenchNotification // Sub{Add|Del|Mod}Notify delivers
+	quenchID        int64                   // private id
+	events          chan Packet             // synchronous replies
 }
 
 func (quench *Quench) addKeys(keys []Keyset) {

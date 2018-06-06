@@ -26,7 +26,7 @@ import (
 )
 
 type SubAST struct {
-	// FIXME
+	dummy int
 }
 
 type QnchAddRqst struct {

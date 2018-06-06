@@ -190,6 +190,8 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 
 	// Packets accepted independent of Client's connection state
 	switch PacketID(buffer) {
+	case PacketReserved:
+		return nil
 	case PacketDisconn:
 		return client.HandleDisconn(buffer)
 	}
@@ -222,11 +224,13 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 			return client.HandleNotifyDeliver(buffer)
 		case PacketNack:
 			return client.HandleNack(buffer)
-		case PacketDropWarn:
-		case PacketReserved:
 		case PacketSubAddNotify:
+			return client.HandleSubAddNotify(buffer)
 		case PacketSubModNotify:
+			return client.HandleSubModNotify(buffer)
 		case PacketSubDelNotify:
+			return client.HandleSubDelNotify(buffer)
+		case PacketDropWarn:
 			return fmt.Errorf("FIXME implement: %s received", PacketIDString(PacketID(buffer)))
 		default:
 			return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
@@ -389,13 +393,13 @@ func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 	// * If one disappears it's ok (we don't deliver)
 	// * If one appears it's ok (they're sparse)
 	client.mu.Lock()
-	delivers := client.subscriptions
+	subscriptions := client.subscriptions
 	client.mu.Unlock()
 
 	// foreach matching subscription deliver it
 	for _, subID := range notifyDeliver.Secure {
-		log.Printf("NotifyDeliver secure for %d", subID)
-		sub, ok := delivers[subID]
+		// log.Printf("NotifyDeliver secure for %d", subID)
+		sub, ok := subscriptions[subID]
 		if ok && sub.subID == subID {
 			sub.Notifications <- notifyDeliver.NameValue
 		}
@@ -403,9 +407,100 @@ func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 	for _, subID := range notifyDeliver.Insecure {
 		sub, ok := client.subscriptions[subID]
 		// log.Printf("NotifyDeliver insecure for %d", subID)
-		// log.Printf("client.subDelivers = %v", client.subDelivers)
 		if ok && sub.subID == subID {
 			sub.Notifications <- notifyDeliver.NameValue
+		}
+	}
+	return nil
+}
+
+// Handle a quench's SubAddNotify
+func (client *Client) HandleSubAddNotify(buffer []byte) (err error) {
+	subAddNotify := new(SubAddNotify)
+	if err = subAddNotify.Decode(buffer); err != nil {
+		client.ProtocolError(err)
+	}
+
+	// Sync the map of quench IDs. We can do this once as:
+	// * If one disappears it's ok (we don't deliver)
+	// * If one appears it's ok (they're sparse)
+	client.mu.Lock()
+	quenches := client.quenches
+	client.mu.Unlock()
+
+	notification := QuenchNotification{subAddNotify.TermID, subAddNotify.SubExpr}
+	// foreach matching quench deliver it
+	for _, quenchID := range subAddNotify.SecureQuenchIDs {
+		log.Printf("QuenchAddNotify secure for %d", quenchID)
+		quench, ok := quenches[quenchID]
+		if ok && quench.quenchID == quenchID {
+			quench.Notifications <- notification
+		}
+	}
+	for _, quenchID := range subAddNotify.InsecureQuenchIDs {
+		log.Printf("QuenchAddNotify insecure for %d", quenchID)
+		quench, ok := quenches[quenchID]
+		if ok && quench.quenchID == quenchID {
+			quench.Notifications <- notification
+		}
+	}
+	return nil
+}
+
+// Handle a quench's SubModNotify
+func (client *Client) HandleSubModNotify(buffer []byte) (err error) {
+	subModNotify := new(SubModNotify)
+	if err = subModNotify.Decode(buffer); err != nil {
+		client.ProtocolError(err)
+	}
+
+	// Sync the map of quench IDs. We can do this once as:
+	// * If one disappears it's ok (we don't deliver)
+	// * If one appears it's ok (they're sparse)
+	client.mu.Lock()
+	quenches := client.quenches
+	client.mu.Unlock()
+
+	notification := QuenchNotification{subModNotify.TermID, subModNotify.SubExpr}
+	// foreach matching quench deliver it
+	for _, quenchID := range subModNotify.SecureQuenchIDs {
+		log.Printf("QuenchModNotify secure for %d", quenchID)
+		quench, ok := quenches[quenchID]
+		if ok && quench.quenchID == quenchID {
+			quench.Notifications <- notification
+		}
+	}
+	for _, quenchID := range subModNotify.InsecureQuenchIDs {
+		log.Printf("QuenchModNotify insecure for %d", quenchID)
+		quench, ok := quenches[quenchID]
+		if ok && quench.quenchID == quenchID {
+			quench.Notifications <- notification
+		}
+	}
+	return nil
+}
+
+// Handle a quench's SubDelNotify
+func (client *Client) HandleSubDelNotify(buffer []byte) (err error) {
+	subDelNotify := new(SubDelNotify)
+	if err = subDelNotify.Decode(buffer); err != nil {
+		client.ProtocolError(err)
+	}
+
+	// Sync the map of quench IDs. We can do this once as:
+	// * If one disappears it's ok (we don't deliver)
+	// * If one appears it's ok (they're sparse)
+	client.mu.Lock()
+	quenches := client.quenches
+	client.mu.Unlock()
+
+	// FIXME: AST is mock (should be empty for delete)
+	notification := QuenchNotification{subDelNotify.TermID, SubAST{1}}
+	for _, quenchID := range subDelNotify.QuenchIDs {
+		log.Printf("QuenchDelNotify for %d", quenchID)
+		quench, ok := quenches[quenchID]
+		if ok && quench.quenchID == quenchID {
+			quench.Notifications <- notification
 		}
 	}
 	return nil
