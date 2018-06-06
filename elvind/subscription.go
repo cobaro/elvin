@@ -40,8 +40,8 @@ func Parse(subexpr string) (ast *elvin.AST, n *elvin.Nack) {
 		nack.ErrorCode = elvin.ErrorsParsing
 		nack.Message = elvin.ProtocolErrors[elvin.ErrorsParsing].Message
 		nack.Args = make([]interface{}, 2)
-		nack.Args[0] = int32(0)
-		nack.Args[1] = "bogus"
+		nack.Args[0] = "bogus"
+		nack.Args[1] = int32(0)
 		return nil, nack
 	}
 	return nil, nil

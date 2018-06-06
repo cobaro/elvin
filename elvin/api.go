@@ -22,7 +22,6 @@ package elvin
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -166,7 +165,7 @@ func (client *Client) Connect() (err error) {
 
 	client.mu.Lock()
 	if client.State() != StateClosed {
-		return fmt.Errorf("FIXME: client already connected")
+		return LocalError(ErrorsClientIsConnected)
 	}
 	client.SetState(StateConnecting)
 
@@ -206,22 +205,20 @@ func (client *Client) Connect() (err error) {
 			connReply := reply.(*ConnReply)
 			// Check XID matches
 			if connReply.XID != pkt.XID {
-				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, connReply.XID)
+				err = LocalError(ErrorsMismatchedXIDs, pkt.XID, connReply.XID)
 			} else {
 				// FIXME: Options check/save?
 				client.SetState(StateConnected)
 			}
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
-			client.SetState(StateConnected)
+			client.SetState(StateClosed)
+			err = NackError(*reply.(*Nack))
 		default:
-			// FIXME: die
-			err = fmt.Errorf("Unexpected packet")
+			client.SetState(StateClosed)
+			err = LocalError(ErrorsBadPacket)
 		}
 	case <-time.After(ConnectTimeout):
-		client.SetState(StateClosed)
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	return err
@@ -231,7 +228,7 @@ func (client *Client) Connect() (err error) {
 func (client *Client) Disconnect() (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("client is not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 	client.SetState(StateDisconnecting)
 
@@ -252,18 +249,18 @@ func (client *Client) Disconnect() (err error) {
 			disconnReply := reply.(*DisconnReply)
 			// Check XID matches
 			if disconnReply.XID != pkt.XID {
-				err = fmt.Errorf("Mismatched transaction IDs, expected %d, received %d", pkt.XID, disconnReply.XID)
+				err = LocalError(ErrorsMismatchedXIDs, pkt.XID, disconnReply.XID)
 			}
 			client.Close()
 			return err
 		default:
 			// Didn't hear back, let the client deal with that
-			err = fmt.Errorf("FIXME: Unexpected packet")
+			err = LocalError(ErrorsBadPacket)
 			return err
 		}
 
 	case <-time.After(DisconnectTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	return err
@@ -273,7 +270,7 @@ func (client *Client) Disconnect() (err error) {
 func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, keys []Keyset) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(NotifyEmit)
@@ -292,7 +289,7 @@ func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, ke
 func (client *Client) Subscribe(sub *Subscription) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(SubAddRequest)
@@ -324,14 +321,13 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 			client.subscriptions[sub.subID] = sub
 			client.mu.Unlock()
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
+			err = NackError(*reply.(*Nack))
 		default:
-			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
+			err = LocalError(ErrorsBadPacket)
 		}
 
 	case <-time.After(SubscriptionTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	client.mu.Lock()
@@ -349,7 +345,7 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptInsecure bool, AddKeys []Keyset, DelKeys []Keyset) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(SubModRequest)
@@ -388,14 +384,13 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 			sub.addKeys(AddKeys)
 			sub.delKeys(DelKeys)
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
+			err = NackError(*reply.(*Nack))
 		default:
-			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
+			err = LocalError(ErrorsBadPacket)
 		}
 
 	case <-time.After(SubscriptionTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	client.mu.Lock()
@@ -409,7 +404,7 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(SubDelRequest)
@@ -440,14 +435,13 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 			delete(client.subscriptions, sub.subID)
 			client.mu.Unlock()
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
+			err = NackError(*reply.(*Nack))
 		default:
-			err = fmt.Errorf("FIXME:OOPS (%v)", reply)
+			err = LocalError(ErrorsBadPacket)
 		}
 
 	case <-time.After(SubscriptionTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	client.mu.Lock()
@@ -461,7 +455,7 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 func (client *Client) Quench(quench *Quench) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(QuenchAddRequest)
@@ -493,14 +487,13 @@ func (client *Client) Quench(quench *Quench) (err error) {
 			client.quenches[quench.quenchID] = quench
 			client.mu.Unlock()
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
+			err = NackError(*reply.(*Nack))
 		default:
-			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
+			err = LocalError(ErrorsBadPacket)
 		}
 
 	case <-time.After(QuenchTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	client.mu.Lock()
@@ -514,7 +507,7 @@ func (client *Client) Quench(quench *Quench) (err error) {
 func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, delNames map[string]bool, deliverInsecure bool, addKeys []Keyset, delKeys []Keyset) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(QuenchModRequest)
@@ -557,14 +550,13 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 			}
 
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
+			err = NackError(*reply.(*Nack))
 		default:
-			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
+			err = LocalError(ErrorsBadPacket)
 		}
 
 	case <-time.After(QuenchTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	client.mu.Lock()
@@ -577,7 +569,7 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 func (client *Client) QuenchDelete(quench *Quench) (err error) {
 
 	if client.State() != StateConnected {
-		return fmt.Errorf("FIXME: client not connected")
+		return LocalError(ErrorsClientNotConnected)
 	}
 
 	pkt := new(QuenchDelRequest)
@@ -609,14 +601,13 @@ func (client *Client) QuenchDelete(quench *Quench) (err error) {
 			client.mu.Unlock()
 
 		case *Nack:
-			nack := reply.(*Nack)
-			err = fmt.Errorf(nack.String())
+			err = NackError(*reply.(*Nack))
 		default:
-			err = fmt.Errorf("FIXME: OOPS (%v)", reply)
+			err = LocalError(ErrorsBadPacket)
 		}
 
 	case <-time.After(QuenchTimeout):
-		err = fmt.Errorf("FIXME: timeout")
+		err = LocalError(ErrorsTimeout)
 	}
 
 	client.mu.Lock()

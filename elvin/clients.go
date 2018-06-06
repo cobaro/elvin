@@ -118,7 +118,8 @@ func (client *Client) readHandler() {
 		if err = client.HandlePacket(buffer); err != nil {
 			log.Printf("Read Handler error: %v", err)
 			// FIXME: protocol error
-			break // We're done
+			// Or if say a disconnect timed out
+			// then should we exit?
 		}
 
 	}
@@ -191,6 +192,8 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 
 	// Packets accepted independent of Client's connection state
 	switch PacketID(buffer) {
+	case PacketNack:
+		return client.HandleNack(buffer)
 	case PacketReserved:
 		return nil
 	case PacketDisconn:
@@ -203,10 +206,8 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		switch PacketID(buffer) {
 		case PacketConnReply:
 			return client.HandleConnReply(buffer)
-		case PacketNack:
-			return client.HandleNack(buffer)
 		default:
-			return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
+			return LocalError(ErrorsProtocolPacketStateNotConnected, PacketIDString(PacketID(buffer)))
 		}
 
 	case StateDisconnecting:
@@ -223,8 +224,6 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 			return client.HandleQuenchReply(buffer)
 		case PacketNotifyDeliver:
 			return client.HandleNotifyDeliver(buffer)
-		case PacketNack:
-			return client.HandleNack(buffer)
 		case PacketSubAddNotify:
 			return client.HandleSubAddNotify(buffer)
 		case PacketSubModNotify:
@@ -234,14 +233,14 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		case PacketDropWarn:
 			return fmt.Errorf("FIXME implement: %s received", PacketIDString(PacketID(buffer)))
 		default:
-			return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
+			return LocalError(ErrorsProtocolPacketStateIsConnected, PacketIDString(PacketID(buffer)))
 		}
 
 	case StateClosed:
-		return fmt.Errorf("ProtocolError: %s received", PacketIDString(PacketID(buffer)))
+		return LocalError(ErrorsProtocolPacketStateNotConnected, PacketIDString(PacketID(buffer)))
 	}
 
-	return fmt.Errorf("Error: %s received and not handled", PacketIDString(PacketID(buffer)))
+	return LocalError(ErrorsBadPacketType, PacketIDString(PacketID(buffer)))
 }
 
 // On a protocol error we want to alert the client and reset the connection
@@ -335,7 +334,12 @@ func (client *Client) HandleNack(buffer []byte) (err error) {
 		return nil
 	}
 
-	// FIXME: Quench packets
+	quench, ok := client.quenchReplies[nack.XID]
+	if ok {
+		delete(client.quenchReplies, nack.XID)
+		quench.events <- Packet(nack)
+		return nil
+	}
 
 	return fmt.Errorf("Unhandled nack xid=%d, (conn:%d)\n", nack.XID, client.connXID)
 }
@@ -349,15 +353,12 @@ func (client *Client) HandleSubReply(buffer []byte) (err error) {
 
 	client.mu.Lock()
 	sub, ok := client.subReplies[subReply.XID]
-	delete(client.subReplies, subReply.XID)
 	client.mu.Unlock()
-	if !ok {
-		client.Close()
-		// FIXME: return error
-	}
-
-	// Signal the subscription
-	sub.events <- Packet(subReply)
+	if ok {
+		// Signal the subscription
+		delete(client.subReplies, subReply.XID)
+		sub.events <- Packet(subReply)
+	} // else it will time out
 	return nil
 }
 
@@ -370,16 +371,11 @@ func (client *Client) HandleQuenchReply(buffer []byte) (err error) {
 
 	client.mu.Lock()
 	quench, ok := client.quenchReplies[quenchReply.XID]
-	delete(client.quenchReplies, quenchReply.XID)
 	client.mu.Unlock()
-	if !ok {
-		fmt.Println("FIXME: Lost quench reply:", quenchReply.XID)
-		client.Close()
-		// FIXME: return error
-	}
-
-	// Signal the quench
-	quench.events <- Packet(quenchReply)
+	if ok {
+		delete(client.quenchReplies, quenchReply.XID)
+		quench.events <- Packet(quenchReply)
+	} // else it will time out
 	return nil
 }
 

@@ -20,6 +20,10 @@
 
 package elvin
 
+import (
+	"fmt"
+)
+
 // Elvin defines the following error codes
 const (
 	// 1-999 Connection establishment
@@ -65,7 +69,17 @@ const (
 	ErrorsQuenchAttributeExists = 2202
 	ErrorsQuenchNoSuchAttribute = 2203
 	// 2204-2499 reserved for defined errors
+
 	// 2500-2999 reserved for implementation specific errors
+	// golang local client library errors
+	ErrorsTimeout                         = 2500
+	ErrorsBadPacket                       = 2501
+	ErrorsBadPacketType                   = 2502
+	ErrorsMismatchedXIDs                  = 2503
+	ErrorsClientNotConnected              = 2504
+	ErrorsClientIsConnected               = 2505
+	ErrorsProtocolPacketStateNotConnected = 2506
+	ErrorsProtocolPacketStateIsConnected  = 2507
 )
 
 // Provide a map of error code to string Each error string has a
@@ -80,6 +94,7 @@ type NackArgs struct {
 }
 
 var ProtocolErrors map[uint16]NackArgs
+var LocalErrors map[uint16]string
 
 // Note that the spec has some unsigned types specified here but also
 // wants to marshall them as a Value that only supports signed types.
@@ -107,7 +122,7 @@ func init() {
 	ProtocolErrors[ErrorsImplementationLimit] = NackArgs{"Request out of range", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
 	ProtocolErrors[ErrorsNotImplemented] = NackArgs{"Request unimplemented", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
 
-	ProtocolErrors[ErrorsParsing] = NackArgs{"Parse error before %2 at position %1", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
+	ProtocolErrors[ErrorsParsing] = NackArgs{"Parse error before %1 at position %2", 2, [MaxNackArgs]interface{}{int32(0), "", nil}}
 	ProtocolErrors[ErrorsInvalidToken] = NackArgs{"Parse error at token %1 offset %2", 2, [MaxNackArgs]interface{}{"", int32(0), nil}}
 	ProtocolErrors[ErrorsUnterminatedString] = NackArgs{"Unterminated string at offset %1", 1, [MaxNackArgs]interface{}{int32(0), nil, nil}}
 	ProtocolErrors[ErrorsUnknownFunction] = NackArgs{"Unknown function at offset %1", 1, [MaxNackArgs]interface{}{int32(0), nil, nil}}
@@ -122,6 +137,18 @@ func init() {
 	ProtocolErrors[ErrorsQuenchEmpty] = NackArgs{"Quench has no attribute names", 0, [MaxNackArgs]interface{}{nil, nil, nil}}
 	ProtocolErrors[ErrorsQuenchAttributeExists] = NackArgs{"Attribute %1 already present", 1, [MaxNackArgs]interface{}{"", nil, nil}}
 	ProtocolErrors[ErrorsQuenchNoSuchAttribute] = NackArgs{"No such attribute: %1", 1, [MaxNackArgs]interface{}{"", nil, nil}}
+
+	// Local errors
+	LocalErrors = make(map[uint16]string)
+
+	LocalErrors[ErrorsTimeout] = "Timeout waiting for response"
+	LocalErrors[ErrorsBadPacket] = "Unexpected packet"
+	LocalErrors[ErrorsBadPacketType] = "Unexpected packet: %1"
+	LocalErrors[ErrorsMismatchedXIDs] = "Unable to match transaction IDs, expected:%1, received:%2"
+	LocalErrors[ErrorsClientNotConnected] = "Client is not connected"
+	LocalErrors[ErrorsClientIsConnected] = "Client is connected"
+	LocalErrors[ErrorsProtocolPacketStateNotConnected] = "Protocol Error. Received %1 when not connected"
+	LocalErrors[ErrorsProtocolPacketStateIsConnected] = "Protocol Error. Received %1 when connected"
 }
 
 // Convert elvin positional formatting to golang style
@@ -143,4 +170,12 @@ func ElvinStringToFormatString(in string) (out string) {
 		}
 	}
 	return string(str)
+}
+
+func LocalError(code uint16, args ...interface{}) (err error) {
+	return fmt.Errorf("[%d] %s", code, fmt.Sprintf(ElvinStringToFormatString(LocalErrors[code]), args...))
+}
+
+func NackError(nack Nack) (err error) {
+	return fmt.Errorf(nack.String())
 }

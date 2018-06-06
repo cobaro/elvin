@@ -108,12 +108,11 @@ func main() {
 		log.Printf("Subscribe failed %v", err)
 	} else {
 		log.Printf("Subscribe succeeded %v", sub)
-	}
-
-	if err := ec.SubscriptionModify(sub, "bogus", true, nil, nil); err != nil {
-		log.Printf("SubMod failed %v", err)
-	} else {
-		log.Printf("SubMod succeeded %v", sub)
+		if err := ec.SubscriptionModify(sub, "bogus", true, nil, nil); err != nil {
+			log.Printf("SubMod failed %v", err)
+		} else {
+			log.Printf("SubMod succeeded %v", sub)
+		}
 	}
 
 	ch := make(chan os.Signal)

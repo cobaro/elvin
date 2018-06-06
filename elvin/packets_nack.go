@@ -26,7 +26,6 @@ import (
 )
 
 // Packet: Nack
-
 type Nack struct {
 	XID       uint32
 	ErrorCode uint16
@@ -46,8 +45,8 @@ func (pkt *Nack) IDString() string {
 
 // Pretty print with indent
 func (pkt *Nack) IString(indent string) string {
-	return fmt.Sprintf("%sXID:%v [%d] %s",
-		indent, pkt.XID, int(pkt.ErrorCode),
+	return fmt.Sprintf("%s[%d] XID:%v [%d] %s",
+		indent, pkt.ErrorCode, pkt.XID, int(pkt.ErrorCode),
 		fmt.Sprintf(ElvinStringToFormatString(pkt.Message), pkt.Args...))
 }
 

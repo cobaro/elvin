@@ -79,3 +79,17 @@ func TestFmt(t *testing.T) {
 		t.Fatalf("%v -> %v, expected %v", in, out, expected)
 	}
 }
+
+func TestLocalErrors(t *testing.T) {
+	expect := "[2504] Client is connected"
+	got := LocalError(ErrorsClientIsConnected).Error()
+	if expect != got {
+		t.Fatalf("Expected:%s, got:%s", expect, got)
+	}
+
+	expect = "[2502] Unable to match transaction IDs, expected:42, received:24"
+	got = LocalError(ErrorsMismatchedXIDs, 42, 24).Error()
+	if expect != got {
+		t.Fatalf("Expected:%s, got:%s", expect, got)
+	}
+}
