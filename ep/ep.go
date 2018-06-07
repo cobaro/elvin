@@ -123,7 +123,7 @@ func parseNotifications(sendto chan map[string]interface{}) {
 			// look for name : value (with or without space around :)
 			namevalue := strings.SplitN(scanner.Text(), ":", 2)
 			if len(namevalue) != 2 {
-				fmt.Println("Failed to parse '%s'", scanner.Text())
+				fmt.Printf("Failed to parse '%s' as attribute: value\n", scanner.Text())
 			} else {
 				// Try to convert the value
 				name := strings.TrimSpace(namevalue[0])
