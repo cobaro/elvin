@@ -21,52 +21,167 @@
 package main
 
 import (
+	"bufio"
+	"encoding/hex"
 	"flag"
+	"fmt"
 	"github.com/cobaro/elvin/elvin"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 )
 
+type arguments struct {
+	help     bool
+	endpoint string
+	number   int
+}
+
 func main() {
-	// Argument parsing
-	flag.Parse()
+	// Parse command line options
+	args := flags()
+	sig := make(chan os.Signal)
+	signal.Notify(sig, os.Interrupt)
 
-	go signalHandler()
-
-	endpoint := "localhost:2917"
-	ep := elvin.NewClient(endpoint, nil, nil, nil)
+	ep := elvin.NewClient(args.endpoint, nil, nil, nil)
 
 	if err := ep.Connect(); err != nil {
 		log.Printf("%v", err)
 		os.Exit(1)
 	}
-	log.Printf("connected to %s", endpoint)
+	log.Printf("connected to %s", args.endpoint)
 
-	// Send a dumb single message for now
-	nfn := make(map[string]interface{})
-	nfn["int32"] = int32(3232)
-	nfn["int64"] = int64(646464646464)
-	nfn["string"] = "string"
-	nfn["opaque"] = []byte{0, 1, 2, 3, 127, 255}
-	nfn["float64"] = 424242.42
+	// Set up our notitfication reader
+	notifications := make(chan map[string]interface{})
+	go parseNotifications(notifications)
 
-	if err := ep.Notify(nfn, true, nil); err != nil {
-		log.Printf("Notify failed")
+Loop:
+	for {
+		select {
+		case notification, more := <-notifications:
+			if more {
+				// log.Printf("read %+v", notification)
+
+				for i := 0; i < args.number; i++ {
+					if err := ep.Notify(notification, true, nil); err != nil {
+						log.Printf("Notify failed")
+					}
+				}
+			} else {
+				log.Printf("Exiting")
+				break Loop
+			}
+		case s := <-sig:
+			log.Printf("Exiting on %v", s)
+			break Loop
+		}
 	}
 
 	if err := ep.Disconnect(); err != nil {
 		log.Printf("%v", err)
 		os.Exit(1)
 	}
-	log.Printf("disconnected")
+	log.Printf("Disconnected")
+
 	os.Exit(0)
 }
 
-func signalHandler() {
-	// Set up sigint handling and wait for one
-	ch := make(chan os.Signal)
-	signal.Notify(ch, os.Interrupt)
-	log.Printf("Exiting on %v", <-ch)
-	os.Exit(1)
+// Argument parsing
+func flags() (args arguments) {
+	flag.BoolVar(&args.help, "h", false, "Print this help")
+	flag.StringVar(&args.endpoint, "e", "localhost:2917", "host:port of router")
+	flag.IntVar(&args.number, "n", 1, "number of notifications to send")
+	flag.Parse()
+
+	if args.help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	return args
+}
+
+// Read's notifications from stdin into a channel, exits on EOF
+func parseNotifications(sendto chan map[string]interface{}) {
+	log.Println("parser starting")
+	scanner := bufio.NewScanner(os.Stdin)
+
+	nfn := make(map[string]interface{})
+
+	for scanner.Scan() {
+		// log.Println("parser processing:", scanner.Text())
+		// Look for end of message marker '^---.*$'
+		if scanner.Text()[:3] == "---" {
+			if len(nfn) > 0 {
+				// fmt.Println("Send out", nfn)
+				sendto <- nfn
+				nfn = make(map[string]interface{})
+			}
+		} else {
+			// look for name : value (with or without space around :)
+			namevalue := strings.SplitN(scanner.Text(), ":", 2)
+			if len(namevalue) != 2 {
+				fmt.Println("Failed to parse '%s'", scanner.Text())
+			} else {
+				// Try to convert the value
+				name := strings.TrimSpace(namevalue[0])
+				value := strings.TrimSpace(namevalue[1])
+				// log.Printf("%s:%s", name, value)
+
+				if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+					// string "delimited"
+					nfn[name] = value[1 : len(value)-1]
+
+				} else if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
+					// opaque [delimited]
+					size := (len(value) - 2) / 2 // half what's between the []
+					opaque := make([]byte, size)
+					len, err := hex.Decode(opaque, []byte(value[1:len(value)-1]))
+					// log.Printf("opaque %v len:%d, in:%d, out:%d", opaque, len, 7-2, 7)
+					if err != nil {
+						log.Printf("ParseError: %s", err.Error())
+
+					} else if size != len {
+						log.Printf("ParseError: Couldn't convert entirety of %s", value)
+					} else {
+						nfn[name] = opaque
+					}
+				} else if strings.HasSuffix(value, "L") || strings.HasSuffix(value, "l") {
+					// int64 e.g., 123L
+					i64, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
+					if err != nil {
+						log.Printf("ParseError: converting '%s' to int64: %v", value, err.Error())
+					} else {
+						nfn[name] = i64
+					}
+				} else if strings.Contains(value, ".") {
+					// float64 e.g. 3.14
+					f64, err := strconv.ParseFloat(value, 64)
+					if err != nil {
+						log.Printf("ParseError: converting '%s' to float64: %v", value, err.Error())
+					} else {
+						nfn[name] = f64
+					}
+				} else {
+					// int32
+					i64, err := strconv.ParseInt(value, 10, 32)
+					if err != nil {
+						log.Printf("ParseError: converting '%s' to int32: %v", value, err.Error())
+					} else {
+						nfn[name] = int32(i64)
+					}
+				}
+			}
+			// log.Printf("%+v", nfn)
+		}
+	}
+	// EOF which is normal if a file is redirected in for example
+	// so send it and return, exiting the parser
+	if len(nfn) > 0 {
+		fmt.Println("Send out", nfn)
+		sendto <- nfn
+	}
+	close(sendto)
 }
