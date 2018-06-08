@@ -22,22 +22,30 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/cobaro/elvin/elvin"
 	"log"
 	"os"
 	"os/signal"
+	"time"
 )
 
 // Handle Disconnects stub
 func disconnector(client *elvin.Client) {
 }
 
+type arguments struct {
+	help     bool
+	endpoint string
+	number   int
+}
+
 func main() {
 	// Argument parsing
+	args := flags()
 	flag.Parse()
 
-	endpoint := "localhost:2917"
-	ec := elvin.NewClient(endpoint, nil, nil, nil)
+	ec := elvin.NewClient(args.endpoint, nil, nil, nil)
 	go disconnector(ec)
 
 	ec.Options = make(map[string]interface{})
@@ -50,7 +58,7 @@ func main() {
 		log.Printf("%v", err)
 		os.Exit(1)
 	}
-	log.Printf("connected to %s", endpoint)
+	log.Printf("connected to %s", args.endpoint)
 
 	// FIXME: do a NewSubscription()
 	sub := new(elvin.Subscription)
@@ -74,6 +82,8 @@ func main() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt)
 
+	received := 0
+	timeStart := time.Now()
 Loop:
 	for {
 		select {
@@ -81,7 +91,17 @@ Loop:
 			log.Printf("Exiting on %v", sig)
 			break Loop
 		case nfn := <-sub.Notifications:
-			log.Printf("Received notification:\n%v", nfn)
+			if args.number == 1 {
+				log.Printf("Received notification:\n%v", nfn)
+			} else {
+				received++
+				if received == args.number {
+					timeNow := time.Now()
+					received = 0
+					fmt.Println(timeNow.Sub(timeStart))
+					timeStart = timeNow
+				}
+			}
 		}
 	}
 
@@ -100,4 +120,19 @@ Loop:
 
 	log.Printf("Disconnected")
 	os.Exit(0)
+}
+
+// Argument parsing
+func flags() (args arguments) {
+	flag.BoolVar(&args.help, "h", false, "Print this help")
+	flag.StringVar(&args.endpoint, "e", "localhost:2917", "host:port of router")
+	flag.IntVar(&args.number, "n", 1, "number of notifications to send")
+	flag.Parse()
+
+	if args.help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	return args
 }
