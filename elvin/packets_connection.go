@@ -339,3 +339,37 @@ func (pkt *Disconn) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, pkt.Reason)
 	XdrPutString(buffer, pkt.Args)
 }
+
+// Packet: DropWarn
+type DropWarn struct {
+	// The medium is the messsage
+}
+
+// Integer value of packet type
+func (pkt *DropWarn) ID() int {
+	return PacketDropWarn
+}
+
+// String representation of packet type
+func (pkt *DropWarn) IDString() string {
+	return "DropWarn"
+}
+
+// Pretty print with indent
+func (pkt *DropWarn) IString(indent string) string {
+	return ""
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *DropWarn) String() string {
+	return pkt.IString("")
+}
+
+// Decode a DropWarn packet from a byte array
+func (pkt *DropWarn) Decode(bytes []byte) (err error) {
+	return
+}
+
+func (pkt *DropWarn) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, int32(pkt.ID()))
+}

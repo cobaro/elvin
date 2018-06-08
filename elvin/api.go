@@ -32,18 +32,17 @@ import (
 // A client of an Elvin service, typically used via:
 //      client.Connect()
 //      client = newClient()
-//      client.Subscribe()
-//      client.Notify()
+//        client.Subscribe()
+//        client.Quench()
+//        client.Notify()
 //      client.Disonnect()
 // See individual methods for details
-
 type Client struct {
-	// Public
-	Endpoint       string
-	Options        map[string]interface{}
-	KeysNfn        []Keyset
-	KeysSub        []Keyset
-	DisconnChannel chan *Disconn // Clients may listen here for disconnects
+	Endpoint      string                 // Router descriptor
+	Options       map[string]interface{} // Router options
+	KeysNfn       []Keyset               // Connections keys for outgoing notifications
+	KeysSub       []Keyset               // Connections keys for incoming notifications
+	Notifications chan Packet            // Clients may listen here for events
 
 	// Private
 	reader         io.Reader
@@ -56,44 +55,34 @@ type Client struct {
 	mu             sync.Mutex
 	wg             sync.WaitGroup
 
-	// Map of all current subscriptions used for mapping NotifyDelivers
-	// and for maintaining subscriptions across reconnection
-	subscriptions map[int64]*Subscription
+	// Maps of all current subscriptions used for mapping
+	// NotifyDelivers and for maintaining subscriptions across
+	// reconnection
+	subReplies    map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
+	subscriptions map[int64]*Subscription  // All our subscriptions
 
-	// Map of all current quenches used for mapping quench Notifications
-	// and for maintaining quenches across reconnection
-	quenches map[int64]*Quench
+	// Maps of all current quenches used for mapping quench
+	// Notifications and for maintaining quenches across
+	// reconnection
+	quenchReplies map[uint32]*Quench // map QuenchAdd/Mod/Del/Nack
+	quenches      map[int64]*Quench  // All our quenches
 
-	// response channels
-	connXID        uint32                   // XID of outstanding connrqst
-	connReplies    chan Packet              // Channel for Connect() packets
-	disconnXID     uint32                   // XID of outstanding disconnrqst
-	disconnReplies chan Packet              // Channel for Connect() packets
-	subReplies     map[uint32]*Subscription // map SubAdd/Mod/Del/Nack
-	quenchReplies  map[uint32]*Quench       // map QuenchAdd/Mod/Del/Nack
+	// Connection level packets
+	connReplies chan Packet // receive ConnReply, DisconnReply, DropWarn
+	connXID     uint32      // XID of any outstanding connrqst
+	disconnXID  uint32      // XID of any outstanding disconnrqst
 
 }
 
-// Types of events subscription and quenches can receive
-const (
-	subEventNack          = iota // To sub or quench
-	subEventNotifyDeliver        // To sub
-	subEventSubReply             // To sub
-	subEventSubModReply          // To sub
-	subEventSubDelReply          // To sub
-	quenchEventAddNotify         // To quench
-	quenchEventModNotify         // To quench
-	quenchEventDelNotify         // To quench
-)
-
-// The Subscription type used by clients.
+// A subscription type used by clients.
 type Subscription struct {
 	Expression     string                      // Subscription Expression
 	AcceptInsecure bool                        // Do we accept notifications with no security keys
 	Keys           []Keyset                    // Keys for this subscriptions
 	Notifications  chan map[string]interface{} // Notifications delivered on this channel
-	subID          int64                       // private id
-	events         chan Packet                 // synchronous replies
+
+	subID  int64       // private id
+	events chan Packet // synchronous replies
 }
 
 func (sub *Subscription) addKeys(keys []Keyset) {
@@ -152,10 +141,10 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.quenches = make(map[int64]*Quench)
 	// Sync Packets
 	client.connReplies = make(chan Packet)
-	client.disconnReplies = make(chan Packet)
 	client.subReplies = make(map[uint32]*Subscription)
 	client.quenchReplies = make(map[uint32]*Quench)
-	client.DisconnChannel = make(chan *Disconn)
+	// Async Events (Disconn, ECONN, DropWarn, Protocol failures etc)
+	client.Notifications = make(chan Packet)
 
 	return client
 }
@@ -243,7 +232,7 @@ func (client *Client) Disconnect() (err error) {
 
 	// Wait for the reply
 	select {
-	case reply := <-client.disconnReplies:
+	case reply := <-client.connReplies:
 		switch reply.(type) {
 		case *DisconnReply:
 			disconnReply := reply.(*DisconnReply)

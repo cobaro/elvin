@@ -30,50 +30,6 @@ import (
 
 // Handle Disconnects stub
 func disconnector(client *elvin.Client) {
-	for {
-		disconn := <-client.DisconnChannel
-		log.Printf("Received Disconn:\n%v", disconn)
-		switch disconn.Reason {
-
-		case elvin.DisconnReasonRouterShuttingDown:
-			log.Printf("router shutting down, exiting")
-			os.Exit(1)
-
-		case elvin.DisconnReasonRouterProtocolErrors:
-			log.Printf("router thinks we violated the protocol")
-			os.Exit(1)
-
-		case elvin.DisconnReasonRouterRedirect:
-			if len(disconn.Args) > 0 {
-				log.Printf("redirected to %s", disconn.Args)
-				// FIXME: tidy this
-				client.Endpoint = disconn.Args
-				client.Close()
-				// log.Printf("disconnector State(%d)", client.State())
-				if err := client.Connect(); err != nil {
-					log.Printf("%v", err)
-					os.Exit(1)
-				}
-				log.Printf("connected to %s", client.Endpoint)
-			} else {
-				log.Printf("redirected to %s", disconn.Args)
-			}
-			break
-
-		case elvin.DisconnReasonClientConnectionLost:
-			log.Printf("FIXME: connection lost")
-			os.Exit(1)
-
-		case elvin.DisconnReasonClientProtocolErrors:
-			log.Printf("client library detected protocol errors")
-			os.Exit(1)
-
-		default:
-			log.Printf("Disconn: unknown reason: %d", disconn.Reason)
-			os.Exit(1)
-
-		}
-	}
 }
 
 func main() {

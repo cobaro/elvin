@@ -136,7 +136,7 @@ func (client *Client) readHandler() {
 		disconn := new(Disconn)
 		disconn.Reason = DisconnReasonClientConnectionLost
 		select {
-		case client.DisconnChannel <- disconn:
+		case client.Notifications <- disconn:
 		default:
 		}
 	}
@@ -192,10 +192,10 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 
 	// Packets accepted independent of Client's connection state
 	switch PacketID(buffer) {
-	case PacketNack:
-		return client.HandleNack(buffer)
 	case PacketReserved:
 		return nil
+	case PacketNack:
+		return client.HandleNack(buffer)
 	case PacketDisconn:
 		return client.HandleDisconn(buffer)
 	}
@@ -231,7 +231,7 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		case PacketSubDelNotify:
 			return client.HandleSubDelNotify(buffer)
 		case PacketDropWarn:
-			return fmt.Errorf("FIXME implement: %s received", PacketIDString(PacketID(buffer)))
+			return client.HandleDropWarn(buffer)
 		default:
 			return LocalError(ErrorsProtocolPacketStateIsConnected, PacketIDString(PacketID(buffer)))
 		}
@@ -256,7 +256,7 @@ func (client *Client) ProtocolError(err error) {
 	disconn := new(Disconn)
 	disconn.Reason = DisconnReasonClientConnectionLost
 	select {
-	case client.DisconnChannel <- disconn:
+	case client.Notifications <- disconn:
 	default:
 	}
 
@@ -287,7 +287,7 @@ func (client *Client) HandleDisconnReply(buffer []byte) (err error) {
 		client.ProtocolError(err)
 	}
 	// Signal the disconnection requestor
-	client.disconnReplies <- disconnReply
+	client.connReplies <- disconnReply
 	return nil
 }
 
@@ -301,10 +301,27 @@ func (client *Client) HandleDisconn(buffer []byte) (err error) {
 	// Signal the disconect
 	// If a client library isn't listening we just close the client
 	select {
-	case client.DisconnChannel <- disconn:
+	case client.Notifications <- disconn:
 	default:
 		// Reset the client
 		client.Close()
+	}
+
+	return nil
+}
+
+// Handle a DropWarn
+func (client *Client) HandleDropWarn(buffer []byte) (err error) {
+	dropWarn := new(DropWarn)
+	if err = dropWarn.Decode(buffer); err != nil {
+		client.ProtocolError(err)
+	}
+
+	// Signal the DropWarn
+	// If a client library isn't listening we ignore it
+	select {
+	case client.Notifications <- dropWarn:
+	default:
 	}
 
 	return nil
@@ -328,16 +345,16 @@ func (client *Client) HandleNack(buffer []byte) (err error) {
 		return nil
 	}
 
-	if client.connXID == nack.XID {
-		client.connXID = 0
-		client.connReplies <- Packet(nack)
-		return nil
-	}
-
 	quench, ok := client.quenchReplies[nack.XID]
 	if ok {
 		delete(client.quenchReplies, nack.XID)
 		quench.events <- Packet(nack)
+		return nil
+	}
+
+	if client.connXID == nack.XID {
+		client.connXID = 0
+		client.connReplies <- Packet(nack)
 		return nil
 	}
 
