@@ -28,10 +28,11 @@ import (
 	"github.com/cobaro/elvin/elvin"
 	"github.com/golang/glog"
 	"io"
+	"math"
 	"math/rand"
 	"sync"
 	"sync/atomic"
-	// "time"
+	"time"
 )
 
 // Connection States
@@ -52,6 +53,23 @@ func (conn *Connection) SetState(val uint32) {
 	atomic.StoreUint32(&conn.state, val)
 }
 
+// TestConn/ConfConn Timeout States
+const (
+	TestConnIdle = iota
+	TestConnAwaitingResponse
+	TestConnHadResponse
+)
+
+// Set TestConn/ConfConn Timeout (synchronized)
+func (conn *Connection) TestConnState() uint32 {
+	return atomic.LoadUint32(&conn.testConnState)
+}
+
+// Get TestConn/ConfConn Timeout (synchronized)
+func (conn *Connection) SetTestConnState(val uint32) {
+	atomic.StoreUint32(&conn.testConnState, val)
+}
+
 // A Connection (e.g. a socket)
 type Connection struct {
 	id             int32
@@ -61,6 +79,7 @@ type Connection struct {
 	writer         io.Writer
 	closer         io.Closer
 	state          uint32
+	testConnState  uint32
 	writeChannel   chan *bytes.Buffer
 	writeTerminate chan int
 }
@@ -202,6 +221,27 @@ func (conn *Connection) writeHandler() {
 
 	header := make([]byte, 4)
 
+	// TestConn and ConfConn use two timers:
+	//
+	//   The first, intervalTimer, is  how long a connection
+	//   can be idle before we send a TestConn and it's configured
+	//   via the configuration option TestConnInterval.
+	//   A value of zero means disabled so we simply set it up for
+	//   a long time as way of keeping the select loop simple.
+	//
+	//   The second testConnTimeout is how long we should wait for a
+	//   response.
+	glog.Infof("config:%+v", config)
+	defaultTimeout := time.Duration(config.TestConnInterval) * time.Second
+	if defaultTimeout == 0 {
+		defaultTimeout = math.MaxInt64
+	}
+	currentTimeout := defaultTimeout
+	conn.SetTestConnState(TestConnIdle)
+
+	// Our write loop waits for data to write and sends it
+	// It can be terminated via the writeTerminate channel
+	// It runs a Test/ConfConn timer if configured
 	for {
 		select {
 		case buffer := <-conn.writeChannel:
@@ -230,6 +270,31 @@ func (conn *Connection) writeHandler() {
 			}
 		case <-conn.writeTerminate:
 			return // We're done, cleanup done by read
+
+		case <-time.After(currentTimeout):
+			if glog.V(4) {
+				glog.Infof("writeHandler timeout: %d", conn.TestConnState())
+			}
+
+			switch conn.TestConnState() {
+			case TestConnIdle:
+				conn.SetTestConnState(TestConnAwaitingResponse)
+				currentTimeout = time.Duration(config.TestConnTimeout) * time.Second
+				testConn := new(elvin.TestConn)
+				writeBuf := new(bytes.Buffer)
+				testConn.Encode(writeBuf)
+				conn.writeChannel <- writeBuf
+			case TestConnAwaitingResponse:
+				if glog.V(3) {
+					glog.Infof("Closing client %d for not responding to TestConn", conn.ID())
+				}
+				// FIXME:Close the socket to trigger read exit
+				conn.closer.Close()
+				return
+			case TestConnHadResponse:
+				conn.SetTestConnState(TestConnIdle)
+				currentTimeout = defaultTimeout
+			}
 		}
 	}
 }
@@ -240,6 +305,10 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	if glog.V(4) {
 		glog.Infof("received %s", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
+
+	// Receiving any packet acts a ConfConn
+	conn.SetTestConnState(TestConnHadResponse)
+
 	switch elvin.PacketID(buffer) {
 
 	// Client side packets a router shouldn't receive
@@ -322,9 +391,12 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		case elvin.PacketQuenchDelRequest:
 			return conn.HandleQuenchDelRequest(buffer)
 		case elvin.PacketTestConn:
-			return errors.New("FIXME: Packet TestConn")
+			return conn.HandleTestConn(buffer)
 		case elvin.PacketConfConn:
-			return errors.New("FIXME: Packet ConfConn")
+			// Receiving any packet acts a ConfConn so
+			// already done
+			// return conn.HandleConfConn(buffer)
+			return nil
 		case elvin.PacketAck:
 			return errors.New("FIXME: Packet Ack")
 		case elvin.PacketStatusUpdate:
@@ -449,6 +521,33 @@ func (conn *Connection) HandleDisconnRequest(buffer []byte) (err error) {
 	connections.lock.Lock()
 	defer connections.lock.Unlock()
 	delete(connections.connections, conn.ID())
+
+	return nil
+}
+
+// Handle a TestConn
+func (conn *Connection) HandleTestConn(buffer []byte) (err error) {
+	// Nothing to decode
+	if glog.V(4) {
+		glog.Infof("Received TestConn", conn.ID())
+	}
+
+	// Only respond is there are no queued packets
+	if len(conn.writeChannel) > 1 {
+		confConn := new(elvin.ConfConn)
+		writeBuf := new(bytes.Buffer)
+		confConn.Encode(writeBuf)
+		conn.writeChannel <- writeBuf
+	}
+
+	return nil
+}
+
+// Handle a ConfConn
+func (conn *Connection) HandleConfConn(buffer []byte) (err error) {
+	// Note: This is never called as it's done
+	// in HandlePacket as any Packet acts as a ConfConn
+	conn.SetTestConnState(TestConnHadResponse)
 
 	return nil
 }

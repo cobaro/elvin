@@ -13,6 +13,8 @@
        { "Network" : "tcp", "Marshal" : "xdr", "Address" : "0.0.0.0:2918" }
     ],
 
-    "DoFailover" : true
+    "DoFailover" : true,
 
+    "TestConnInterval" : 10,
+    "TestConnTimeout" : 10
 }

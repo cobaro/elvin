@@ -31,14 +31,18 @@ import (
 	"syscall"
 )
 
+// Our configuration generally loaded from file on startup
+// but possibly mutable via service controls
+var config *Configuration
+
 func main() {
 	// Argument parsing
 	configFile := flag.String("config", "elvind.json", "JSON config file path")
 	flag.Parse()
 
 	// Load config
-	config, err := LoadConfig(*configFile)
-	if err != nil {
+	var err error
+	if config, err = LoadConfig(*configFile); err != nil {
 		glog.Fatal("config load failed:", err)
 	}
 

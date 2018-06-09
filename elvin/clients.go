@@ -21,6 +21,7 @@
 package elvin
 
 import (
+	"bytes"
 	"encoding/binary"
 	_ "errors"
 	"fmt"
@@ -196,6 +197,10 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 		return nil
 	case PacketNack:
 		return client.HandleNack(buffer)
+	case PacketTestConn:
+		return client.HandleTestConn(buffer)
+	case PacketConfConn:
+		return client.HandleConfConn(buffer)
 	case PacketDisconn:
 		return client.HandleDisconn(buffer)
 	}
@@ -313,14 +318,38 @@ func (client *Client) HandleDisconn(buffer []byte) (err error) {
 // Handle a DropWarn
 func (client *Client) HandleDropWarn(buffer []byte) (err error) {
 	dropWarn := new(DropWarn)
-	if err = dropWarn.Decode(buffer); err != nil {
-		client.ProtocolError(err)
-	}
+	// Nothing to decode
 
 	// Signal the DropWarn
 	// If a client library isn't listening we ignore it
 	select {
 	case client.Notifications <- dropWarn:
+	default:
+	}
+
+	return nil
+}
+
+// Handle a TestConn
+func (client *Client) HandleTestConn(buffer []byte) (err error) {
+	// Nothing to decode
+
+	// Respond
+	confConn := new(ConfConn)
+	writeBuf := new(bytes.Buffer)
+	confConn.Encode(writeBuf)
+	client.writeChannel <- writeBuf
+
+	return nil
+}
+
+// Handle a TestConn
+func (client *Client) HandleConfConn(buffer []byte) (err error) {
+	// Nothing to decode
+
+	// Respond if listening
+	select {
+	case client.confConn <- true:
 	default:
 	}
 

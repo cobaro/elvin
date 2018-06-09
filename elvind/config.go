@@ -33,10 +33,12 @@ type Protocol struct {
 }
 
 type Configuration struct {
-	Protocols      []Protocol
-	FailoverHosts  []Protocol
-	DoFailover     bool
-	MaxConnections int
+	Protocols        []Protocol
+	FailoverHosts    []Protocol
+	DoFailover       bool
+	MaxConnections   int
+	TestConnInterval int64 // idle seconds to trigger, 0 to disable
+	TestConnTimeout  int64 // Time to await a response
 }
 
 func LoadConfig(configFile string) (config *Configuration, err error) {

@@ -373,3 +373,71 @@ func (pkt *DropWarn) Decode(bytes []byte) (err error) {
 func (pkt *DropWarn) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 }
+
+// Packet: TestConn
+type TestConn struct {
+	// The medium is the messsage
+}
+
+// Integer value of packet type
+func (pkt *TestConn) ID() int {
+	return PacketTestConn
+}
+
+// String representation of packet type
+func (pkt *TestConn) IDString() string {
+	return "TestConn"
+}
+
+// Pretty print with indent
+func (pkt *TestConn) IString(indent string) string {
+	return ""
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *TestConn) String() string {
+	return pkt.IString("")
+}
+
+// Decode a TestConn packet from a byte array
+func (pkt *TestConn) Decode(bytes []byte) (err error) {
+	return
+}
+
+func (pkt *TestConn) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, int32(pkt.ID()))
+}
+
+// Packet: ConfConn
+type ConfConn struct {
+	// The medium is the messsage
+}
+
+// Integer value of packet type
+func (pkt *ConfConn) ID() int {
+	return PacketConfConn
+}
+
+// String representation of packet type
+func (pkt *ConfConn) IDString() string {
+	return "ConfConn"
+}
+
+// Pretty print with indent
+func (pkt *ConfConn) IString(indent string) string {
+	return ""
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *ConfConn) String() string {
+	return pkt.IString("")
+}
+
+// Decode a ConfConn packet from a byte array
+func (pkt *ConfConn) Decode(bytes []byte) (err error) {
+	return
+}
+
+func (pkt *ConfConn) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, int32(pkt.ID()))
+}

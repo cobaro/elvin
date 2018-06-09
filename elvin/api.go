@@ -71,7 +71,7 @@ type Client struct {
 	connReplies chan Packet // receive ConnReply, DisconnReply, DropWarn
 	connXID     uint32      // XID of any outstanding connrqst
 	disconnXID  uint32      // XID of any outstanding disconnrqst
-
+	confConn    chan bool   // signal testConn complete
 }
 
 // A subscription type used by clients.
@@ -125,6 +125,7 @@ const ConnectTimeout = (10 * time.Second)
 const DisconnectTimeout = (10 * time.Second)
 const SubscriptionTimeout = (10 * time.Second)
 const QuenchTimeout = (10 * time.Second)
+const TestConnTimeout = (10 * time.Second)
 
 // Create a new client.
 // Using new(Client) will not result in proper initialization
@@ -143,8 +144,9 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.connReplies = make(chan Packet)
 	client.subReplies = make(map[uint32]*Subscription)
 	client.quenchReplies = make(map[uint32]*Quench)
-	// Async Events (Disconn, ECONN, DropWarn, Protocol failures etc)
+	// Async Events (Disconn, ECONN, DropWarn, Protocol, ConfConn etc)
 	client.Notifications = make(chan Packet)
+	client.confConn = make(chan bool)
 
 	return client
 }
@@ -181,7 +183,6 @@ func (client *Client) Connect() (err error) {
 	pkt.KeysNfn = client.KeysNfn
 	pkt.KeysSub = client.KeysSub
 	client.mu.Unlock()
-
 	writeBuf := new(bytes.Buffer)
 	pkt.Encode(writeBuf)
 	client.writeChannel <- writeBuf
@@ -253,6 +254,25 @@ func (client *Client) Disconnect() (err error) {
 	}
 
 	return err
+}
+
+// Test the connection
+func (client *Client) TestConn() (err error) {
+	if client.State() != StateConnected {
+		return LocalError(ErrorsClientNotConnected)
+	}
+
+	pkt := new(TestConn)
+	writeBuf := new(bytes.Buffer)
+	pkt.Encode(writeBuf)
+	client.writeChannel <- writeBuf
+	select {
+	case <-client.confConn:
+		return nil
+	case <-time.After(TestConnTimeout):
+		return LocalError(ErrorsTimeout)
+	}
+
 }
 
 // Send a notification
