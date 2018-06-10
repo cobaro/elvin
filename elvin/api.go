@@ -177,8 +177,8 @@ func (client *Client) Connect() (err error) {
 	pkt := new(ConnRequest)
 	pkt.XID = XID()
 	client.connXID = pkt.XID
-	pkt.VersionMajor = 4
-	pkt.VersionMinor = 1
+	pkt.VersionMajor = ProtocolVersionMajor()
+	pkt.VersionMinor = ProtocolVersionMinor()
 	pkt.Options = client.Options
 	pkt.KeysNfn = client.KeysNfn
 	pkt.KeysSub = client.KeysSub
