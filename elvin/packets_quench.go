@@ -29,6 +29,7 @@ type SubAST struct {
 	dummy int
 }
 
+// Packet: QuenchAddRequest
 type QuenchAddRequest struct {
 	XID             uint32
 	Names           map[string]bool
@@ -36,14 +37,17 @@ type QuenchAddRequest struct {
 	Keys            []Keyset
 }
 
+// Integer value of packet type
 func (pkt *QuenchAddRequest) ID() int {
 	return PacketQuenchAddRequest
 }
 
+// Integer value of packet type
 func (pkt *QuenchAddRequest) IDString() string {
 	return "QuenchAddRequest"
 }
 
+// Pretty print with indent
 func (pkt *QuenchAddRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
@@ -56,10 +60,12 @@ func (pkt *QuenchAddRequest) IString(indent string) string {
 		indent, pkt.Keys)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *QuenchAddRequest) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *QuenchAddRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -101,6 +107,7 @@ func (pkt *QuenchAddRequest) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *QuenchAddRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
@@ -115,6 +122,7 @@ func (pkt *QuenchAddRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
+// Packet: QuenchModRequest
 type QuenchModRequest struct {
 	XID             uint32
 	QuenchID        int64
@@ -125,14 +133,17 @@ type QuenchModRequest struct {
 	DelKeys         []Keyset
 }
 
+// Integer value of packet type
 func (pkt *QuenchModRequest) ID() int {
 	return PacketQuenchModRequest
 }
 
+// Integer value of packet type
 func (pkt *QuenchModRequest) IDString() string {
 	return "QuenchModRequest"
 }
 
+// Pretty print with indent
 func (pkt *QuenchModRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
@@ -151,10 +162,12 @@ func (pkt *QuenchModRequest) IString(indent string) string {
 		indent, pkt.DelKeys)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *QuenchModRequest) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *QuenchModRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -224,6 +237,7 @@ func (pkt *QuenchModRequest) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *QuenchModRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
@@ -244,19 +258,23 @@ func (pkt *QuenchModRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
+// Packet: QuenchDelRequest
 type QuenchDelRequest struct {
 	XID      uint32
 	QuenchID int64
 }
 
+// Integer value of packet type
 func (pkt *QuenchDelRequest) ID() int {
 	return PacketQuenchDelRequest
 }
 
+// Integer value of packet type
 func (pkt *QuenchDelRequest) IDString() string {
 	return "QuenchDelRequest"
 }
 
+// Pretty print with indent
 func (pkt *QuenchDelRequest) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
@@ -265,10 +283,12 @@ func (pkt *QuenchDelRequest) IString(indent string) string {
 		indent, pkt.QuenchID)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *QuenchDelRequest) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *QuenchDelRequest) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -288,6 +308,7 @@ func (pkt *QuenchDelRequest) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *QuenchDelRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	xID = XID()
 	XdrPutInt32(buffer, int32(pkt.ID()))
@@ -297,19 +318,23 @@ func (pkt *QuenchDelRequest) Encode(buffer *bytes.Buffer) (xID uint32) {
 	return
 }
 
+// Packet: QuenchReply
 type QuenchReply struct {
 	XID      uint32
 	QuenchID int64
 }
 
+// Integer value of packet type
 func (pkt *QuenchReply) ID() int {
 	return PacketQuenchReply
 }
 
+// Integer value of packet type
 func (pkt *QuenchReply) IDString() string {
 	return "QuenchReply"
 }
 
+// Pretty print with indent
 func (pkt *QuenchReply) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sXID: %d\n"+
@@ -318,10 +343,12 @@ func (pkt *QuenchReply) IString(indent string) string {
 		indent, pkt.QuenchID)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *QuenchReply) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *QuenchReply) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -341,12 +368,14 @@ func (pkt *QuenchReply) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *QuenchReply) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
 	XdrPutInt32(buffer, int32(pkt.XID))
 	XdrPutInt64(buffer, pkt.QuenchID)
 }
 
+// Packet: SubAddNotify
 type SubAddNotify struct {
 	SecureQuenchIDs   []int64
 	InsecureQuenchIDs []int64
@@ -354,14 +383,17 @@ type SubAddNotify struct {
 	SubExpr           SubAST
 }
 
+// Integer value of packet type
 func (pkt *SubAddNotify) ID() int {
 	return PacketSubAddNotify
 }
 
+// Integer value of packet type
 func (pkt *SubAddNotify) IDString() string {
 	return "SubAddNotify"
 }
 
+// Pretty print with indent
 func (pkt *SubAddNotify) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sSecureQuenchIDs: %v\n"+
@@ -374,10 +406,12 @@ func (pkt *SubAddNotify) IString(indent string) string {
 		indent, pkt.SubExpr)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *SubAddNotify) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *SubAddNotify) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -422,6 +456,7 @@ func (pkt *SubAddNotify) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *SubAddNotify) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, uint32(len(pkt.SecureQuenchIDs)))
 	for i := 0; i < len(pkt.SecureQuenchIDs); i++ {
@@ -439,6 +474,7 @@ func (pkt *SubAddNotify) Encode(buffer *bytes.Buffer) {
 	// SubExpr
 }
 
+// Packet: SubModNotify
 type SubModNotify struct {
 	SecureQuenchIDs   []int64
 	InsecureQuenchIDs []int64
@@ -446,14 +482,17 @@ type SubModNotify struct {
 	SubExpr           SubAST
 }
 
+// Integer value of packet type
 func (pkt *SubModNotify) ID() int {
 	return PacketSubModNotify
 }
 
+// Integer value of packet type
 func (pkt *SubModNotify) IDString() string {
 	return "SubModNotify"
 }
 
+// Pretty print with indent
 func (pkt *SubModNotify) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sSecureQuenchIDs: %v\n"+
@@ -466,10 +505,12 @@ func (pkt *SubModNotify) IString(indent string) string {
 		indent, pkt.SubExpr)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *SubModNotify) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *SubModNotify) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -514,6 +555,7 @@ func (pkt *SubModNotify) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *SubModNotify) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, uint32(len(pkt.SecureQuenchIDs)))
 	for i := 0; i < len(pkt.SecureQuenchIDs); i++ {
@@ -531,19 +573,23 @@ func (pkt *SubModNotify) Encode(buffer *bytes.Buffer) {
 	// SubExpr
 }
 
+// Packet: SubDelNotify
 type SubDelNotify struct {
 	QuenchIDs []int64
 	TermID    uint64
 }
 
+// Integer value of packet type
 func (pkt *SubDelNotify) ID() int {
 	return PacketSubDelNotify
 }
 
+// Integer value of packet type
 func (pkt *SubDelNotify) IDString() string {
 	return "SubDelNotify"
 }
 
+// Pretty print with indent
 func (pkt *SubDelNotify) IString(indent string) string {
 	return fmt.Sprintf(
 		"%sQuenchIDs: %v\n"+
@@ -552,10 +598,12 @@ func (pkt *SubDelNotify) IString(indent string) string {
 		indent, pkt.TermID)
 }
 
+// Pretty print without indent so generic ToString() works
 func (pkt *SubDelNotify) String() string {
 	return pkt.IString("")
 }
 
+// Decode from a byte array
 func (pkt *SubDelNotify) Decode(bytes []byte) (err error) {
 	var used int
 	offset := 4 // header
@@ -583,6 +631,7 @@ func (pkt *SubDelNotify) Decode(bytes []byte) (err error) {
 	return nil
 }
 
+// Encode from a buffer
 func (pkt *SubDelNotify) Encode(buffer *bytes.Buffer) {
 	XdrPutUint32(buffer, uint32(len(pkt.QuenchIDs)))
 	for i := 0; i < len(pkt.QuenchIDs); i++ {
