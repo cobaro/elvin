@@ -152,19 +152,15 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 }
 
 // Connect this client to it's endpoint
-func (client *Client) Connect() (err error) {
-
-	client.mu.Lock()
-	if client.State() != StateClosed {
-		return LocalError(ErrorsClientIsConnected)
-	}
-	client.SetState(StateConnecting)
-
+// Note this is not thread safe and hence not public
+// Client's should call Unotify() or Connect()
+func (client *Client) open() (err error) {
 	// Establish a socket to the server
 	conn, err := net.Dial("tcp", client.Endpoint)
 	if err != nil {
 		return err
 	}
+	client.SetState(StateOpen)
 
 	client.reader = conn
 	client.writer = conn
@@ -174,6 +170,26 @@ func (client *Client) Connect() (err error) {
 	go client.readHandler()
 	go client.writeHandler()
 
+	return nil
+}
+
+// Connect this client to it's endpoint
+func (client *Client) Connect() (err error) {
+
+	client.mu.Lock()
+
+	switch client.State() {
+	case StateClosed:
+		if err = client.open(); err != nil {
+			return err
+		}
+	case StateOpen:
+		// It's legal to call Unotify() and then Connect()
+	default:
+		return LocalError(ErrorsClientIsConnected)
+	}
+
+	client.SetState(StateConnecting)
 	pkt := new(ConnRequest)
 	pkt.XID = XID()
 	client.connXID = pkt.XID
@@ -183,6 +199,7 @@ func (client *Client) Connect() (err error) {
 	pkt.KeysNfn = client.KeysNfn
 	pkt.KeysSub = client.KeysSub
 	client.mu.Unlock()
+
 	writeBuf := new(bytes.Buffer)
 	pkt.Encode(writeBuf)
 	client.writeChannel <- writeBuf
@@ -283,6 +300,45 @@ func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, ke
 	}
 
 	pkt := new(NotifyEmit)
+	pkt.NameValue = nv
+	pkt.Keys = keys
+	pkt.DeliverInsecure = deliverInsecure
+
+	writeBuf := new(bytes.Buffer)
+	pkt.Encode(writeBuf)
+	client.writeChannel <- writeBuf
+
+	return nil
+}
+
+// Send a notification
+func (client *Client) UNotify(nv map[string]interface{}, deliverInsecure bool, keys []Keyset) (err error) {
+
+	switch client.State() {
+	case StateClosed:
+		if err = client.open(); err != nil {
+			return err
+		}
+	case StateOpen:
+		// legal
+	case StateConnected:
+		// legal
+	case StateConnecting:
+		return LocalError(ErrorsClientConnecting)
+	case StateDisconnecting:
+		return LocalError(ErrorsClientDisconnecting)
+	}
+
+	switch client.State() {
+	case StateConnected:
+		break
+	case StateClosed:
+		return LocalError(ErrorsClientNotConnected)
+	}
+
+	pkt := new(UNotify)
+	pkt.VersionMajor = ProtocolVersionMajor()
+	pkt.VersionMinor = ProtocolVersionMinor()
 	pkt.NameValue = nv
 	pkt.Keys = keys
 	pkt.DeliverInsecure = deliverInsecure

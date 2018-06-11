@@ -30,7 +30,7 @@ const (
 	PacketSvrRequest          = 16
 	PacketSvrAdvt             = 17
 	PacketSvrAdvtClose        = 18
-	PacketUnotify             = 32
+	PacketUNotify             = 32
 	PacketNack                = 48
 	PacketConnRequest         = 49
 	PacketConnReply           = 50
@@ -101,8 +101,8 @@ func PacketIDString(packetID int) string {
 		return "SvrAdvt"
 	case PacketSvrAdvtClose:
 		return "SvrAdvtClose"
-	case PacketUnotify:
-		return "Unotify"
+	case PacketUNotify:
+		return "UNotify"
 	case PacketNack:
 		return "Nack"
 	case PacketConnRequest:

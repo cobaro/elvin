@@ -78,8 +78,10 @@ const (
 	ErrorsMismatchedXIDs                  = 2503
 	ErrorsClientNotConnected              = 2504
 	ErrorsClientIsConnected               = 2505
-	ErrorsProtocolPacketStateNotConnected = 2506
-	ErrorsProtocolPacketStateIsConnected  = 2507
+	ErrorsClientConnecting                = 2506
+	ErrorsClientDisconnecting             = 2507
+	ErrorsProtocolPacketStateNotConnected = 2508
+	ErrorsProtocolPacketStateIsConnected  = 2509
 )
 
 // Provide a map of error code to string Each error string has a

@@ -357,8 +357,8 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		switch elvin.PacketID(buffer) {
 		case elvin.PacketConnRequest:
 			return conn.HandleConnRequest(buffer)
-		case elvin.PacketUnotify:
-			return errors.New("FIXME: Packet Unotify")
+		case elvin.PacketUNotify:
+			return conn.HandleUNotify(buffer)
 		default:
 			return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 		}
@@ -554,8 +554,8 @@ func (conn *Connection) HandleConfConn(buffer []byte) (err error) {
 
 // Handle a NotifyEmit
 func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
-	ne := new(elvin.NotifyEmit)
-	err = ne.Decode(buffer)
+	nfn := new(elvin.NotifyEmit)
+	err = nfn.Decode(buffer)
 
 	// FIXME: NotifyDeliver
 
@@ -565,7 +565,38 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	connections.lock.Lock()
 	defer connections.lock.Unlock()
 	nd := new(elvin.NotifyDeliver)
-	nd.NameValue = ne.NameValue
+	nd.NameValue = nfn.NameValue
+
+	for connid, connection := range connections.connections {
+		if len(connection.subs) > 0 {
+			nd.Insecure = make([]int64, len(connection.subs))
+			i := 0
+			for id, _ := range connection.subs {
+				nd.Insecure[i] = int64(connid)<<32 | int64(id)
+				i++
+			}
+			buf := bufferPool.Get().(*bytes.Buffer)
+			nd.Encode(buf)
+			connection.writeChannel <- buf
+		}
+	}
+	return nil
+}
+
+// Handle a UNotify
+func (conn *Connection) HandleUNotify(buffer []byte) (err error) {
+	nfn := new(elvin.UNotify)
+	err = nfn.Decode(buffer)
+
+	// FIXME: NotifyDeliver
+
+	// As a dummy for now we're going to send every message we see
+	// to every subscription as if all evaluate to true. Don't
+	// worry about the giant lock - this all goes away
+	connections.lock.Lock()
+	defer connections.lock.Unlock()
+	nd := new(elvin.NotifyDeliver)
+	nd.NameValue = nfn.NameValue
 
 	for connid, connection := range connections.connections {
 		if len(connection.subs) > 0 {

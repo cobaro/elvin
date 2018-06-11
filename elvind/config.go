@@ -52,3 +52,15 @@ func LoadConfig(configFile string) (config *Configuration, err error) {
 	err = decoder.Decode(&configuration)
 	return &configuration, err
 }
+
+func TestConfig() (config *Configuration) {
+    config = new(Configuration)
+
+    config.Protocols = []Protocol{Protocol{"tcp", "xdr", "localhost:3917"}}
+    config.DoFailover = false
+    config.MaxConnections = 64
+    config.TestConnInterval = 0
+    config.TestConnTimeout = 10
+
+    return config
+}

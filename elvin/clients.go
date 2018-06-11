@@ -41,6 +41,7 @@ var xID uint32 = 0
 // Client connection states used for sanity and to enforce protocol rules
 const (
 	StateClosed = iota
+	StateOpen
 	StateConnecting
 	StateConnected
 	StateDisconnecting

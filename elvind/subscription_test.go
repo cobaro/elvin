@@ -22,7 +22,7 @@ package main
 
 import (
 	"bytes"
-	"github.com/cobaro/elvin/elvin"
+	_ "github.com/cobaro/elvin/elvin"
 	"io"
 	"sync/atomic"
 	"testing"
@@ -36,6 +36,7 @@ func XID() uint32 {
 }
 
 func TestMockup(t *testing.T) {
+    config = TestConfig()
 
 	// Create a dummy connection using pipes, assigning roles for
 	// reader,writer, and closer
@@ -46,7 +47,8 @@ func TestMockup(t *testing.T) {
 	//
 	// closer needs to be assigned from the return from io.Pipe()
 	// return although we could use a CloseReader
-	var server, client Connection
+	var client, server Connection
+	//var client elvin.Client
 	cr, sw := io.Pipe()
 	sr, cw := io.Pipe()
 	client.reader = cr
@@ -71,17 +73,11 @@ func TestMockup(t *testing.T) {
 	go client.readHandler()  // Bogus
 	go client.writeHandler() // Bogus
 
-	// Make a ConnRequest and feed it to the client's writer
-	pkt := new(elvin.ConnRequest)
-	pkt.XID = XID()
-	pkt.VersionMajor = 4
-	pkt.VersionMinor = 4
-
-	writeBuf := new(bytes.Buffer)
-	pkt.Encode(writeBuf)
-	client.writeChannel <- writeBuf
+	// if err := client.Connect(); err != nil {
+		// t.Errorf("Connect failed: %v", err)
+    // }
 
 	// And bail for now
-	time.Sleep(1000 * 1000 * 1000 * 1)
+	time.Sleep(1000 * 1000 * 100 * 1)
 
 }

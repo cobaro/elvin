@@ -58,7 +58,8 @@ func (pkt *NotifyEmit) String() string {
 // Decode a NotifyEmit packet from a byte array
 func (pkt *NotifyEmit) Decode(bytes []byte) (err error) {
 	var used int
-	offset := 4
+	offset := 4 // header
+
 	if pkt.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
 		return err
 	}
@@ -82,6 +83,85 @@ func (pkt *NotifyEmit) Decode(bytes []byte) (err error) {
 // Encode a NotifyEmit from a buffer
 func (pkt *NotifyEmit) Encode(buffer *bytes.Buffer) {
 	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutNotification(buffer, pkt.NameValue)
+	XdrPutBool(buffer, pkt.DeliverInsecure)
+	XdrPutKeys(buffer, pkt.Keys)
+}
+
+// Packet: UNotify
+type UNotify struct {
+	VersionMajor    uint32
+	VersionMinor    uint32
+	NameValue       map[string]interface{}
+	DeliverInsecure bool
+	Keys            []Keyset
+}
+
+// Integer value of packet type
+func (pkt *UNotify) ID() int {
+	return PacketUNotify
+}
+
+// String representation of packet type
+func (pkt *UNotify) IDString() string {
+	return "UNotify"
+}
+
+// Pretty print with indent
+func (pkt *UNotify) IString(indent string) string {
+	return fmt.Sprintf("%sNameValue %v\n%sDeliverInsecure %v\n%sKeys %v\n",
+		indent, pkt.NameValue,
+		indent, pkt.DeliverInsecure,
+		indent, pkt.Keys)
+}
+
+// Pretty print without indent so generic ToString() works
+func (pkt *UNotify) String() string {
+	return pkt.IString("")
+}
+
+// Decode a UNotify packet from a byte array
+func (pkt *UNotify) Decode(bytes []byte) (err error) {
+	var used int
+	offset := 4 // header
+
+	pkt.VersionMajor, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
+	offset += used
+
+	pkt.VersionMinor, used, err = XdrGetUint32(bytes[offset:])
+	if err != nil {
+		return err
+	}
+	offset += used
+
+	if pkt.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
+		return err
+	}
+	offset += used
+
+	pkt.DeliverInsecure, used, err = XdrGetBool(bytes[offset:])
+	if err != nil {
+		return err
+	}
+	offset += used
+
+	if pkt.Keys, used, err = XdrGetKeys(bytes[offset:]); err != nil {
+		return err
+	}
+	offset += used
+
+	// FIXME: at some point we will want to return how many bytes we consumed
+	return nil
+}
+
+// Encode a UNotify from a buffer
+func (pkt *UNotify) Encode(buffer *bytes.Buffer) {
+	XdrPutInt32(buffer, int32(pkt.ID()))
+	XdrPutUint32(buffer, pkt.VersionMajor)
+	XdrPutUint32(buffer, pkt.VersionMinor)
 	XdrPutNotification(buffer, pkt.NameValue)
 	XdrPutBool(buffer, pkt.DeliverInsecure)
 	XdrPutKeys(buffer, pkt.Keys)
@@ -121,7 +201,8 @@ func (pkt *NotifyDeliver) String() string {
 // Decode a NotifyDeliver packet from a byte array
 func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	var used int
-	offset := 4
+	offset := 4 // header
+
 	if pkt.NameValue, used, err = XdrGetNotification(bytes[offset:]); err != nil {
 		return err
 	}

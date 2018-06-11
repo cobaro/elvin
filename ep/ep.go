@@ -37,6 +37,7 @@ type arguments struct {
 	help     bool
 	endpoint string
 	number   int
+	unotify  bool
 }
 
 func main() {
@@ -45,13 +46,20 @@ func main() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
 
+	var notify func(map[string]interface{}, bool, []elvin.Keyset) error
+
 	ep := elvin.NewClient(args.endpoint, nil, nil, nil)
 
-	if err := ep.Connect(); err != nil {
-		log.Printf("%v", err)
-		os.Exit(1)
+	if !args.unotify {
+		if err := ep.Connect(); err != nil {
+			log.Printf("%v", err)
+			os.Exit(1)
+		}
+		log.Printf("connected to %s", args.endpoint)
+		notify = ep.Notify
+	} else {
+		notify = ep.UNotify
 	}
-	log.Printf("connected to %s", args.endpoint)
 
 	// Set up our notitfication reader
 	notifications := make(chan map[string]interface{})
@@ -65,7 +73,7 @@ Loop:
 				// log.Printf("read %+v", notification)
 
 				for i := 0; i < args.number; i++ {
-					if err := ep.Notify(notification, true, nil); err != nil {
+					if err := notify(notification, true, nil); err != nil {
 						log.Printf("Notify failed")
 					}
 				}
@@ -79,20 +87,23 @@ Loop:
 		}
 	}
 
-	if err := ep.Disconnect(); err != nil {
-		log.Printf("%v", err)
-		os.Exit(1)
+	if !args.unotify {
+		if err := ep.Disconnect(); err != nil {
+			log.Printf("%v", err)
+			os.Exit(1)
+		}
+		log.Printf("Disconnected")
 	}
-	log.Printf("Disconnected")
 
 	os.Exit(0)
 }
 
 // Argument parsing
 func flags() (args arguments) {
-	flag.BoolVar(&args.help, "h", false, "Print this help")
+	flag.BoolVar(&args.help, "h", false, "prints this help")
 	flag.StringVar(&args.endpoint, "e", "localhost:2917", "host:port of router")
 	flag.IntVar(&args.number, "n", 1, "number of notifications to send")
+	flag.BoolVar(&args.unotify, "unotify", false, "send using UNotify")
 	flag.Parse()
 
 	if args.help {
