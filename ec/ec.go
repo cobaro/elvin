@@ -30,10 +30,6 @@ import (
 	"time"
 )
 
-// Handle Disconnects stub
-func disconnector(client *elvin.Client) {
-}
-
 type arguments struct {
 	help     bool
 	endpoint string
@@ -135,4 +131,59 @@ func flags() (args arguments) {
 	}
 
 	return args
+}
+
+func disconnector(client *elvin.Client) {
+	for {
+		select {
+		case event := <-client.Notifications:
+			switch event.(type) {
+			case *elvin.Disconn:
+				disconn := event.(*elvin.Disconn)
+				log.Printf("Received Disconn:\n%v", disconn)
+				switch disconn.Reason {
+
+				case elvin.DisconnReasonRouterShuttingDown:
+					log.Printf("router shutting down, exiting")
+					os.Exit(1)
+
+				case elvin.DisconnReasonRouterProtocolErrors:
+					log.Printf("router thinks we violated the protocol")
+					os.Exit(1)
+
+				case elvin.DisconnReasonRouterRedirect:
+					if len(disconn.Args) > 0 {
+						log.Printf("redirected to %s", disconn.Args)
+						// FIXME: tidy this
+						client.Endpoint = disconn.Args
+						client.Close()
+						// log.Printf("disconnector State(%d)", client.State())
+						if err := client.Connect(); err != nil {
+							log.Printf("%v", err)
+							os.Exit(1)
+						}
+						log.Printf("connected to %s", client.Endpoint)
+					} else {
+						log.Printf("redirected to %s", disconn.Args)
+					}
+					break
+
+				case elvin.DisconnReasonClientConnectionLost:
+					log.Printf("FIXME: connection lost")
+					os.Exit(1)
+
+				case elvin.DisconnReasonClientProtocolErrors:
+					log.Printf("client library detected protocol errors")
+					os.Exit(1)
+				}
+			case *elvin.DropWarn:
+				log.Printf("DropWarn (lost packets)")
+
+			default:
+				log.Printf("FIXME: bad connection notification")
+				os.Exit(1)
+
+			}
+		}
+	}
 }
