@@ -177,6 +177,7 @@ func (client *Client) open() (err error) {
 func (client *Client) Connect() (err error) {
 
 	client.mu.Lock()
+	log.Printf("connect:%s", client.Endpoint)
 
 	switch client.State() {
 	case StateClosed:

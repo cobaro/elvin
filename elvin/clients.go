@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"sync/atomic"
 )
 
@@ -249,14 +250,62 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 	return LocalError(ErrorsBadPacketType, PacketIDString(PacketID(buffer)))
 }
 
+// This function is called by the library if the client has not
+// registered for the notification channel. It provides an example
+// of what event types can occur and some default behaviour
+func (client *Client) DefaultNotificationHandler(event Packet) {
+	switch event.(type) {
+	case *Disconn:
+		disconn := event.(*Disconn)
+		log.Printf("Received Disconn:\n%v", disconn)
+		switch disconn.Reason {
+
+		case DisconnReasonRouterShuttingDown:
+			log.Printf("router shutting down, exiting")
+			os.Exit(1)
+
+		case DisconnReasonRouterProtocolErrors:
+			log.Printf("router detected protocol violation")
+			os.Exit(1)
+
+		case DisconnReasonRouterRedirect:
+			if len(disconn.Args) > 0 {
+				log.Printf("redirected to %s", disconn.Args)
+				client.Endpoint = disconn.Args
+				client.Close()
+				if err := client.Connect(); err != nil {
+					log.Printf("%v", err)
+					os.Exit(1)
+				}
+				log.Printf("connected to %s", client.Endpoint)
+			} else {
+				log.Printf("Disconn to nowhere")
+				os.Exit(1)
+			}
+			break
+
+		case DisconnReasonClientConnectionLost:
+			log.Printf("FIXME: connection lost. Implement backoff")
+			os.Exit(1)
+
+		case DisconnReasonClientProtocolErrors:
+			log.Printf("client library detected protocol errors")
+			os.Exit(1)
+		}
+	case *DropWarn:
+		log.Printf("DropWarn (lost one or more packets)")
+
+	default:
+		log.Printf("FIXME: bad connection notification")
+		os.Exit(1)
+	}
+}
+
 // On a protocol error we want to alert the client and reset the connection
 func (client *Client) ProtocolError(err error) {
 
 	// Log
 	log.Println(err)
-
-	// Kill the connection and clean up
-	client.Close()
 
 	// Tell the client (if they are listening)
 	disconn := new(Disconn)
@@ -264,8 +313,8 @@ func (client *Client) ProtocolError(err error) {
 	select {
 	case client.Notifications <- disconn:
 	default:
+		go client.DefaultNotificationHandler(disconn)
 	}
-
 }
 
 // Handle a Connection Reply
@@ -309,8 +358,7 @@ func (client *Client) HandleDisconn(buffer []byte) (err error) {
 	select {
 	case client.Notifications <- disconn:
 	default:
-		// Reset the client
-		client.Close()
+		go client.DefaultNotificationHandler(disconn)
 	}
 
 	return nil
@@ -326,6 +374,7 @@ func (client *Client) HandleDropWarn(buffer []byte) (err error) {
 	select {
 	case client.Notifications <- dropWarn:
 	default:
+		go client.DefaultNotificationHandler(dropWarn)
 	}
 
 	return nil

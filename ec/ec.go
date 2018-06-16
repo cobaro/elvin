@@ -42,7 +42,8 @@ func main() {
 	flag.Parse()
 
 	ec := elvin.NewClient(args.endpoint, nil, nil, nil)
-	go disconnector(ec)
+	// Using default disconnector for now
+	// go disconnector(ec)
 
 	ec.Options = make(map[string]interface{})
 	// FIXME: At some point let's formalize these as test cases
