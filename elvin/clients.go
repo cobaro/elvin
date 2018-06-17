@@ -139,7 +139,7 @@ func (client *Client) readHandler() {
 		disconn := new(Disconn)
 		disconn.Reason = DisconnReasonClientConnectionLost
 		select {
-		case client.Notifications <- disconn:
+		case client.Events <- disconn:
 		default:
 		}
 	}
@@ -253,7 +253,7 @@ func (client *Client) HandlePacket(buffer []byte) (err error) {
 // This function is called by the library if the client has not
 // registered for the notification channel. It provides an example
 // of what event types can occur and some default behaviour
-func (client *Client) DefaultNotificationHandler(event Packet) {
+func (client *Client) ConnectionEventsDefault(event Packet) {
 	switch event.(type) {
 	case *Disconn:
 		disconn := event.(*Disconn)
@@ -311,9 +311,9 @@ func (client *Client) ProtocolError(err error) {
 	disconn := new(Disconn)
 	disconn.Reason = DisconnReasonClientConnectionLost
 	select {
-	case client.Notifications <- disconn:
+	case client.Events <- disconn:
 	default:
-		go client.DefaultNotificationHandler(disconn)
+		go client.ConnectionEventsDefault(disconn)
 	}
 }
 
@@ -356,9 +356,9 @@ func (client *Client) HandleDisconn(buffer []byte) (err error) {
 	// Signal the disconect
 	// If a client library isn't listening we just close the client
 	select {
-	case client.Notifications <- disconn:
+	case client.Events <- disconn:
 	default:
-		go client.DefaultNotificationHandler(disconn)
+		go client.ConnectionEventsDefault(disconn)
 	}
 
 	return nil
@@ -372,9 +372,9 @@ func (client *Client) HandleDropWarn(buffer []byte) (err error) {
 	// Signal the DropWarn
 	// If a client library isn't listening we ignore it
 	select {
-	case client.Notifications <- dropWarn:
+	case client.Events <- dropWarn:
 	default:
-		go client.DefaultNotificationHandler(dropWarn)
+		go client.ConnectionEventsDefault(dropWarn)
 	}
 
 	return nil

@@ -137,7 +137,7 @@ func flags() (args arguments) {
 func disconnector(client *elvin.Client) {
 	for {
 		select {
-		case event := <-client.Notifications:
+		case event := <-client.Events:
 			switch event.(type) {
 			case *elvin.Disconn:
 				disconn := event.(*elvin.Disconn)

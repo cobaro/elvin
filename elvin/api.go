@@ -38,11 +38,11 @@ import (
 //      client.Disonnect()
 // See individual methods for details
 type Client struct {
-	Endpoint      string                 // Router descriptor
-	Options       map[string]interface{} // Router options
-	KeysNfn       []Keyset               // Connections keys for outgoing notifications
-	KeysSub       []Keyset               // Connections keys for incoming notifications
-	Notifications chan Packet            // Clients may listen here for events
+	Endpoint string                 // Router descriptor
+	Options  map[string]interface{} // Router options
+	KeysNfn  []Keyset               // Connections keys for outgoing notifications
+	KeysSub  []Keyset               // Connections keys for incoming notifications
+	Events   chan Packet            // Clients may listen here for connectionq events
 
 	// Private
 	reader         io.Reader
@@ -145,7 +145,7 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset
 	client.subReplies = make(map[uint32]*Subscription)
 	client.quenchReplies = make(map[uint32]*Quench)
 	// Async Events (Disconn, ECONN, DropWarn, Protocol, ConfConn etc)
-	client.Notifications = make(chan Packet)
+	client.Events = make(chan Packet)
 	client.confConn = make(chan bool)
 
 	return client
