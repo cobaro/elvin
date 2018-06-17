@@ -177,16 +177,18 @@ func (client *Client) open() (err error) {
 func (client *Client) Connect() (err error) {
 
 	client.mu.Lock()
-	log.Printf("connect:%s", client.Endpoint)
+	// log.Printf("connect:%s, %d", client.Endpoint, client.State())
 
 	switch client.State() {
 	case StateClosed:
 		if err = client.open(); err != nil {
+			client.mu.Unlock()
 			return err
 		}
 	case StateOpen:
 		// It's legal to call Unotify() and then Connect()
 	default:
+		client.mu.Unlock()
 		return LocalError(ErrorsClientIsConnected)
 	}
 

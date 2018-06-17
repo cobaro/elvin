@@ -26,6 +26,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 )
 
 // Handle Disconnects stub
@@ -36,7 +37,7 @@ func disconnector(client *elvin.Client) {
 			switch event.(type) {
 			case *elvin.Disconn:
 				disconn := event.(*elvin.Disconn)
-				log.Printf("Received Disconn:\n%v", disconn)
+				// log.Printf("Received Disconn:\n%v", disconn)
 				switch disconn.Reason {
 
 				case elvin.DisconnReasonRouterShuttingDown:
@@ -65,8 +66,12 @@ func disconnector(client *elvin.Client) {
 					break
 
 				case elvin.DisconnReasonClientConnectionLost:
-					log.Printf("FIXME: connection lost")
-					os.Exit(1)
+					log.Printf("Lost connection. Reconnecting")
+					if err := client.DefaultReconnect(0, time.Duration(0), time.Duration(time.Minute)); err != nil {
+						log.Printf("Reconnect failed")
+					} else {
+						log.Printf("Reconnected")
+					}
 
 				case elvin.DisconnReasonClientProtocolErrors:
 					log.Printf("client library detected protocol errors")

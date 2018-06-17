@@ -27,8 +27,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"sync/atomic"
+	"time"
 )
 
 // Transaction IDs on packets
@@ -141,6 +143,7 @@ func (client *Client) readHandler() {
 		select {
 		case client.Events <- disconn:
 		default:
+			go client.ConnectionEventsDefault(disconn)
 		}
 	}
 
@@ -285,8 +288,12 @@ func (client *Client) ConnectionEventsDefault(event Packet) {
 			break
 
 		case DisconnReasonClientConnectionLost:
-			log.Printf("FIXME: connection lost. Implement backoff")
-			os.Exit(1)
+			log.Printf("Lost connection to %s, reconnecting", client.Endpoint)
+			if err := client.DefaultReconnect(10, time.Duration(0), time.Minute*2); err != nil {
+				log.Printf("Giving up reconnecting")
+				os.Exit(1)
+			}
+			log.Printf("reconnected")
 
 		case DisconnReasonClientProtocolErrors:
 			log.Printf("client library detected protocol errors")
@@ -298,6 +305,56 @@ func (client *Client) ConnectionEventsDefault(event Packet) {
 	default:
 		log.Printf("FIXME: bad connection notification")
 		os.Exit(1)
+	}
+}
+
+// The default behaviour for reconnection handling.
+// Will retry forever if retries is 0.
+func (client *Client) DefaultReconnect(retries int, minWait time.Duration, maxWait time.Duration) (err error) {
+
+	// Add up to 50ms randomness to initial backoff
+	wait := minWait + time.Duration(rand.Intn(50))*time.Millisecond
+
+	for {
+		// log.Printf("sleep for %v", wait)
+		time.Sleep(wait)
+		err = client.Connect()
+		if err == nil {
+			// We connected, so resubscribe, requench
+			// If anything fails here we cleanup
+			subs := client.subscriptions
+			client.subscriptions = make(map[int64]*Subscription)
+			for _, sub := range subs {
+				if err = client.Subscribe(sub); err != nil {
+					client.subscriptions = subs
+					client.Disconnect()
+					return
+				}
+			}
+			// We connected, so resubscribe, requench
+			// If anything fails here we cleanup
+			quenches := client.quenches
+			client.quenches = make(map[int64]*Quench)
+			for _, quench := range quenches {
+				if err = client.Quench(quench); err != nil {
+					client.quenches = quenches
+					client.Disconnect()
+					return
+				}
+			}
+			return
+		}
+
+		// If retries is zero we loop effectively forever
+		retries--
+		if retries == 0 {
+			return
+		}
+
+		wait *= 4
+		if wait > maxWait {
+			wait = maxWait
+		}
 	}
 }
 
@@ -597,4 +654,9 @@ func (client *Client) HandleSubDelNotify(buffer []byte) (err error) {
 		}
 	}
 	return nil
+}
+
+// Seed the random number generator
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
 }
