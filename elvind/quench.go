@@ -28,6 +28,6 @@ import (
 type Quench struct {
 	QuenchID        int64
 	DeliverInsecure bool
-	Keys            []elvin.Keyset
+	Keys            elvin.KeyBlock
 	Names           map[string]bool // easy insert/delete, values irrelevant
 }

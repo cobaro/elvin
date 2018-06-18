@@ -30,7 +30,7 @@ type SubAddRequest struct {
 	XID            uint32
 	Expression     string
 	AcceptInsecure bool
-	Keys           []Keyset
+	Keys           KeyBlock
 }
 
 // Integer value of packet type
@@ -222,8 +222,8 @@ type SubModRequest struct {
 	SubID          int64
 	Expression     string
 	AcceptInsecure bool
-	AddKeys        []Keyset
-	DelKeys        []Keyset
+	AddKeys        KeyBlock
+	DelKeys        KeyBlock
 }
 
 // Integer value of packet type

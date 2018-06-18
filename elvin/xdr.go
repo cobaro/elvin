@@ -373,37 +373,34 @@ func XdrPutValues(buffer *bytes.Buffer, values []interface{}) {
 }
 
 // Get an xdr marshalled keyset list
-func XdrGetKeys(bytes []byte) (kl []Keyset, used int, err error) {
+func XdrGetKeys(bytes []byte) (keyBlock KeyBlock, used int, err error) {
 	offset := 0
 
-	// Number of keylists
-	listCount, used, err := XdrGetInt32(bytes[offset:])
+	// Number of keysetlists
+	kslCount, used, err := XdrGetInt32(bytes[offset:])
 	if err != nil {
 		return nil, 0, err
 	}
 	offset += used
-	keylists := make([]Keyset, listCount)
+	keyBlock = make(map[int]KeySetList)
 
-	for i := int32(0); i < listCount; i++ {
-		// Key scheme
-		keylists[i].KeyScheme, used, err = XdrGetInt32(bytes[offset:])
-		if err != nil {
-			return nil, 0, err
-		}
-
-		offset += used
-
-		// Number of sets
-		setCount, used, err := XdrGetInt32(bytes[offset:])
+	for i := 0; i < int(kslCount); i++ {
+		// KeySetList
+		scheme, used, err := XdrGetInt32(bytes[offset:])
 		if err != nil {
 			return nil, 0, err
 		}
 		offset += used
 
-		keylists[i].Keysets = make([][]byte, setCount)
+		ksCount, used, err := XdrGetInt32(bytes[offset:])
+		if err != nil {
+			return nil, 0, err
+		}
+		offset += used
 
-		// fmt.Println("want", setCount, "sets from", bytes[offset:], keylists)
-		for j := int32(0); j < setCount; j++ {
+		keyBlock[int(scheme)] = make([]KeySet, ksCount)
+
+		for j := 0; j < int(ksCount); j++ {
 			// Number of keys
 			keyCount, used, err := XdrGetInt32(bytes[offset:])
 			if err != nil {
@@ -411,41 +408,40 @@ func XdrGetKeys(bytes []byte) (kl []Keyset, used int, err error) {
 			}
 			offset += used
 
-			for k := int32(0); k < keyCount; k++ {
-				keylists[i].Keysets[j], used, err = XdrGetOpaque(bytes[offset:])
+			// And finally the keys
+			for k := 0; k < int(keyCount); k++ {
+				key, used, err := XdrGetOpaque(bytes[offset:])
 				if err != nil {
 					return nil, 0, err
 				}
 				offset += used
+				keyBlock[int(scheme)][j] = append(keyBlock[int(scheme)][j], key)
 			}
 		}
 	}
-	return keylists, offset, nil
+	return keyBlock, offset, nil
 }
 
 // Put an xdr marshalled keyset list
-func XdrPutKeys(buffer *bytes.Buffer, kl []Keyset) (err error) {
-	//fmt.Println("keylist:", kl)
-
-	// Number of keylists
-	XdrPutInt32(buffer, int32(len(kl)))
-	for i := 0; i < len(kl); i++ {
+func XdrPutKeys(buffer *bytes.Buffer, keyBlock KeyBlock) (err error) {
+	// Number of KeySetLists
+	XdrPutInt32(buffer, int32(len(keyBlock)))
+	for scheme, ksl := range keyBlock {
 		// The scheme
-		XdrPutInt32(buffer, kl[i].KeyScheme)
+		XdrPutInt32(buffer, int32(scheme))
 
-		// Number of keysets
-		// fmt.Println("keysets:", len(kl[i].Keysets))
-		XdrPutInt32(buffer, int32(len(kl[i].Keysets)))
+		// Number of keysets for this scheme
+		XdrPutInt32(buffer, int32(len(ksl)))
 
-		// Each keyset
-		for j := 0; j < len(kl[i].Keysets); j++ {
-			// Number of keys
-			XdrPutInt32(buffer, int32(len(kl[i].Keysets[j])))
+		// Each KeySetList
+		for i := 0; i < len(ksl); i++ {
+			// Number of keys in KeySet
+			XdrPutInt32(buffer, int32(len(ksl[i])))
 			// The keys
-			for k := 0; k < len(kl[i].Keysets[j]); k++ {
-				XdrPutOpaque(buffer, kl[i].Keysets[j])
+			for j := 0; j < len(ksl[i]); j++ {
+				XdrPutOpaque(buffer, ksl[i][j])
 			}
 		}
 	}
-	return nil // FIXME: things can go wrong here
+	return nil
 }

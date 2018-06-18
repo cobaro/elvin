@@ -44,8 +44,8 @@ type ConnRequest struct {
 	VersionMajor uint32
 	VersionMinor uint32
 	Options      map[string]interface{}
-	KeysNfn      []Keyset
-	KeysSub      []Keyset
+	KeysNfn      KeyBlock
+	KeysSub      KeyBlock
 }
 
 // Integer value of packet type

@@ -46,7 +46,7 @@ func main() {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
 
-	var notify func(map[string]interface{}, bool, []elvin.Keyset) error
+	var notify func(map[string]interface{}, bool, elvin.KeyBlock) error
 
 	ep := elvin.NewClient(args.endpoint, nil, nil, nil)
 

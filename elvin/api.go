@@ -40,8 +40,8 @@ import (
 type Client struct {
 	Endpoint string                 // Router descriptor
 	Options  map[string]interface{} // Router options
-	KeysNfn  []Keyset               // Connections keys for outgoing notifications
-	KeysSub  []Keyset               // Connections keys for incoming notifications
+	KeysNfn  KeyBlock               // Connections keys for outgoing notifications
+	KeysSub  KeyBlock               // Connections keys for incoming notifications
 	Events   chan Packet            // Clients may listen here for connectionq events
 
 	// Private
@@ -78,19 +78,19 @@ type Client struct {
 type Subscription struct {
 	Expression     string                      // Subscription Expression
 	AcceptInsecure bool                        // Do we accept notifications with no security keys
-	Keys           []Keyset                    // Keys for this subscriptions
+	Keys           KeyBlock                    // Keys for this subscriptions
 	Notifications  chan map[string]interface{} // Notifications delivered on this channel
 
 	subID  int64       // private id
 	events chan Packet // synchronous replies
 }
 
-func (sub *Subscription) addKeys(keys []Keyset) {
+func (sub *Subscription) addKeys(keys KeyBlock) {
 	// FIXME: implement
 	return
 }
 
-func (sub *Subscription) delKeys(keys []Keyset) {
+func (sub *Subscription) delKeys(keys KeyBlock) {
 	// FIXME: implement
 	return
 }
@@ -104,18 +104,18 @@ type QuenchNotification struct {
 type Quench struct {
 	Names           map[string]bool         // Quench terms
 	DeliverInsecure bool                    // Deliver with no security keys?
-	Keys            []Keyset                // Keys for this quench
+	Keys            KeyBlock                // Keys for this quench
 	Notifications   chan QuenchNotification // Sub{Add|Del|Mod}Notify delivers
 	quenchID        int64                   // private id
 	events          chan Packet             // synchronous replies
 }
 
-func (quench *Quench) addKeys(keys []Keyset) {
+func (quench *Quench) addKeys(keys KeyBlock) {
 	// FIXME: implement
 	return
 }
 
-func (quench *Quench) delKeys(keys []Keyset) {
+func (quench *Quench) delKeys(keys KeyBlock) {
 	// FIXME: implement
 	return
 }
@@ -129,7 +129,7 @@ const TestConnTimeout = (10 * time.Second)
 
 // Create a new client.
 // Using new(Client) will not result in proper initialization
-func NewClient(endpoint string, options map[string]interface{}, keysNfn []Keyset, keysSub []Keyset) (conn *Client) {
+func NewClient(endpoint string, options map[string]interface{}, keysNfn KeyBlock, keysSub KeyBlock) (conn *Client) {
 	client := new(Client)
 	client.Endpoint = endpoint
 	client.Options = options
@@ -296,7 +296,7 @@ func (client *Client) TestConn() (err error) {
 }
 
 // Send a notification
-func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, keys []Keyset) (err error) {
+func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, keys KeyBlock) (err error) {
 
 	if client.State() != StateConnected {
 		return LocalError(ErrorsClientNotConnected)
@@ -315,7 +315,7 @@ func (client *Client) Notify(nv map[string]interface{}, deliverInsecure bool, ke
 }
 
 // Send a notification
-func (client *Client) UNotify(nv map[string]interface{}, deliverInsecure bool, keys []Keyset) (err error) {
+func (client *Client) UNotify(nv map[string]interface{}, deliverInsecure bool, keys KeyBlock) (err error) {
 
 	switch client.State() {
 	case StateClosed:
@@ -410,7 +410,7 @@ func (client *Client) Subscribe(sub *Subscription) (err error) {
 // Similarly the keysets to add and delete may be empty. It is not an
 // error if the added keys already exist or to delete keys that do not
 // already exist
-func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptInsecure bool, AddKeys []Keyset, DelKeys []Keyset) (err error) {
+func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptInsecure bool, AddKeys KeyBlock, DelKeys KeyBlock) (err error) {
 
 	if client.State() != StateConnected {
 		return LocalError(ErrorsClientNotConnected)
@@ -572,7 +572,7 @@ func (client *Client) Quench(quench *Quench) (err error) {
 }
 
 // Modify a Quench
-func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, delNames map[string]bool, deliverInsecure bool, addKeys []Keyset, delKeys []Keyset) (err error) {
+func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, delNames map[string]bool, deliverInsecure bool, addKeys KeyBlock, delKeys KeyBlock) (err error) {
 
 	if client.State() != StateConnected {
 		return LocalError(ErrorsClientNotConnected)

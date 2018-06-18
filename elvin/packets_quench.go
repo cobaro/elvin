@@ -34,7 +34,7 @@ type QuenchAddRequest struct {
 	XID             uint32
 	Names           map[string]bool
 	DeliverInsecure bool
-	Keys            []Keyset
+	Keys            KeyBlock
 }
 
 // Integer value of packet type
@@ -129,8 +129,8 @@ type QuenchModRequest struct {
 	AddNames        map[string]bool
 	DelNames        map[string]bool
 	DeliverInsecure bool
-	AddKeys         []Keyset
-	DelKeys         []Keyset
+	AddKeys         KeyBlock
+	DelKeys         KeyBlock
 }
 
 // Integer value of packet type

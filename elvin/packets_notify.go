@@ -29,7 +29,7 @@ import (
 type NotifyEmit struct {
 	NameValue       map[string]interface{}
 	DeliverInsecure bool
-	Keys            []Keyset
+	Keys            KeyBlock
 }
 
 // Integer value of packet type
@@ -94,7 +94,7 @@ type UNotify struct {
 	VersionMinor    uint32
 	NameValue       map[string]interface{}
 	DeliverInsecure bool
-	Keys            []Keyset
+	Keys            KeyBlock
 }
 
 // Integer value of packet type

@@ -291,22 +291,20 @@ func TestXdrNotification(t *testing.T) {
 
 func TestXdrKeys(t *testing.T) {
 	var buffer = new(bytes.Buffer)
-	var kl1 []Keyset = []Keyset{
-		Keyset{1, [][]byte{{254, 220, 0, 17}, {1, 2, 3, 4}}},
-		Keyset{3, [][]byte{{1, 2, 3, 4}}}}
-	XdrPutKeys(buffer, kl1)
+	pkb1, _ := DualExample()
+	XdrPutKeys(buffer, pkb1)
 	expected := buffer.Len()
-	kl2, used, _ := XdrGetKeys(buffer.Bytes())
+	pkb2, used, _ := XdrGetKeys(buffer.Bytes())
 	if used != expected {
-		t.Log("Encode/Decode of Keylists had different lengths")
+		t.Log("Encode/Decode of KeyBlocks had different lengths")
 		t.Fail()
 	}
 
-	if !reflect.DeepEqual(kl1, kl2) {
-		t.Log("Keys differ\n", kl1, "\n", kl2)
+	if !reflect.DeepEqual(pkb1, pkb2) {
+		t.Log("Keys differ\n", pkb1, "\n", pkb2)
 		t.Fail()
 	}
-	t.Log("\n", kl1, "\n", kl2)
+	t.Log("\n", pkb1, "\n", pkb2)
 }
 
 // Benchmarks

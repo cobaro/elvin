@@ -28,7 +28,7 @@ import (
 type Subscription struct {
 	SubID          int64
 	AcceptInsecure bool
-	Keys           []elvin.Keyset
+	Keys           elvin.KeyBlock
 	Ast            *elvin.AST
 }
 
