@@ -304,7 +304,8 @@ func XdrGetNotification(bytes []byte) (nfn map[string]interface{}, used int, err
 	offset += used
 
 	for elementCount > 0 {
-		name, used, err := XdrGetString(bytes[offset:])
+		var name string // Avoid warning from go vet -shadow
+		name, used, err = XdrGetString(bytes[offset:])
 		if err != nil {
 			return nil, 0, err
 		}

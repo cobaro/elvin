@@ -215,7 +215,8 @@ func (pkt *NotifyDeliver) Decode(bytes []byte) (err error) {
 	offset += used
 
 	for i := int32(0); i < secureCount; i++ {
-		val, used, err := XdrGetInt64(bytes[offset:])
+		var val int64 // Avoid warning from go vet -shadow
+		val, used, err = XdrGetInt64(bytes[offset:])
 		if err != nil {
 			return err
 		}

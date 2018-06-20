@@ -84,7 +84,8 @@ func (pkt *QuenchAddRequest) Decode(bytes []byte) (err error) {
 
 	pkt.Names = make(map[string]bool)
 	for i := uint32(0); i < nameCount; i++ {
-		name, used, err := XdrGetString(bytes[offset:])
+		var name string // Avoid warning from go vet -shadow
+		name, used, err = XdrGetString(bytes[offset:])
 		if err != nil {
 			return err
 		}
@@ -170,6 +171,8 @@ func (pkt *QuenchModRequest) String() string {
 // Decode from a byte array
 func (pkt *QuenchModRequest) Decode(bytes []byte) (err error) {
 	var used int
+	var name string
+
 	offset := 4 // header
 
 	pkt.XID, used, err = XdrGetUint32(bytes[offset:])
@@ -192,7 +195,7 @@ func (pkt *QuenchModRequest) Decode(bytes []byte) (err error) {
 
 	pkt.AddNames = make(map[string]bool)
 	for i := uint32(0); i < addNamesCount; i++ {
-		name, used, err := XdrGetString(bytes[offset:])
+		name, used, err = XdrGetString(bytes[offset:])
 		if err != nil {
 			return err
 		}
@@ -208,7 +211,7 @@ func (pkt *QuenchModRequest) Decode(bytes []byte) (err error) {
 
 	pkt.DelNames = make(map[string]bool)
 	for i := uint32(0); i < delNamesCount; i++ {
-		name, used, err := XdrGetString(bytes[offset:])
+		name, used, err = XdrGetString(bytes[offset:])
 		if err != nil {
 			return err
 		}
