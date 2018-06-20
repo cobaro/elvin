@@ -23,57 +23,48 @@ package main
 import (
 	"flag"
 	"github.com/cobaro/elvin/elvin"
+	"log"
 	"os"
 	"testing"
 	"time"
 )
 
-func TestMain(m *testing.M) {
-	// Create a router instance using standard test config
-	flag.Parse()
-	var router Router
+var protocol Protocol
+var client *elvin.Client
 
+func TestMain(m *testing.M) {
+	flag.Parse() // FIXME: do something about logging
+	// Create a router instance using standard test config
+	protocol = Protocol{"tcp", "xdr", "0.0.0.0:2917"}
+	var router Router
 	router.SetMaxConnections(10)
 	router.SetDoFailover(false)
 	router.SetTestConnInterval(10 * time.Second)
 	router.SetTestConnTimeout(10 * time.Second)
-	protocol := Protocol{"tcp", "xdr", "0.0.0.0:3917"}
 	router.AddProtocol(protocol.Address, protocol)
-
 	go router.Start()
 	time.Sleep(time.Millisecond * 10) // Yield to get that started
 
+	// Create and connect a client
+	client = elvin.NewClient(protocol.Address, nil, nil, nil)
+	if err := client.Connect(); err != nil {
+		log.Printf("Connect failed: %v", err)
+		return
+	}
+
+	// Run all our tests
 	ret := m.Run()
 
+	if err := client.Disconnect(); err != nil {
+		log.Printf("Disconnect failed: %v", err)
+		return
+	}
 	router.Stop()
 
 	os.Exit(ret)
 }
 
-func TestConnect(t *testing.T) {
-	endpoint := TestConfig().Protocols[0].Address
-	client := elvin.NewClient(endpoint, nil, nil, nil)
-	if err := client.Connect(); err != nil {
-		t.Errorf("Connect failed: %v", err)
-		return
-	}
-	if err := client.Disconnect(); err != nil {
-		t.Errorf("Disconnect failed: %v", err)
-		return
-	}
-
-	return
-}
-
 func TestSubscriptionFail(t *testing.T) {
-	// Create a client
-	endpoint := TestConfig().Protocols[0].Address
-	client := elvin.NewClient(endpoint, nil, nil, nil)
-	if err := client.Connect(); err != nil {
-		t.Errorf("Connect failed: %v", err)
-		return
-	}
-
 	// Add a subscription
 	sub := new(elvin.Subscription)
 	sub.Expression = "bogus"
@@ -85,21 +76,10 @@ func TestSubscriptionFail(t *testing.T) {
 		t.Errorf("Subscribe passed %v", err)
 		return
 	}
-
-	if err := client.Disconnect(); err != nil {
-		t.Errorf("Connect failed: %v", err)
-		return
-	}
 }
 
 func TestSubscriptionPass(t *testing.T) {
 	// Create a client
-	endpoint := TestConfig().Protocols[0].Address
-	client := elvin.NewClient(endpoint, nil, nil, nil)
-	if err := client.Connect(); err != nil {
-		t.Errorf("Connect failed: %v", err)
-	}
-
 	// Add a subscription
 	sub := new(elvin.Subscription)
 	sub.Expression = "require(TestPass)"
@@ -132,11 +112,6 @@ func TestSubscriptionPass(t *testing.T) {
 
 	if err := client.SubscriptionDelete(sub); err != nil {
 		t.Errorf("Unsubscribe failed %v", err)
-		return
-	}
-
-	if err := client.Disconnect(); err != nil {
-		t.Errorf("Connect failed: %v", err)
 		return
 	}
 
