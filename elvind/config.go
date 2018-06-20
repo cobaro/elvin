@@ -34,7 +34,7 @@ type Protocol struct {
 
 type Configuration struct {
 	Protocols        []Protocol
-	FailoverHosts    []Protocol
+	Failover         Protocol
 	DoFailover       bool
 	MaxConnections   int
 	TestConnInterval int64 // idle seconds to trigger, 0 to disable
@@ -54,13 +54,14 @@ func LoadConfig(configFile string) (config *Configuration, err error) {
 }
 
 func TestConfig() (config *Configuration) {
-    config = new(Configuration)
+	config = new(Configuration)
 
-    config.Protocols = []Protocol{Protocol{"tcp", "xdr", "localhost:3917"}}
-    config.DoFailover = false
-    config.MaxConnections = 64
-    config.TestConnInterval = 0
-    config.TestConnTimeout = 10
+	config.Protocols = []Protocol{Protocol{"tcp", "xdr", "localhost:3917"}}
+	config.Failover = Protocol{"tcp", "xdr", "localhost:3917"}
+	config.DoFailover = false
+	config.MaxConnections = 64
+	config.TestConnInterval = 0
+	config.TestConnTimeout = 10
 
-    return config
+	return config
 }

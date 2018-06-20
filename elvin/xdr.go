@@ -31,7 +31,7 @@ import (
 // Defined errors we return
 var NotEnoughSpace error = errors.New("Input buffer too small")
 
-// FIXME The current state is that tgrephe getters use a []byte and the
+// FIXME The current state is that the getters use a []byte and the
 // putters use a bytes.Buffer. This is because for now we're being
 // quick and dirty and experimental. Much will depend on subsequent
 // performance tuning

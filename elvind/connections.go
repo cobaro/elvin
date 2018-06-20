@@ -82,6 +82,10 @@ type Connection struct {
 	testConnState  uint32
 	writeChannel   chan *bytes.Buffer
 	writeTerminate chan int
+
+	// Configurable options
+	testConnInterval time.Duration
+	testConnTimeout  time.Duration
 }
 
 // A buffer pool as we use lots of these for writing to
@@ -214,8 +218,6 @@ func (conn *Connection) readHandler() {
 func (conn *Connection) writeHandler() {
 	if glog.V(4) {
 		glog.Infof("Write Handler starting")
-	}
-	if glog.V(4) {
 		defer glog.Infof("Write Handler exiting")
 	}
 
@@ -231,8 +233,7 @@ func (conn *Connection) writeHandler() {
 	//
 	//   The second testConnTimeout is how long we should wait for a
 	//   response.
-	glog.Infof("config:%+v", config)
-	defaultTimeout := time.Duration(config.TestConnInterval) * time.Second
+	defaultTimeout := conn.testConnInterval
 	if defaultTimeout == 0 {
 		defaultTimeout = math.MaxInt64
 	}
@@ -279,7 +280,7 @@ func (conn *Connection) writeHandler() {
 			switch conn.TestConnState() {
 			case TestConnIdle:
 				conn.SetTestConnState(TestConnAwaitingResponse)
-				currentTimeout = time.Duration(config.TestConnTimeout) * time.Second
+				currentTimeout = conn.testConnTimeout
 				testConn := new(elvin.TestConn)
 				writeBuf := new(bytes.Buffer)
 				testConn.Encode(writeBuf)

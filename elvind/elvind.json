@@ -9,11 +9,9 @@
 
     "MaxConnections" : 1024,
 
-    "FailoverHosts" : [
-       { "Network" : "tcp", "Marshal" : "xdr", "Address" : "0.0.0.0:2918" }
-    ],
-
     "DoFailover" : true,
+
+    "FailoverProtocol" : { "Network" : "tcp", "Marshal" : "xdr", "Address" : "0.0.0.0:2918" },
 
     "TestConnInterval" : 10,
     "TestConnTimeout" : 10

@@ -21,63 +21,123 @@
 package main
 
 import (
-	"bytes"
-	_ "github.com/cobaro/elvin/elvin"
-	"io"
-	"sync/atomic"
+	"flag"
+	"github.com/cobaro/elvin/elvin"
+	"os"
 	"testing"
 	"time"
 )
 
-var xID uint32 = 0
+func TestMain(m *testing.M) {
+	// Create a router instance using standard test config
+	flag.Parse()
+	var router Router
 
-func XID() uint32 {
-	return atomic.AddUint32(&xID, 1)
+	router.SetMaxConnections(10)
+	router.SetDoFailover(false)
+	router.SetTestConnInterval(10 * time.Second)
+	router.SetTestConnTimeout(10 * time.Second)
+	protocol := Protocol{"tcp", "xdr", "0.0.0.0:3917"}
+	router.AddProtocol(protocol.Address, protocol)
+
+	go router.Start()
+	time.Sleep(time.Millisecond * 10) // Yield to get that started
+
+	ret := m.Run()
+
+	router.Stop()
+
+	os.Exit(ret)
 }
 
-func TestMockup(t *testing.T) {
-    config = TestConfig()
+func TestConnect(t *testing.T) {
+	endpoint := TestConfig().Protocols[0].Address
+	client := elvin.NewClient(endpoint, nil, nil, nil)
+	if err := client.Connect(); err != nil {
+		t.Errorf("Connect failed: %v", err)
+		return
+	}
+	if err := client.Disconnect(); err != nil {
+		t.Errorf("Disconnect failed: %v", err)
+		return
+	}
 
-	// Create a dummy connection using pipes, assigning roles for
-	// reader,writer, and closer
-	//
-	// client write ----> server read
-	//                        |
-	// client read ----> server write
-	//
-	// closer needs to be assigned from the return from io.Pipe()
-	// return although we could use a CloseReader
-	var client, server Connection
-	//var client elvin.Client
-	cr, sw := io.Pipe()
-	sr, cw := io.Pipe()
-	client.reader = cr
-	client.writer = cw
-	client.closer = cr
-	server.reader = sr
-	server.writer = sw
-	server.closer = sr
+	return
+}
 
-	server.SetState(StateNew)
-	server.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
-	server.writeTerminate = make(chan int)
+func TestSubscriptionFail(t *testing.T) {
+	// Create a client
+	endpoint := TestConfig().Protocols[0].Address
+	client := elvin.NewClient(endpoint, nil, nil, nil)
+	if err := client.Connect(); err != nil {
+		t.Errorf("Connect failed: %v", err)
+		return
+	}
 
-	go server.readHandler()
-	go server.writeHandler()
+	// Add a subscription
+	sub := new(elvin.Subscription)
+	sub.Expression = "bogus"
+	sub.AcceptInsecure = true
+	sub.Keys = nil
+	sub.Notifications = make(chan map[string]interface{})
 
-	// FIXME: At this point we need to think about the client library
-	client.SetState(StateNew)
-	client.writeChannel = make(chan *bytes.Buffer, 4) // Some queuing allowed to smooth things out
-	client.writeTerminate = make(chan int)
+	if err := client.Subscribe(sub); err == nil {
+		t.Errorf("Subscribe passed %v", err)
+		return
+	}
 
-	go client.readHandler()  // Bogus
-	go client.writeHandler() // Bogus
+	if err := client.Disconnect(); err != nil {
+		t.Errorf("Connect failed: %v", err)
+		return
+	}
+}
 
-	// if err := client.Connect(); err != nil {
-		// t.Errorf("Connect failed: %v", err)
-    // }
+func TestSubscriptionPass(t *testing.T) {
+	// Create a client
+	endpoint := TestConfig().Protocols[0].Address
+	client := elvin.NewClient(endpoint, nil, nil, nil)
+	if err := client.Connect(); err != nil {
+		t.Errorf("Connect failed: %v", err)
+	}
 
-	// And bail for now
-	time.Sleep(1000 * 1000 * 100 * 1)
+	// Add a subscription
+	sub := new(elvin.Subscription)
+	sub.Expression = "require(TestPass)"
+	sub.AcceptInsecure = true
+	sub.Keys = nil
+	sub.Notifications = make(chan map[string]interface{})
+
+	if err := client.Subscribe(sub); err != nil {
+		t.Errorf("Subscribe failed %v", err)
+		return
+	}
+
+	var nfn = map[string]interface{}{"TestPass": int32(1)}
+	if err := client.Notify(nfn, true, nil); err != nil {
+		t.Errorf("Notify failed")
+		return
+	}
+
+	select {
+	case nfn := <-sub.Notifications:
+		if nfn["TestPass"] != int32(1) {
+			t.Errorf("Received unmatched notification")
+			return
+		}
+
+	case <-time.After(1 * time.Second):
+		t.Errorf("Too slow!")
+		return
+	}
+
+	if err := client.SubscriptionDelete(sub); err != nil {
+		t.Errorf("Unsubscribe failed %v", err)
+		return
+	}
+
+	if err := client.Disconnect(); err != nil {
+		t.Errorf("Connect failed: %v", err)
+		return
+	}
 
 }
