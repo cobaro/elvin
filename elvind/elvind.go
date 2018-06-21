@@ -261,8 +261,6 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 		go connection.readHandler()
 		go connection.writeHandler()
 	}
-
-	return nil
 }
 
 // Global connections
@@ -270,33 +268,39 @@ var clients Clients
 
 func init() {
 	clients.clients = make(map[int32]*Connection)
-	clients.remove = make(chan int32)
-	clients.notify = make(chan elvin.NotifyEmit)
+	clients.channels.remove = make(chan int32)
+	clients.channels.notify = make(chan *elvin.NotifyEmit)
 
-	clients.subAdd = make(chan elvin.AST)          // FIXME:Subscription Add
-	clients.subDel = make(chan int32)              // Subscription Del
-	clients.subMod = make(chan int32)              // FIXME: Subscription Mod
-	clients.quenchAdd = make(chan map[string]bool) // Quench Add
-	clients.quenchDel = make(chan int32)           // Quench Del
-	clients.quenchMod = make(chan int32)           // FIXME: Quench Mod
+	clients.channels.subAdd = make(chan elvin.AST)          // FIXME:Subscription Add
+	clients.channels.subDel = make(chan int32)              // Subscription Del
+	clients.channels.subMod = make(chan int32)              // FIXME: Subscription Mod
+	clients.channels.quenchAdd = make(chan map[string]bool) // Quench Add
+	clients.channels.quenchDel = make(chan int32)           // Quench Del
+	clients.channels.quenchMod = make(chan int32)           // FIXME: Quench Mod
 
 	// Start remove goroutine for connection cleanup
 	go Remove(&clients)
+
+	// Start goroutine for notification eval
+	go Notify(&clients)
 }
 
 // Clients is a set of connection
 type Clients struct {
-	mu        sync.Mutex            // initialized automatically
-	clients   map[int32]*Connection // initialized in init()
-	remove    chan int32            // Client removal channel
-	notify    chan elvin.NotifyEmit // Notifications
-	subAdd    chan elvin.AST        // FIXME:Subscription Add
-	subDel    chan int32            // Subscription Del
-	subMod    chan int32            // FIXME: Subscription Mod
-	quenchAdd chan map[string]bool  // Quench Add
-	quenchDel chan int32            // Quench Del
-	quenchMod chan int32            // FIXME: Quench Mod
+	mu       sync.Mutex            // initialized automatically
+	clients  map[int32]*Connection // initialized in init()
+	channels ClientChannels        // For sending notifications, subs, quenches, delete etc to engine
+}
 
+type ClientChannels struct {
+	remove    chan int32             // Client removal channel
+	notify    chan *elvin.NotifyEmit // Notifications
+	subAdd    chan elvin.AST         // FIXME:Subscription Add
+	subDel    chan int32             // Subscription Del
+	subMod    chan int32             // FIXME: Subscription Mod
+	quenchAdd chan map[string]bool   // Quench Add
+	quenchDel chan int32             // Quench Del
+	quenchMod chan int32             // FIXME: Quench Mod
 }
 
 // Create a unique 32 bit unsigned integer id
@@ -317,13 +321,13 @@ func (c *Clients) Add(conn *Connection) {
 	}
 	conn.id = id
 	c.clients[id] = conn
-	conn.remove = clients.remove
+	conn.channels = c.channels
 	return
 }
 
 func Remove(c *Clients) {
 	for {
-		id := <-clients.remove
+		id := <-c.channels.remove
 		if glog.V(4) {
 			glog.Infof("Remove client %d", id)
 		}
@@ -332,5 +336,40 @@ func Remove(c *Clients) {
 		delete(clients.clients, id)
 		clients.mu.Unlock()
 		// FIXME: Clean up the subscriptions and quenches
+	}
+}
+
+func Notify(c *Clients) {
+	for {
+		nfn := <-c.channels.notify
+		if glog.V(5) {
+			glog.Infof("Remove notification %+v", nfn)
+		}
+
+		// FIXME: eval
+		// As a dummy for now we're going to send every message we see
+		// to every subscription as if all evaluate to true.
+		deliver := new(elvin.NotifyDeliver)
+		deliver.NameValue = nfn.NameValue
+
+		// Grab a copy of the current client list
+		// For now we don't care if one updates mid stream
+		c.mu.Lock()
+		clients := c.clients
+		c.mu.Unlock()
+
+		for connid, client := range clients {
+			if len(client.subs) > 0 {
+				deliver.Insecure = make([]int64, len(client.subs))
+				i := 0
+				for id, _ := range client.subs {
+					deliver.Insecure[i] = int64(connid)<<32 | int64(id)
+					i++
+				}
+				buf := bufferPool.Get().(*bytes.Buffer)
+				deliver.Encode(buf)
+				client.writeChannel <- buf
+			}
+		}
 	}
 }

@@ -79,9 +79,9 @@ func (conn *Connection) SetTestConnState(state int) {
 
 // A Connection (e.g. a socket)
 type Connection struct {
-	id             int32      // Id assigned by router
-	remove         chan int32 // Send id to purge from router
+	id             int32 // Id assigned by router
 	mu             sync.Mutex
+	channels       ClientChannels
 	subs           map[int32]*Subscription
 	quenches       map[int32]*Quench
 	reader         io.Reader
@@ -118,7 +118,7 @@ func (conn *Connection) Close() {
 	default:
 	}
 	conn.closer.Close()
-	conn.remove <- conn.ID()
+	conn.channels.remove <- conn.ID()
 
 }
 
@@ -489,7 +489,7 @@ func (conn *Connection) HandleDisconnRequest(buffer []byte) (err error) {
 		delete(conn.subs, subID)
 	}
 
-	conn.remove <- conn.ID()
+	conn.channels.remove <- conn.ID()
 
 	return nil
 }
@@ -526,60 +526,22 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	nfn := new(elvin.NotifyEmit)
 	err = nfn.Decode(buffer)
 
-	// FIXME: NotifyDeliver
-
-	// As a dummy for now we're going to send every message we see
-	// to every subscription as if all evaluate to true. Don't
-	// worry about the giant lock - this all goes away
-	clients.mu.Lock()
-	defer clients.mu.Unlock()
-	nd := new(elvin.NotifyDeliver)
-	nd.NameValue = nfn.NameValue
-
-	for connid, connection := range clients.clients {
-		if len(connection.subs) > 0 {
-			nd.Insecure = make([]int64, len(connection.subs))
-			i := 0
-			for id, _ := range connection.subs {
-				nd.Insecure[i] = int64(connid)<<32 | int64(id)
-				i++
-			}
-			buf := bufferPool.Get().(*bytes.Buffer)
-			nd.Encode(buf)
-			connection.writeChannel <- buf
-		}
-	}
+	conn.channels.notify <- nfn
 	return nil
 }
 
 // Handle a UNotify
 func (conn *Connection) HandleUNotify(buffer []byte) (err error) {
-	nfn := new(elvin.UNotify)
-	err = nfn.Decode(buffer)
+	unotify := new(elvin.UNotify)
+	err = unotify.Decode(buffer)
 
-	// FIXME: NotifyDeliver
+	// FIXME: Check version and ?
 
-	// As a dummy for now we're going to send every message we see
-	// to every subscription as if all evaluate to true. Don't
-	// worry about the giant lock - this all goes away
-	clients.mu.Lock()
-	defer clients.mu.Unlock()
-	nd := new(elvin.NotifyDeliver)
-	nd.NameValue = nfn.NameValue
-
-	for connid, connection := range clients.clients {
-		if len(connection.subs) > 0 {
-			nd.Insecure = make([]int64, len(connection.subs))
-			i := 0
-			for id, _ := range connection.subs {
-				nd.Insecure[i] = int64(connid)<<32 | int64(id)
-				i++
-			}
-			buf := bufferPool.Get().(*bytes.Buffer)
-			nd.Encode(buf)
-			connection.writeChannel <- buf
-		}
-	}
+	nfn := elvin.NotifyEmit{
+		NameValue:       unotify.NameValue,
+		DeliverInsecure: unotify.DeliverInsecure,
+		Keys:            unotify.Keys}
+	conn.channels.notify <- &nfn
 	return nil
 }
 
