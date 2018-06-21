@@ -123,7 +123,7 @@ Loop:
 func flags() (args arguments) {
 	flag.BoolVar(&args.help, "h", false, "Print this help")
 	flag.StringVar(&args.endpoint, "e", "localhost:2917", "host:port of router")
-	flag.IntVar(&args.number, "n", 1, "number of notifications to send")
+	flag.IntVar(&args.number, "n", 1, "number of notifications to receive before reporting")
 	flag.Parse()
 
 	if args.help {
