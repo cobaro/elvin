@@ -31,9 +31,51 @@ import (
 	"math"
 	"math/rand"
 	"sync"
-	"sync/atomic"
 	"time"
 )
+
+// Global connections
+var connections Connections
+
+func init() {
+	// rand.New(rand.NewSource(time.Now().UnixNano()))
+	connections.connections = make(map[int32]*Connection)
+}
+
+// Connections is a set of connection
+type Connections struct {
+	connections map[int32]*Connection // initialized in init()
+	lock        sync.Mutex            // initialized automatically
+}
+
+// Create a unique 32 bit unsigned integer id
+func (c *Connections) Add(conn *Connection) {
+	connections.lock.Lock()
+	defer connections.lock.Unlock()
+	var i int32 = rand.Int31()
+	for {
+		_, err := connections.connections[i]
+		if !err {
+			break
+		}
+		i++
+	}
+
+	if glog.V(4) {
+		glog.Infof("New connection %d", i)
+	}
+	conn.id = i
+	connections.connections[i] = conn
+	return
+}
+
+// Create a unique 32 bit unsigned integer id
+func (c *Connections) Remove(conn *Connection) {
+	connections.lock.Lock()
+	defer connections.lock.Unlock()
+	delete(connections.connections, conn.ID())
+	return
+}
 
 // Connection States
 const (
@@ -44,13 +86,17 @@ const (
 )
 
 // Return state (synchronized)
-func (conn *Connection) State() uint32 {
-	return atomic.LoadUint32(&conn.state)
+func (conn *Connection) State() int {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	return conn.state
 }
 
 // Get state (synchronized)
-func (conn *Connection) SetState(val uint32) {
-	atomic.StoreUint32(&conn.state, val)
+func (conn *Connection) SetState(state int) {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	conn.state = state
 }
 
 // TestConn/ConfConn Timeout States
@@ -61,25 +107,30 @@ const (
 )
 
 // Set TestConn/ConfConn Timeout (synchronized)
-func (conn *Connection) TestConnState() uint32 {
-	return atomic.LoadUint32(&conn.testConnState)
+func (conn *Connection) TestConnState() int {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	return conn.testConnState
 }
 
 // Get TestConn/ConfConn Timeout (synchronized)
-func (conn *Connection) SetTestConnState(val uint32) {
-	atomic.StoreUint32(&conn.testConnState, val)
+func (conn *Connection) SetTestConnState(state int) {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	conn.testConnState = state
 }
 
 // A Connection (e.g. a socket)
 type Connection struct {
 	id             int32
+	mu             sync.Mutex
 	subs           map[int32]*Subscription
 	quenches       map[int32]*Quench
 	reader         io.Reader
 	writer         io.Writer
 	closer         io.Closer
-	state          uint32
-	testConnState  uint32
+	state          int
+	testConnState  int
 	writeChannel   chan *bytes.Buffer
 	writeTerminate chan int
 
@@ -95,44 +146,9 @@ var bufferPool = sync.Pool{
 	},
 }
 
-// Global connections
-
-type Connections struct {
-	connections map[int32]*Connection // initialized in init()
-	lock        sync.Mutex            // initialized automatically
-}
-
-var connections Connections
-
-func init() {
-	// rand.New(rand.NewSource(time.Now().UnixNano()))
-	connections.connections = make(map[int32]*Connection)
-}
-
 // Return our unique 32 bit unsigned identifier
 func (conn *Connection) ID() int32 {
 	return conn.id
-}
-
-// Create a unique 32 bit unsigned integer id
-func (conn *Connection) MakeID() {
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
-	var c int32 = rand.Int31()
-	for {
-		_, err := connections.connections[c]
-		if !err {
-			break
-		}
-		c++
-	}
-
-	if glog.V(4) {
-		glog.Infof("conn id is %d", c)
-	}
-	conn.id = c
-	connections.connections[c] = conn
-	return
 }
 
 func (conn *Connection) Close() {
@@ -144,10 +160,8 @@ func (conn *Connection) Close() {
 	default:
 	}
 	conn.closer.Close()
-	connections.lock.Lock()
-	delete(connections.connections, conn.ID())
+	connections.Remove(conn)
 	// FIXME: Clean up subscriptions
-	connections.lock.Unlock()
 
 }
 
@@ -467,7 +481,7 @@ func (conn *Connection) HandleConnRequest(buffer []byte) (err error) {
 	}
 
 	// We're now connected
-	conn.MakeID()
+	connections.Add(conn)
 	conn.SetState(StateConnected)
 	conn.subs = make(map[int32]*Subscription)
 	conn.quenches = make(map[int32]*Quench)
