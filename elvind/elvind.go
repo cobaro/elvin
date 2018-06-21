@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/cobaro/elvin/elvin"
 	"github.com/golang/glog"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -32,9 +33,9 @@ import (
 
 // An Elvin router instance
 type Router struct {
-	Mu          sync.Mutex
-	listeners   map[string]net.Listener
-	connections Connections // FIXME: lose the global and use this
+	Mu        sync.Mutex
+	listeners map[string]net.Listener
+	clients   Clients // FIXME: lose the global and use this
 
 	// Configurable
 	protocols        map[string]Protocol
@@ -148,28 +149,27 @@ func (router *Router) FailoverProtocol() (protocol Protocol) {
 }
 
 func (router *Router) ReportClients() {
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
-	glog.Infof("We have %d clients:", len(connections.connections))
-	for i, conn := range connections.connections {
-		glog.Infof("%d: %+v", i, conn)
+	clients.mu.Lock()
+	defer clients.mu.Unlock()
+	glog.Infof("We have %d clients:", len(clients.clients))
+	for i, c := range clients.clients {
+		glog.Infof("%d: %+v", i, c)
 	}
 	return
 
 }
 
 func (router *Router) Failover() {
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
+	clients.mu.Lock()
+	defer clients.mu.Unlock()
 	disconn := new(elvin.Disconn)
 	disconn.Reason = 2 // Redirect
 	disconn.Args = router.failoverProtocol.Address
 	glog.Infof("Disconn: %+v", disconn)
-	connections.lock.Lock()
-	for _, conn := range connections.connections {
+	for _, c := range clients.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
-		conn.writeChannel <- buf
+		c.writeChannel <- buf
 	}
 	return
 }
@@ -245,6 +245,8 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 		}
 
 		var connection Connection
+		clients.Add(&connection) // track it
+
 		connection.reader = conn
 		connection.writer = conn
 		connection.closer = conn
@@ -261,4 +263,74 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 	}
 
 	return nil
+}
+
+// Global connections
+var clients Clients
+
+func init() {
+	clients.clients = make(map[int32]*Connection)
+	clients.remove = make(chan int32)
+	clients.notify = make(chan elvin.NotifyEmit)
+
+	clients.subAdd = make(chan elvin.AST)          // FIXME:Subscription Add
+	clients.subDel = make(chan int32)              // Subscription Del
+	clients.subMod = make(chan int32)              // FIXME: Subscription Mod
+	clients.quenchAdd = make(chan map[string]bool) // Quench Add
+	clients.quenchDel = make(chan int32)           // Quench Del
+	clients.quenchMod = make(chan int32)           // FIXME: Quench Mod
+
+	// Start remove goroutine for connection cleanup
+	go Remove(&clients)
+}
+
+// Clients is a set of connection
+type Clients struct {
+	mu        sync.Mutex            // initialized automatically
+	clients   map[int32]*Connection // initialized in init()
+	remove    chan int32            // Client removal channel
+	notify    chan elvin.NotifyEmit // Notifications
+	subAdd    chan elvin.AST        // FIXME:Subscription Add
+	subDel    chan int32            // Subscription Del
+	subMod    chan int32            // FIXME: Subscription Mod
+	quenchAdd chan map[string]bool  // Quench Add
+	quenchDel chan int32            // Quench Del
+	quenchMod chan int32            // FIXME: Quench Mod
+
+}
+
+// Create a unique 32 bit unsigned integer id
+func (c *Clients) Add(conn *Connection) {
+	clients.mu.Lock()
+	defer clients.mu.Unlock()
+	var id int32 = rand.Int31()
+	for {
+		_, err := c.clients[id]
+		if !err {
+			break
+		}
+		id++
+	}
+
+	if glog.V(4) {
+		glog.Infof("New client %d", id)
+	}
+	conn.id = id
+	c.clients[id] = conn
+	conn.remove = clients.remove
+	return
+}
+
+func Remove(c *Clients) {
+	for {
+		id := <-clients.remove
+		if glog.V(4) {
+			glog.Infof("Remove client %d", id)
+		}
+
+		clients.mu.Lock()
+		delete(clients.clients, id)
+		clients.mu.Unlock()
+		// FIXME: Clean up the subscriptions and quenches
+	}
 }

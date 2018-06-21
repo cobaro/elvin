@@ -34,49 +34,6 @@ import (
 	"time"
 )
 
-// Global connections
-var connections Connections
-
-func init() {
-	// rand.New(rand.NewSource(time.Now().UnixNano()))
-	connections.connections = make(map[int32]*Connection)
-}
-
-// Connections is a set of connection
-type Connections struct {
-	connections map[int32]*Connection // initialized in init()
-	lock        sync.Mutex            // initialized automatically
-}
-
-// Create a unique 32 bit unsigned integer id
-func (c *Connections) Add(conn *Connection) {
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
-	var i int32 = rand.Int31()
-	for {
-		_, err := connections.connections[i]
-		if !err {
-			break
-		}
-		i++
-	}
-
-	if glog.V(4) {
-		glog.Infof("New connection %d", i)
-	}
-	conn.id = i
-	connections.connections[i] = conn
-	return
-}
-
-// Create a unique 32 bit unsigned integer id
-func (c *Connections) Remove(conn *Connection) {
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
-	delete(connections.connections, conn.ID())
-	return
-}
-
 // Connection States
 const (
 	StateNew = iota
@@ -122,7 +79,8 @@ func (conn *Connection) SetTestConnState(state int) {
 
 // A Connection (e.g. a socket)
 type Connection struct {
-	id             int32
+	id             int32      // Id assigned by router
+	remove         chan int32 // Send id to purge from router
 	mu             sync.Mutex
 	subs           map[int32]*Subscription
 	quenches       map[int32]*Quench
@@ -160,8 +118,7 @@ func (conn *Connection) Close() {
 	default:
 	}
 	conn.closer.Close()
-	connections.Remove(conn)
-	// FIXME: Clean up subscriptions
+	conn.remove <- conn.ID()
 
 }
 
@@ -481,7 +438,6 @@ func (conn *Connection) HandleConnRequest(buffer []byte) (err error) {
 	}
 
 	// We're now connected
-	connections.Add(conn)
 	conn.SetState(StateConnected)
 	conn.subs = make(map[int32]*Subscription)
 	conn.quenches = make(map[int32]*Quench)
@@ -533,9 +489,7 @@ func (conn *Connection) HandleDisconnRequest(buffer []byte) (err error) {
 		delete(conn.subs, subID)
 	}
 
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
-	delete(connections.connections, conn.ID())
+	conn.remove <- conn.ID()
 
 	return nil
 }
@@ -577,12 +531,12 @@ func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
 	// As a dummy for now we're going to send every message we see
 	// to every subscription as if all evaluate to true. Don't
 	// worry about the giant lock - this all goes away
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
+	clients.mu.Lock()
+	defer clients.mu.Unlock()
 	nd := new(elvin.NotifyDeliver)
 	nd.NameValue = nfn.NameValue
 
-	for connid, connection := range connections.connections {
+	for connid, connection := range clients.clients {
 		if len(connection.subs) > 0 {
 			nd.Insecure = make([]int64, len(connection.subs))
 			i := 0
@@ -608,12 +562,12 @@ func (conn *Connection) HandleUNotify(buffer []byte) (err error) {
 	// As a dummy for now we're going to send every message we see
 	// to every subscription as if all evaluate to true. Don't
 	// worry about the giant lock - this all goes away
-	connections.lock.Lock()
-	defer connections.lock.Unlock()
+	clients.mu.Lock()
+	defer clients.mu.Unlock()
 	nd := new(elvin.NotifyDeliver)
 	nd.NameValue = nfn.NameValue
 
-	for connid, connection := range connections.connections {
+	for connid, connection := range clients.clients {
 		if len(connection.subs) > 0 {
 			nd.Insecure = make([]int64, len(connection.subs))
 			i := 0
