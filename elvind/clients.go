@@ -34,7 +34,7 @@ import (
 	"time"
 )
 
-// Connection States
+// Client States
 const (
 	StateNew = iota
 	StateConnected
@@ -43,17 +43,17 @@ const (
 )
 
 // Return state (synchronized)
-func (conn *Connection) State() int {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	return conn.state
+func (client *Client) State() int {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	return client.state
 }
 
 // Get state (synchronized)
-func (conn *Connection) SetState(state int) {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	conn.state = state
+func (client *Client) SetState(state int) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.state = state
 }
 
 // TestConn/ConfConn Timeout States
@@ -64,21 +64,21 @@ const (
 )
 
 // Set TestConn/ConfConn Timeout (synchronized)
-func (conn *Connection) TestConnState() int {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	return conn.testConnState
+func (client *Client) TestConnState() int {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	return client.testConnState
 }
 
 // Get TestConn/ConfConn Timeout (synchronized)
-func (conn *Connection) SetTestConnState(state int) {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	conn.testConnState = state
+func (client *Client) SetTestConnState(state int) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.testConnState = state
 }
 
-// A Connection (e.g. a socket)
-type Connection struct {
+// A Client (e.g. a socket)
+type Client struct {
 	id             int32 // Id assigned by router
 	mu             sync.Mutex
 	channels       ClientChannels
@@ -105,20 +105,20 @@ var bufferPool = sync.Pool{
 }
 
 // Return our unique 32 bit unsigned identifier
-func (conn *Connection) ID() int32 {
-	return conn.id
+func (client *Client) ID() int32 {
+	return client.id
 }
 
-func (conn *Connection) Close() {
+func (client *Client) Close() {
 	if glog.V(4) {
-		glog.Infof("Close()ing client %d", conn.ID())
+		glog.Infof("Close()ing client %d", client.ID())
 	}
 	select {
-	case conn.writeTerminate <- 1:
+	case client.writeTerminate <- 1:
 	default:
 	}
-	conn.closer.Close()
-	conn.channels.remove <- conn.ID()
+	client.closer.Close()
+	client.channels.remove <- client.ID()
 
 }
 
@@ -139,7 +139,7 @@ func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 }
 
 // Handle reading for now run as a goroutine
-func (conn *Connection) readHandler() {
+func (client *Client) readHandler() {
 	if glog.V(4) {
 		glog.Infof("Read Handler starting")
 	}
@@ -152,7 +152,7 @@ func (conn *Connection) readHandler() {
 
 	for {
 		// Read frame header
-		length, err := readBytes(conn.reader, header, 4)
+		length, err := readBytes(client.reader, header, 4)
 		if length != 4 || err != nil {
 			break // We're done
 		}
@@ -167,13 +167,13 @@ func (conn *Connection) readHandler() {
 			buffer = make([]byte, packetSize)
 		}
 
-		length, err = readBytes(conn.reader, buffer, packetSize)
+		length, err = readBytes(client.reader, buffer, packetSize)
 		if length != packetSize || err != nil {
 			break // We're done
 		}
 
 		// Deal with the packet
-		if err = conn.HandlePacket(buffer); err != nil {
+		if err = client.HandlePacket(buffer); err != nil {
 			glog.Errorf("Read Handler error: %v", err)
 			// FIXME: protocol error
 			break
@@ -182,11 +182,11 @@ func (conn *Connection) readHandler() {
 	if glog.V(4) {
 		glog.Infof("Read Handler Close()")
 	}
-	conn.Close()
+	client.Close()
 }
 
 // Handle writing for now run as a goroutine
-func (conn *Connection) writeHandler() {
+func (client *Client) writeHandler() {
 	if glog.V(4) {
 		glog.Infof("Write Handler starting")
 		defer glog.Infof("Write Handler exiting")
@@ -196,7 +196,7 @@ func (conn *Connection) writeHandler() {
 
 	// TestConn and ConfConn use two timers:
 	//
-	//   The first, intervalTimer, is  how long a connection
+	//   The first, intervalTimer, is  how long a client
 	//   can be idle before we send a TestConn and it's configured
 	//   via the configuration option TestConnInterval.
 	//   A value of zero means disabled so we simply set it up for
@@ -204,23 +204,23 @@ func (conn *Connection) writeHandler() {
 	//
 	//   The second testConnTimeout is how long we should wait for a
 	//   response.
-	defaultTimeout := conn.testConnInterval
+	defaultTimeout := client.testConnInterval
 	if defaultTimeout == 0 {
 		defaultTimeout = math.MaxInt64
 	}
 	currentTimeout := defaultTimeout
-	conn.SetTestConnState(TestConnIdle)
+	client.SetTestConnState(TestConnIdle)
 
 	// Our write loop waits for data to write and sends it
 	// It can be terminated via the writeTerminate channel
 	// It runs a Test/ConfConn timer if configured
 	for {
 		select {
-		case buffer := <-conn.writeChannel:
+		case buffer := <-client.writeChannel:
 
 			// Write the frame header (packetsize)
 			binary.BigEndian.PutUint32(header, uint32(buffer.Len()))
-			_, err := conn.writer.Write(header)
+			_, err := client.writer.Write(header)
 			if err != nil {
 				// Deal with more errors
 				if err != io.EOF {
@@ -231,7 +231,7 @@ func (conn *Connection) writeHandler() {
 			}
 
 			// Write the packet
-			_, err = buffer.WriteTo(conn.writer)
+			_, err = buffer.WriteTo(client.writer)
 			if err != nil {
 				// Deal with more errors
 				if err != io.EOF {
@@ -240,31 +240,31 @@ func (conn *Connection) writeHandler() {
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
 			}
-		case <-conn.writeTerminate:
+		case <-client.writeTerminate:
 			return // We're done, cleanup done by read
 
 		case <-time.After(currentTimeout):
 			if glog.V(4) {
-				glog.Infof("writeHandler timeout: %d", conn.TestConnState())
+				glog.Infof("writeHandler timeout: %d", client.TestConnState())
 			}
 
-			switch conn.TestConnState() {
+			switch client.TestConnState() {
 			case TestConnIdle:
-				conn.SetTestConnState(TestConnAwaitingResponse)
-				currentTimeout = conn.testConnTimeout
+				client.SetTestConnState(TestConnAwaitingResponse)
+				currentTimeout = client.testConnTimeout
 				testConn := new(elvin.TestConn)
 				writeBuf := new(bytes.Buffer)
 				testConn.Encode(writeBuf)
-				conn.writeChannel <- writeBuf
+				client.writeChannel <- writeBuf
 			case TestConnAwaitingResponse:
 				if glog.V(3) {
-					glog.Infof("Closing client %d for not responding to TestConn", conn.ID())
+					glog.Infof("Closing client %d for not responding to TestConn", client.ID())
 				}
 				// FIXME:Close the socket to trigger read exit
-				conn.closer.Close()
+				client.closer.Close()
 				return
 			case TestConnHadResponse:
-				conn.SetTestConnState(TestConnIdle)
+				client.SetTestConnState(TestConnIdle)
 				currentTimeout = defaultTimeout
 			}
 		}
@@ -272,14 +272,14 @@ func (conn *Connection) writeHandler() {
 }
 
 // Handle a protocol packet
-func (conn *Connection) HandlePacket(buffer []byte) (err error) {
+func (client *Client) HandlePacket(buffer []byte) (err error) {
 
 	if glog.V(4) {
 		glog.Infof("received %s", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
 
 	// Receiving any packet acts a ConfConn
-	conn.SetTestConnState(TestConnHadResponse)
+	client.SetTestConnState(TestConnHadResponse)
 
 	switch elvin.PacketID(buffer) {
 
@@ -321,16 +321,16 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		return fmt.Errorf("UnimplementedError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 	}
 
-	// Packets dependent upon Client's connection state
-	switch conn.State() {
+	// Packets dependent upon Client's client state
+	switch client.State() {
 	case StateNew:
 		// Connect and Unotify are the only valid packets without
-		// a properly established connection
+		// a properly established client
 		switch elvin.PacketID(buffer) {
 		case elvin.PacketConnRequest:
-			return conn.HandleConnRequest(buffer)
+			return client.HandleConnRequest(buffer)
 		case elvin.PacketUNotify:
-			return conn.HandleUNotify(buffer)
+			return client.HandleUNotify(buffer)
 		default:
 			return fmt.Errorf("ProtocolError: %s received", elvin.PacketIDString(elvin.PacketID(buffer)))
 		}
@@ -341,7 +341,7 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		// FIXME: implement or move this lot in the short term
 		switch elvin.PacketID(buffer) {
 		case elvin.PacketDisconnRequest:
-			return conn.HandleDisconnRequest(buffer)
+			return client.HandleDisconnRequest(buffer)
 		case elvin.PacketDisconn:
 			return errors.New("FIXME: Packet Disconn")
 		case elvin.PacketSecRequest:
@@ -349,21 +349,21 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 		case elvin.PacketSecReply:
 			return errors.New("FIXME: Packet SecReply")
 		case elvin.PacketNotifyEmit:
-			return conn.HandleNotifyEmit(buffer)
+			return client.HandleNotifyEmit(buffer)
 		case elvin.PacketSubAddRequest:
-			return conn.HandleSubAddRequest(buffer)
+			return client.HandleSubAddRequest(buffer)
 		case elvin.PacketSubModRequest:
-			return conn.HandleSubModRequest(buffer)
+			return client.HandleSubModRequest(buffer)
 		case elvin.PacketSubDelRequest:
-			return conn.HandleSubDelRequest(buffer)
+			return client.HandleSubDelRequest(buffer)
 		case elvin.PacketQuenchAddRequest:
-			return conn.HandleQuenchAddRequest(buffer)
+			return client.HandleQuenchAddRequest(buffer)
 		case elvin.PacketQuenchModRequest:
-			return conn.HandleQuenchModRequest(buffer)
+			return client.HandleQuenchModRequest(buffer)
 		case elvin.PacketQuenchDelRequest:
-			return conn.HandleQuenchDelRequest(buffer)
+			return client.HandleQuenchDelRequest(buffer)
 		case elvin.PacketTestConn:
-			return conn.HandleTestConn(buffer)
+			return client.HandleTestConn(buffer)
 		case elvin.PacketConfConn:
 			// Receiving any packet acts a ConfConn so
 			// already done
@@ -403,11 +403,11 @@ func (conn *Connection) HandlePacket(buffer []byte) (err error) {
 	return fmt.Errorf("Error: %s received and not handled", elvin.PacketIDString(elvin.PacketID(buffer)))
 }
 
-// Handle a Connection Request
-func (conn *Connection) HandleConnRequest(buffer []byte) (err error) {
+// Handle a Client Request
+func (client *Client) HandleConnRequest(buffer []byte) (err error) {
 	connRequest := new(elvin.ConnRequest)
 	if err = connRequest.Decode(buffer); err != nil {
-		conn.Close()
+		client.Close()
 	}
 
 	// Check some options
@@ -422,7 +422,7 @@ func (conn *Connection) HandleConnRequest(buffer []byte) (err error) {
 		nack.Args = nil
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 		return nil
 	}
 	if _, ok := connRequest.Options["TestDisconn"]; ok {
@@ -433,105 +433,105 @@ func (conn *Connection) HandleConnRequest(buffer []byte) (err error) {
 		disconn.Reason = 4 // a little bogus
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 		return nil
 	}
 
 	// We're now connected
-	conn.SetState(StateConnected)
-	conn.subs = make(map[int32]*Subscription)
-	conn.quenches = make(map[int32]*Quench)
+	client.SetState(StateConnected)
+	client.subs = make(map[int32]*Subscription)
+	client.quenches = make(map[int32]*Quench)
 
-	// Respond with a Connection Reply
+	// Respond with a ConnReply
 	connReply := new(elvin.ConnReply)
 	connReply.XID = connRequest.XID
 	// FIXME; totally bogus
 	connReply.Options = connRequest.Options
 
 	if glog.V(3) {
-		glog.Infof("New client %d connected", conn.ID())
+		glog.Infof("New client %d connected", client.ID())
 	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	connReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 
 	return nil
 }
 
-// Handle a Disconnection Request
-func (conn *Connection) HandleDisconnRequest(buffer []byte) (err error) {
+// Handle a Disclient Request
+func (client *Client) HandleDisconnRequest(buffer []byte) (err error) {
 
 	disconnRequest := new(elvin.DisconnRequest)
 	if err = disconnRequest.Decode(buffer); err != nil {
-		conn.Close()
+		client.Close()
 	}
 
 	// We're now disconnecting
-	conn.SetState(StateDisconnecting)
+	client.SetState(StateDisconnecting)
 
-	// Respond with a Disconnection Reply
+	// Respond with a Disclient Reply
 	DisconnReply := new(elvin.DisconnReply)
 	DisconnReply.XID = disconnRequest.XID
 
 	if glog.V(3) {
-		glog.Infof("client %d disconnected", conn.ID())
+		glog.Infof("client %d disconnected", client.ID())
 	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	DisconnReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 
-	for subID, _ := range conn.subs {
+	for subID, _ := range client.subs {
 		// FIXME: send subscription removal to sub engine
-		delete(conn.subs, subID)
+		delete(client.subs, subID)
 	}
 
-	conn.channels.remove <- conn.ID()
+	client.channels.remove <- client.ID()
 
 	return nil
 }
 
 // Handle a TestConn
-func (conn *Connection) HandleTestConn(buffer []byte) (err error) {
+func (client *Client) HandleTestConn(buffer []byte) (err error) {
 	// Nothing to decode
 	if glog.V(4) {
-		glog.Infof("Received TestConn", conn.ID())
+		glog.Infof("Received TestConn", client.ID())
 	}
 
 	// Only respond is there are no queued packets
-	if len(conn.writeChannel) > 1 {
+	if len(client.writeChannel) > 1 {
 		confConn := new(elvin.ConfConn)
 		writeBuf := new(bytes.Buffer)
 		confConn.Encode(writeBuf)
-		conn.writeChannel <- writeBuf
+		client.writeChannel <- writeBuf
 	}
 
 	return nil
 }
 
 // Handle a ConfConn
-func (conn *Connection) HandleConfConn(buffer []byte) (err error) {
+func (client *Client) HandleConfConn(buffer []byte) (err error) {
 	// Note: This is never called as it's done
 	// in HandlePacket as any Packet acts as a ConfConn
-	conn.SetTestConnState(TestConnHadResponse)
+	client.SetTestConnState(TestConnHadResponse)
 
 	return nil
 }
 
 // Handle a NotifyEmit
-func (conn *Connection) HandleNotifyEmit(buffer []byte) (err error) {
+func (client *Client) HandleNotifyEmit(buffer []byte) (err error) {
 	nfn := new(elvin.NotifyEmit)
 	err = nfn.Decode(buffer)
 
-	conn.channels.notify <- nfn
+	client.channels.notify <- nfn
 	return nil
 }
 
 // Handle a UNotify
-func (conn *Connection) HandleUNotify(buffer []byte) (err error) {
+func (client *Client) HandleUNotify(buffer []byte) (err error) {
 	unotify := new(elvin.UNotify)
 	err = unotify.Decode(buffer)
 
@@ -542,12 +542,12 @@ func (conn *Connection) HandleUNotify(buffer []byte) (err error) {
 		NameValue:       unotify.NameValue,
 		DeliverInsecure: unotify.DeliverInsecure,
 		Keys:            unotify.Keys}
-	conn.channels.notify <- &nfn
+	client.channels.notify <- &nfn
 	return nil
 }
 
 // Handle a Subscription Add
-func (conn *Connection) HandleSubAddRequest(buffer []byte) (err error) {
+func (client *Client) HandleSubAddRequest(buffer []byte) (err error) {
 	subRequest := new(elvin.SubAddRequest)
 	err = subRequest.Decode(buffer)
 	if err != nil {
@@ -559,7 +559,7 @@ func (conn *Connection) HandleSubAddRequest(buffer []byte) (err error) {
 		nack.XID = subRequest.XID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 		return nil
 	}
 
@@ -572,34 +572,34 @@ func (conn *Connection) HandleSubAddRequest(buffer []byte) (err error) {
 	// Create a unique sub id
 	var s int32 = rand.Int31()
 	for {
-		_, err := conn.subs[s]
+		_, err := client.subs[s]
 		if !err {
 			break
 		}
 		s++
 	}
-	conn.subs[s] = &sub
-	sub.SubID = (int64(conn.ID()) << 32) | int64(s)
+	client.subs[s] = &sub
+	sub.SubID = (int64(client.ID()) << 32) | int64(s)
 
-	conn.channels.subAdd <- &sub
+	client.channels.subAdd <- &sub
 
 	// Respond with a SubReply
 	subReply := new(elvin.SubReply)
 	subReply.XID = subRequest.XID
 	subReply.SubID = sub.SubID
 	if glog.V(4) {
-		glog.Infof("Connection:%d New subscription:%d (%d)", conn.ID(), s, sub.SubID)
+		glog.Infof("Client:%d New subscription:%d (%d)", client.ID(), s, sub.SubID)
 	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	subReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 	return nil
 }
 
 // Handle a Subscription Delete
-func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
+func (client *Client) HandleSubDelRequest(buffer []byte) (err error) {
 	subDelRequest := new(elvin.SubDelRequest)
 	err = subDelRequest.Decode(buffer)
 	if err != nil {
@@ -608,7 +608,7 @@ func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
 
 	// If deletion fails then nack and disconn
 	idx := int32(subDelRequest.SubID & 0xfffffffff)
-	sub, exists := conn.subs[idx]
+	sub, exists := client.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.XID = subDelRequest.XID
@@ -618,17 +618,17 @@ func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
 		nack.Args[0] = subDelRequest.SubID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 
 		// FIXME Disconnect as that's a protocol violation
 		return nil
 	}
 
-	// Remove it from the connection
-	delete(conn.subs, idx)
+	// Remove it from the client
+	delete(client.subs, idx)
 
 	// Send it to the subscription engine
-	conn.channels.subDel <- sub
+	client.channels.subDel <- sub
 
 	// Respond with a SubReply
 	subReply := new(elvin.SubReply)
@@ -638,11 +638,11 @@ func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	subReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 	return nil
 }
 
-func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
+func (client *Client) HandleSubModRequest(buffer []byte) (err error) {
 	subModRequest := new(elvin.SubModRequest)
 	err = subModRequest.Decode(buffer)
 	if err != nil {
@@ -652,7 +652,7 @@ func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
 
 	// If modify fails then nack and disconn
 	idx := int32(subModRequest.SubID & 0xfffffffff)
-	sub, exists := conn.subs[idx]
+	sub, exists := client.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.XID = subModRequest.XID
@@ -663,7 +663,7 @@ func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 
 		// FIXME Disconnect if that's a repeated protocol violation?
 		return nil
@@ -679,7 +679,7 @@ func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
 			nack.XID = subModRequest.XID
 			buf := bufferPool.Get().(*bytes.Buffer)
 			nack.Encode(buf)
-			conn.writeChannel <- buf
+			client.writeChannel <- buf
 			return nil
 		}
 		sub.Ast = ast
@@ -699,7 +699,7 @@ func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
 	}
 
 	// Send it to the subscription engine
-	conn.channels.subMod <- sub
+	client.channels.subMod <- sub
 
 	// Respond with a SubReply
 	subReply := new(elvin.SubReply)
@@ -709,12 +709,12 @@ func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	subReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 	return nil
 }
 
 // Handle a Quench Add
-func (conn *Connection) HandleQuenchAddRequest(buffer []byte) (err error) {
+func (client *Client) HandleQuenchAddRequest(buffer []byte) (err error) {
 	quenchRequest := new(elvin.QuenchAddRequest)
 	err = quenchRequest.Decode(buffer)
 	if err != nil {
@@ -735,17 +735,17 @@ func (conn *Connection) HandleQuenchAddRequest(buffer []byte) (err error) {
 	// Create a unique quench id
 	var q int32 = rand.Int31()
 	for {
-		_, err := conn.quenches[q]
+		_, err := client.quenches[q]
 		if !err {
 			break
 		}
 		q++
 	}
-	conn.quenches[q] = &quench
-	quench.QuenchID = (int64(conn.ID()) << 32) | int64(q)
+	client.quenches[q] = &quench
+	quench.QuenchID = (int64(client.ID()) << 32) | int64(q)
 
 	// send quench to sub engine
-	conn.channels.quenchAdd <- &quench
+	client.channels.quenchAdd <- &quench
 
 	// Respond with a QuenchReply
 	quenchReply := new(elvin.QuenchReply)
@@ -753,16 +753,16 @@ func (conn *Connection) HandleQuenchAddRequest(buffer []byte) (err error) {
 	quenchReply.QuenchID = quench.QuenchID
 
 	if glog.V(4) {
-		glog.Infof("Connection:%d New quench:%d %+v", conn.ID(), quench.QuenchID, quench)
+		glog.Infof("Client:%d New quench:%d %+v", client.ID(), quench.QuenchID, quench)
 	}
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	quenchReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 	return nil
 }
 
-func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
+func (client *Client) HandleQuenchModRequest(buffer []byte) (err error) {
 	quenchModRequest := new(elvin.QuenchModRequest)
 	err = quenchModRequest.Decode(buffer)
 	if err != nil {
@@ -771,7 +771,7 @@ func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
 
 	// If modify fails then nack and disconn
 	idx := int32(quenchModRequest.QuenchID & 0xfffffffff)
-	quench, exists := conn.quenches[idx]
+	quench, exists := client.quenches[idx]
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.XID = quenchModRequest.XID
@@ -782,7 +782,7 @@ func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
 
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 
 		// FIXME Disconnect if that's a repeated protocol violation?
 		return nil
@@ -798,7 +798,7 @@ func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
 	// FIXME: implement key changes
 
 	// send quench to sub engine
-	conn.channels.quenchMod <- quench
+	client.channels.quenchMod <- quench
 
 	// Respond with a QuenchReply
 	quenchReply := new(elvin.QuenchReply)
@@ -806,17 +806,17 @@ func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
 	quenchReply.QuenchID = quench.QuenchID
 
 	if glog.V(4) {
-		glog.Infof("Connection:%d  quench:%d modified %+v", conn.ID(), quench.QuenchID, quench)
+		glog.Infof("Client:%d  quench:%d modified %+v", client.ID(), quench.QuenchID, quench)
 	}
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	quenchReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 	return nil
 }
 
-func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
+func (client *Client) HandleQuenchDelRequest(buffer []byte) (err error) {
 	quenchDelRequest := new(elvin.QuenchDelRequest)
 	err = quenchDelRequest.Decode(buffer)
 	if err != nil {
@@ -825,7 +825,7 @@ func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
 
 	// If deletion fails then nack and disconn
 	idx := int32(quenchDelRequest.QuenchID & 0xfffffffff)
-	quench, exists := conn.quenches[idx]
+	quench, exists := client.quenches[idx]
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.XID = quenchDelRequest.XID
@@ -835,17 +835,17 @@ func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
 		nack.Args[0] = quenchDelRequest.QuenchID
 		buf := bufferPool.Get().(*bytes.Buffer)
 		nack.Encode(buf)
-		conn.writeChannel <- buf
+		client.writeChannel <- buf
 
 		// FIXME Disconnect as that's a protocol violation
 		return nil
 	}
 
-	// Remove it from the connection
-	delete(conn.quenches, idx)
+	// Remove it from the client
+	delete(client.quenches, idx)
 
 	// send quench to sub engine
-	conn.channels.quenchDel <- quench
+	client.channels.quenchDel <- quench
 
 	// Respond with a QuenchReply
 	quenchReply := new(elvin.QuenchReply)
@@ -855,6 +855,6 @@ func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	quenchReply.Encode(buf)
-	conn.writeChannel <- buf
+	client.writeChannel <- buf
 	return nil
 }

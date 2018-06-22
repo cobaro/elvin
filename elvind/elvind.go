@@ -244,30 +244,30 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 			return nil // Happens when we're closed so simply bail
 		}
 
-		var connection Connection
-		clients.Add(&connection) // track it
+		var client Client
+		clients.Add(&client) // track it
 
-		connection.reader = conn
-		connection.writer = conn
-		connection.closer = conn
-		connection.testConnInterval = router.testConnInterval
-		connection.testConnTimeout = router.testConnTimeout
+		client.reader = conn
+		client.writer = conn
+		client.closer = conn
+		client.testConnInterval = router.testConnInterval
+		client.testConnTimeout = router.testConnTimeout
 
-		connection.SetState(StateNew)
+		client.SetState(StateNew)
 		// Some queuing allowed to smooth things out
-		connection.writeChannel = make(chan *bytes.Buffer, 4)
-		connection.writeTerminate = make(chan int)
+		client.writeChannel = make(chan *bytes.Buffer, 4)
+		client.writeTerminate = make(chan int)
 
-		go connection.readHandler()
-		go connection.writeHandler()
+		go client.readHandler()
+		go client.writeHandler()
 	}
 }
 
-// Global connections
+// Global clients
 var clients Clients
 
 func init() {
-	clients.clients = make(map[int32]*Connection)
+	clients.clients = make(map[int32]*Client)
 	clients.channels.remove = make(chan int32)
 	clients.channels.notify = make(chan *elvin.NotifyEmit)
 	clients.channels.subAdd = make(chan *Subscription)
@@ -277,7 +277,7 @@ func init() {
 	clients.channels.quenchMod = make(chan *Quench)
 	clients.channels.quenchDel = make(chan *Quench)
 
-	// Start remove goroutine for connection cleanup
+	// Start remove goroutine for client cleanup
 	go Remove(&clients)
 
 	// Start goroutine for notification eval
@@ -290,11 +290,11 @@ func init() {
 	go Quenches(&clients)
 }
 
-// Clients is a set of connection
+// Clients is a set of client
 type Clients struct {
-	mu       sync.Mutex            // initialized automatically
-	clients  map[int32]*Connection // initialized in init()
-	channels ClientChannels        // For sending notifications, subs, quenches, delete etc to engine
+	mu       sync.Mutex
+	clients  map[int32]*Client // initialized in init()
+	channels ClientChannels    // For sending notifications, subs, quenches, delete etc to engine
 }
 
 // Operations from a client handled via channel to clients
@@ -310,7 +310,7 @@ type ClientChannels struct {
 }
 
 // Create a unique 32 bit unsigned integer id
-func (c *Clients) Add(conn *Connection) {
+func (c *Clients) Add(conn *Client) {
 	clients.mu.Lock()
 	defer clients.mu.Unlock()
 	var id int32 = rand.Int31()
@@ -331,6 +331,7 @@ func (c *Clients) Add(conn *Connection) {
 	return
 }
 
+// Remove will purge a client from the set of clients (run as goroutine)
 func Remove(c *Clients) {
 	for {
 		id := <-c.channels.remove
@@ -345,6 +346,7 @@ func Remove(c *Clients) {
 	}
 }
 
+// Notify is our queue of incoming messages (run as goroutine)
 func Notify(c *Clients) {
 	for {
 		nfn := <-c.channels.notify
@@ -381,6 +383,7 @@ func Notify(c *Clients) {
 }
 
 // FIXME: implement
+// Subscriptions deals with changes to all of our client's subscriptions (run as goroutine)
 func Subscriptions(c *Clients) {
 	for {
 		var sub *Subscription
@@ -407,6 +410,7 @@ func Subscriptions(c *Clients) {
 }
 
 // FIXME: implement
+// Quenches deals with quencehs to all of our client's quenches (run as goroutine)
 func Quenches(c *Clients) {
 	for {
 		var quench *Quench
