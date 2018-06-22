@@ -537,6 +537,7 @@ func (conn *Connection) HandleUNotify(buffer []byte) (err error) {
 
 	// FIXME: Check version and ?
 
+	// FIXME: Or should I add a unotify channel to avoid this?
 	nfn := elvin.NotifyEmit{
 		NameValue:       unotify.NameValue,
 		DeliverInsecure: unotify.DeliverInsecure,
@@ -580,7 +581,7 @@ func (conn *Connection) HandleSubAddRequest(buffer []byte) (err error) {
 	conn.subs[s] = &sub
 	sub.SubID = (int64(conn.ID()) << 32) | int64(s)
 
-	// FIXME: send subscription addition to sub engine
+	conn.channels.subAdd <- &sub
 
 	// Respond with a SubReply
 	subReply := new(elvin.SubReply)
@@ -607,7 +608,7 @@ func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
 
 	// If deletion fails then nack and disconn
 	idx := int32(subDelRequest.SubID & 0xfffffffff)
-	_, exists := conn.subs[idx]
+	sub, exists := conn.subs[idx]
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.XID = subDelRequest.XID
@@ -626,12 +627,13 @@ func (conn *Connection) HandleSubDelRequest(buffer []byte) (err error) {
 	// Remove it from the connection
 	delete(conn.subs, idx)
 
+	// Send it to the subscription engine
+	conn.channels.subDel <- sub
+
 	// Respond with a SubReply
 	subReply := new(elvin.SubReply)
 	subReply.XID = subDelRequest.XID
 	subReply.SubID = subDelRequest.SubID
-
-	// FIXME: send subscription deletion to sub engine
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -696,6 +698,9 @@ func (conn *Connection) HandleSubModRequest(buffer []byte) (err error) {
 		// FIXME: implement
 	}
 
+	// Send it to the subscription engine
+	conn.channels.subMod <- sub
+
 	// Respond with a SubReply
 	subReply := new(elvin.SubReply)
 	subReply.XID = subModRequest.XID
@@ -739,7 +744,8 @@ func (conn *Connection) HandleQuenchAddRequest(buffer []byte) (err error) {
 	conn.quenches[q] = &quench
 	quench.QuenchID = (int64(conn.ID()) << 32) | int64(q)
 
-	// FIXME: send quench to sub engine
+	// send quench to sub engine
+	conn.channels.quenchAdd <- &quench
 
 	// Respond with a QuenchReply
 	quenchReply := new(elvin.QuenchReply)
@@ -791,7 +797,8 @@ func (conn *Connection) HandleQuenchModRequest(buffer []byte) (err error) {
 	quench.DeliverInsecure = quenchModRequest.DeliverInsecure
 	// FIXME: implement key changes
 
-	// FIXME: Pass on change to engine
+	// send quench to sub engine
+	conn.channels.quenchMod <- quench
 
 	// Respond with a QuenchReply
 	quenchReply := new(elvin.QuenchReply)
@@ -818,7 +825,7 @@ func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
 
 	// If deletion fails then nack and disconn
 	idx := int32(quenchDelRequest.QuenchID & 0xfffffffff)
-	_, exists := conn.quenches[idx]
+	quench, exists := conn.quenches[idx]
 	if !exists {
 		nack := new(elvin.Nack)
 		nack.XID = quenchDelRequest.XID
@@ -837,12 +844,13 @@ func (conn *Connection) HandleQuenchDelRequest(buffer []byte) (err error) {
 	// Remove it from the connection
 	delete(conn.quenches, idx)
 
+	// send quench to sub engine
+	conn.channels.quenchDel <- quench
+
 	// Respond with a QuenchReply
 	quenchReply := new(elvin.QuenchReply)
 	quenchReply.XID = quenchDelRequest.XID
 	quenchReply.QuenchID = quenchDelRequest.QuenchID
-
-	// FIXME: send quench deletion to sub engine
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)

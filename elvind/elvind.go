@@ -270,19 +270,24 @@ func init() {
 	clients.clients = make(map[int32]*Connection)
 	clients.channels.remove = make(chan int32)
 	clients.channels.notify = make(chan *elvin.NotifyEmit)
-
-	clients.channels.subAdd = make(chan elvin.AST)          // FIXME:Subscription Add
-	clients.channels.subDel = make(chan int32)              // Subscription Del
-	clients.channels.subMod = make(chan int32)              // FIXME: Subscription Mod
-	clients.channels.quenchAdd = make(chan map[string]bool) // Quench Add
-	clients.channels.quenchDel = make(chan int32)           // Quench Del
-	clients.channels.quenchMod = make(chan int32)           // FIXME: Quench Mod
+	clients.channels.subAdd = make(chan *Subscription)
+	clients.channels.subMod = make(chan *Subscription)
+	clients.channels.subDel = make(chan *Subscription)
+	clients.channels.quenchAdd = make(chan *Quench)
+	clients.channels.quenchMod = make(chan *Quench)
+	clients.channels.quenchDel = make(chan *Quench)
 
 	// Start remove goroutine for connection cleanup
 	go Remove(&clients)
 
 	// Start goroutine for notification eval
 	go Notify(&clients)
+
+	// Start goroutine for subscription changes
+	go Subscriptions(&clients)
+
+	// Start goroutine for quench changes
+	go Quenches(&clients)
 }
 
 // Clients is a set of connection
@@ -292,15 +297,16 @@ type Clients struct {
 	channels ClientChannels        // For sending notifications, subs, quenches, delete etc to engine
 }
 
+// Operations from a client handled via channel to clients
 type ClientChannels struct {
 	remove    chan int32             // Client removal channel
 	notify    chan *elvin.NotifyEmit // Notifications
-	subAdd    chan elvin.AST         // FIXME:Subscription Add
-	subDel    chan int32             // Subscription Del
-	subMod    chan int32             // FIXME: Subscription Mod
-	quenchAdd chan map[string]bool   // Quench Add
-	quenchDel chan int32             // Quench Del
-	quenchMod chan int32             // FIXME: Quench Mod
+	subAdd    chan *Subscription     // Subscription Add
+	subMod    chan *Subscription     // Subscription Mod
+	subDel    chan *Subscription     // Subscription Del
+	quenchAdd chan *Quench           // Quench Add
+	quenchMod chan *Quench           // Quench Mod
+	quenchDel chan *Quench           // Quench Del
 }
 
 // Create a unique 32 bit unsigned integer id
@@ -372,4 +378,55 @@ func Notify(c *Clients) {
 			}
 		}
 	}
+}
+
+// FIXME: implement
+func Subscriptions(c *Clients) {
+	for {
+		var sub *Subscription
+		select {
+		case sub = <-c.channels.subAdd:
+			if glog.V(4) {
+				glog.Infof("SubAdd")
+			}
+		case sub = <-c.channels.subMod:
+			if glog.V(4) {
+				glog.Infof("SubMod")
+			}
+		case sub = <-c.channels.subDel:
+			if glog.V(4) {
+				glog.Infof("SubDel")
+			}
+		}
+
+		if sub.SubID == 0 {
+			glog.Infof("FIXME: Use sub to keep compiler happy")
+		}
+
+	}
+}
+
+// FIXME: implement
+func Quenches(c *Clients) {
+	for {
+		var quench *Quench
+		select {
+		case quench = <-c.channels.quenchAdd:
+			if glog.V(4) {
+				glog.Infof("QuenchAdd")
+			}
+		case quench = <-c.channels.quenchMod:
+			if glog.V(4) {
+				glog.Infof("QuenchMod")
+			}
+		case quench = <-c.channels.quenchDel:
+			if glog.V(4) {
+				glog.Infof("QuenchDel")
+			}
+		}
+		if quench.QuenchID == 0 {
+			glog.Infof("FIXME: Use quench to keep compiler happy")
+		}
+	}
+
 }

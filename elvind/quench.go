@@ -24,7 +24,7 @@ import (
 	"github.com/cobaro/elvin/elvin"
 )
 
-// A Subscription
+// A quench
 type Quench struct {
 	QuenchID        int64
 	DeliverInsecure bool
