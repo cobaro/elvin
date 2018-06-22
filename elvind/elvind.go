@@ -27,6 +27,7 @@ import (
 	"github.com/golang/glog"
 	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -35,7 +36,8 @@ import (
 type Router struct {
 	Mu        sync.Mutex
 	listeners map[string]net.Listener
-	clients   Clients // FIXME: lose the global and use this
+	clients   map[int32]*Client // Required to be initialized by Init()
+	channels  ClientChannels    // For notifications, subs, quenches, delete etc to engine
 
 	// Configurable
 	protocols        map[string]Protocol
@@ -44,7 +46,22 @@ type Router struct {
 	testConnTimeout  time.Duration
 	maxConnections   int
 	doFailover       bool
-	running          bool
+
+	// state
+	initialized bool
+	running     bool
+}
+
+// Operations from a client handled via channel to clients
+type ClientChannels struct {
+	remove    chan int32             // Client removal channel
+	notify    chan *elvin.NotifyEmit // Notifications
+	subAdd    chan *Subscription     // Subscription Add
+	subMod    chan *Subscription     // Subscription Mod
+	subDel    chan *Subscription     // Subscription Del
+	quenchAdd chan *Quench           // Quench Add
+	quenchMod chan *Quench           // Quench Mod
+	quenchDel chan *Quench           // Quench Del
 }
 
 // Set the maximum allowed number of clients
@@ -150,10 +167,10 @@ func (router *Router) FailoverProtocol() (protocol Protocol) {
 
 // Log info about our clients
 func (router *Router) LogClients() {
-	clients.mu.Lock()
-	defer clients.mu.Unlock()
-	glog.Infof("We have %d clients:", len(clients.clients))
-	for i, c := range clients.clients {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	glog.Infof("We have %d clients:", len(router.clients))
+	for i, c := range router.clients {
 		glog.Infof("%d: %+v", i, c)
 	}
 	return
@@ -166,15 +183,15 @@ func (router *Router) LogClients() {
 // FIXME: Should we have an option to stop the listeners to avoid new connections?
 //        Or perhaps a state that means we bounce new clients immediately?
 func (router *Router) Failover() {
-	clients.mu.Lock()
-	defer clients.mu.Unlock()
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
 	disconn := new(elvin.Disconn)
 	disconn.Reason = elvin.DisconnReasonRouterRedirect
 	disconn.Args = router.failoverProtocol.Address
 	if glog.V(5) {
 		glog.Infof("Disconn: %+v", disconn)
 	}
-	for _, c := range clients.clients {
+	for _, c := range router.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
 		c.writeChannel <- buf
@@ -182,10 +199,40 @@ func (router *Router) Failover() {
 	return
 }
 
+// Router initialization
+func (router *Router) Init() {
+	router.clients = make(map[int32]*Client)
+	router.channels.remove = make(chan int32)
+	router.channels.notify = make(chan *elvin.NotifyEmit)
+	router.channels.subAdd = make(chan *Subscription)
+	router.channels.subMod = make(chan *Subscription)
+	router.channels.subDel = make(chan *Subscription)
+	router.channels.quenchAdd = make(chan *Quench)
+	router.channels.quenchMod = make(chan *Quench)
+	router.channels.quenchDel = make(chan *Quench)
+	router.initialized = true
+
+	// Start remove goroutine for client cleanup
+	go router.RemoveClient()
+
+	// Start goroutine for notification eval
+	go router.Notify()
+
+	// Start goroutine for subscription changes
+	go router.Subscriptions()
+
+	// Start goroutine for quench changes
+	go router.Quenches()
+}
+
 // Start a router with current configurartion
 func (router *Router) Start() (err error) {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
+
+	if !router.initialized {
+		router.Init()
+	}
 
 	// Check Protocols
 	for name, protocol := range router.protocols {
@@ -232,16 +279,14 @@ func (router *Router) Stop() (err error) {
 
 	}
 
-	// FIXME: Shut down the clients
-	clients.mu.Lock()
-	defer clients.mu.Unlock()
+	// Shut down the clients
 	disconn := new(elvin.Disconn)
 	disconn.Reason = elvin.DisconnReasonRouterShuttingDown
 	disconn.Args = router.failoverProtocol.Address
 	if glog.V(5) {
 		glog.Infof("Disconn: %+v", disconn)
 	}
-	for _, c := range clients.clients {
+	for _, c := range router.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
 		c.writeChannel <- buf
@@ -262,6 +307,7 @@ func (router *Router) Shutdown() (err error) {
 	}
 
 	// FIXME: Shut down our goroutines
+	os.Exit(0)
 	return nil
 }
 
@@ -287,7 +333,6 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 		}
 
 		var client Client
-		clients.Add(&client) // track it
 
 		client.reader = conn
 		client.writer = conn
@@ -300,64 +345,19 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 		client.writeChannel = make(chan *bytes.Buffer, 4)
 		client.writeTerminate = make(chan int)
 
+		router.AddClient(&client) // track it
 		go client.readHandler()
 		go client.writeHandler()
 	}
 }
 
-// Global clients
-var clients Clients
-
-func init() {
-	clients.clients = make(map[int32]*Client)
-	clients.channels.remove = make(chan int32)
-	clients.channels.notify = make(chan *elvin.NotifyEmit)
-	clients.channels.subAdd = make(chan *Subscription)
-	clients.channels.subMod = make(chan *Subscription)
-	clients.channels.subDel = make(chan *Subscription)
-	clients.channels.quenchAdd = make(chan *Quench)
-	clients.channels.quenchMod = make(chan *Quench)
-	clients.channels.quenchDel = make(chan *Quench)
-
-	// Start remove goroutine for client cleanup
-	go Remove(&clients)
-
-	// Start goroutine for notification eval
-	go Notify(&clients)
-
-	// Start goroutine for subscription changes
-	go Subscriptions(&clients)
-
-	// Start goroutine for quench changes
-	go Quenches(&clients)
-}
-
-// Clients is a set of client
-type Clients struct {
-	mu       sync.Mutex
-	clients  map[int32]*Client // initialized in init()
-	channels ClientChannels    // For sending notifications, subs, quenches, delete etc to engine
-}
-
-// Operations from a client handled via channel to clients
-type ClientChannels struct {
-	remove    chan int32             // Client removal channel
-	notify    chan *elvin.NotifyEmit // Notifications
-	subAdd    chan *Subscription     // Subscription Add
-	subMod    chan *Subscription     // Subscription Mod
-	subDel    chan *Subscription     // Subscription Del
-	quenchAdd chan *Quench           // Quench Add
-	quenchMod chan *Quench           // Quench Mod
-	quenchDel chan *Quench           // Quench Del
-}
-
 // Create a unique 32 bit unsigned integer id
-func (c *Clients) Add(conn *Client) {
-	clients.mu.Lock()
-	defer clients.mu.Unlock()
+func (router *Router) AddClient(conn *Client) {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
 	var id int32 = rand.Int31()
 	for {
-		_, err := c.clients[id]
+		_, err := router.clients[id]
 		if !err {
 			break
 		}
@@ -368,30 +368,30 @@ func (c *Clients) Add(conn *Client) {
 		glog.Infof("New client %d", id)
 	}
 	conn.id = id
-	c.clients[id] = conn
-	conn.channels = c.channels
+	router.clients[id] = conn
+	conn.channels = router.channels
 	return
 }
 
 // Remove will purge a client from the set of clients (run as goroutine)
-func Remove(c *Clients) {
+func (router *Router) RemoveClient() {
 	for {
-		id := <-c.channels.remove
+		id := <-router.channels.remove
 		if glog.V(4) {
 			glog.Infof("Remove client %d", id)
 		}
 
-		clients.mu.Lock()
-		delete(clients.clients, id)
-		clients.mu.Unlock()
+		router.Mu.Lock()
+		delete(router.clients, id)
+		router.Mu.Unlock()
 		// FIXME: Clean up the subscriptions and quenches
 	}
 }
 
 // Notify is our queue of incoming messages (run as goroutine)
-func Notify(c *Clients) {
+func (router *Router) Notify() {
 	for {
-		nfn := <-c.channels.notify
+		nfn := <-router.channels.notify
 		if glog.V(5) {
 			glog.Infof("Remove notification %+v", nfn)
 		}
@@ -404,9 +404,9 @@ func Notify(c *Clients) {
 
 		// Grab a copy of the current client list
 		// For now we don't care if one updates mid stream
-		c.mu.Lock()
-		clients := c.clients
-		c.mu.Unlock()
+		router.Mu.Lock()
+		clients := router.clients
+		router.Mu.Unlock()
 
 		for connid, client := range clients {
 			if len(client.subs) > 0 {
@@ -426,19 +426,19 @@ func Notify(c *Clients) {
 
 // FIXME: implement
 // Subscriptions deals with changes to all of our client's subscriptions (run as goroutine)
-func Subscriptions(c *Clients) {
+func (router *Router) Subscriptions() {
 	for {
 		var sub *Subscription
 		select {
-		case sub = <-c.channels.subAdd:
+		case sub = <-router.channels.subAdd:
 			if glog.V(4) {
 				glog.Infof("SubAdd")
 			}
-		case sub = <-c.channels.subMod:
+		case sub = <-router.channels.subMod:
 			if glog.V(4) {
 				glog.Infof("SubMod")
 			}
-		case sub = <-c.channels.subDel:
+		case sub = <-router.channels.subDel:
 			if glog.V(4) {
 				glog.Infof("SubDel")
 			}
@@ -453,19 +453,19 @@ func Subscriptions(c *Clients) {
 
 // FIXME: implement
 // Quenches deals with quencehs to all of our client's quenches (run as goroutine)
-func Quenches(c *Clients) {
+func (router *Router) Quenches() {
 	for {
 		var quench *Quench
 		select {
-		case quench = <-c.channels.quenchAdd:
+		case quench = <-router.channels.quenchAdd:
 			if glog.V(4) {
 				glog.Infof("QuenchAdd")
 			}
-		case quench = <-c.channels.quenchMod:
+		case quench = <-router.channels.quenchMod:
 			if glog.V(4) {
 				glog.Infof("QuenchMod")
 			}
-		case quench = <-c.channels.quenchDel:
+		case quench = <-router.channels.quenchDel:
 			if glog.V(4) {
 				glog.Infof("QuenchDel")
 			}

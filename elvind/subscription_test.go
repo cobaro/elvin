@@ -35,7 +35,7 @@ var client *elvin.Client
 func TestMain(m *testing.M) {
 	flag.Parse() // FIXME: do something about logging
 	// Create a router instance using standard test config
-	protocol = Protocol{"tcp", "xdr", "0.0.0.0:2917"}
+	protocol = Protocol{"tcp", "xdr", "0.0.0.0:3917"}
 	var router Router
 	router.SetMaxConnections(10)
 	router.SetDoFailover(false)
