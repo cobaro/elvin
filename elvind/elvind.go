@@ -148,7 +148,8 @@ func (router *Router) FailoverProtocol() (protocol Protocol) {
 
 }
 
-func (router *Router) ReportClients() {
+// Log info about our clients
+func (router *Router) LogClients() {
 	clients.mu.Lock()
 	defer clients.mu.Unlock()
 	glog.Infof("We have %d clients:", len(clients.clients))
@@ -159,13 +160,20 @@ func (router *Router) ReportClients() {
 
 }
 
+// Tell our clients to Failover to the configured failover host
+// FIXME: Could take url and shold return an err if no url specified
+//        or configured
+// FIXME: Should we have an option to stop the listeners to avoid new connections?
+//        Or perhaps a state that means we bounce new clients immediately?
 func (router *Router) Failover() {
 	clients.mu.Lock()
 	defer clients.mu.Unlock()
 	disconn := new(elvin.Disconn)
-	disconn.Reason = 2 // Redirect
+	disconn.Reason = elvin.DisconnReasonRouterRedirect
 	disconn.Args = router.failoverProtocol.Address
-	glog.Infof("Disconn: %+v", disconn)
+	if glog.V(5) {
+		glog.Infof("Disconn: %+v", disconn)
+	}
 	for _, c := range clients.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
@@ -174,6 +182,7 @@ func (router *Router) Failover() {
 	return
 }
 
+// Start a router with current configurartion
 func (router *Router) Start() (err error) {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
@@ -208,6 +217,7 @@ func (router *Router) Start() (err error) {
 	return nil
 }
 
+// Stop a router, taking us back to a running but clean state
 func (router *Router) Stop() (err error) {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
@@ -216,10 +226,42 @@ func (router *Router) Stop() (err error) {
 	router.running = false
 
 	// Shut down the listeners
-	for _, listener := range router.listeners {
+	for name, listener := range router.listeners {
 		listener.Close()
+		delete(router.listeners, name)
+
 	}
 
+	// FIXME: Shut down the clients
+	clients.mu.Lock()
+	defer clients.mu.Unlock()
+	disconn := new(elvin.Disconn)
+	disconn.Reason = elvin.DisconnReasonRouterShuttingDown
+	disconn.Args = router.failoverProtocol.Address
+	if glog.V(5) {
+		glog.Infof("Disconn: %+v", disconn)
+	}
+	for _, c := range clients.clients {
+		buf := bufferPool.Get().(*bytes.Buffer)
+		disconn.Encode(buf)
+		c.writeChannel <- buf
+	}
+
+	// FIXME: Shut down our goroutines
+	return nil
+}
+
+// Shutdown
+func (router *Router) Shutdown() (err error) {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	if router.running {
+		router.Mu.Unlock()
+		router.Stop()
+		router.Mu.Lock()
+	}
+
+	// FIXME: Shut down our goroutines
 	return nil
 }
 

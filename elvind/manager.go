@@ -89,7 +89,7 @@ func main() {
 			// FIXME: wait group
 			os.Exit(0)
 		case syscall.SIGUSR1:
-			manager.router.ReportClients()
+			manager.router.LogClients()
 		case syscall.SIGUSR2:
 			manager.router.Failover()
 		}
