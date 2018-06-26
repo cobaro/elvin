@@ -23,8 +23,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/cobaro/elvin/elog"
 	"github.com/cobaro/elvin/elvin"
-	"github.com/golang/glog"
 	"math/rand"
 	"net"
 	"os"
@@ -38,6 +38,7 @@ type Router struct {
 	listeners map[string]net.Listener
 	clients   map[int32]*Client // Required to be initialized by Init()
 	channels  ClientChannels    // For notifications, subs, quenches, delete etc to engine
+	elog      elog.Elog
 
 	// Configurable
 	protocols        map[string]Protocol
@@ -46,6 +47,9 @@ type Router struct {
 	testConnTimeout  time.Duration
 	maxConnections   int
 	doFailover       bool
+	logLevel         int
+	logFormat        int
+	logPath          string // FIXME: implement
 
 	// state
 	initialized bool
@@ -120,6 +124,48 @@ func (router *Router) DoFailover() bool {
 	return router.doFailover
 }
 
+// Set the log level
+func (router *Router) SetLogLevel(level int) {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	router.elog.SetLogLevel(level)
+}
+
+// Get the log level
+func (router *Router) LogLevel() int {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	return router.elog.LogLevel()
+}
+
+// Set the log format
+func (router *Router) SetLogDateFormat(format int) {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	router.elog.SetLogDateFormat(format)
+}
+
+// Get the log format
+func (router *Router) LogDateFormat() int {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	return router.LogDateFormat()
+}
+
+// Set the log file
+func (router *Router) SetLogFile(file *os.File) {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	router.elog.SetLogFile(file)
+}
+
+// Get the log file
+func (router *Router) LogFile() (file os.File) {
+	router.Mu.Lock()
+	defer router.Mu.Unlock()
+	return router.LogFile()
+}
+
 // Add a protocol
 func (router *Router) AddProtocol(name string, protocol Protocol) {
 	router.Mu.Lock()
@@ -169,9 +215,9 @@ func (router *Router) FailoverProtocol() (protocol Protocol) {
 func (router *Router) LogClients() {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
-	glog.Infof("We have %d clients:", len(router.clients))
+	router.elog.Logf(elog.LogLevelInfo1, "We have %d clients:", len(router.clients))
 	for i, c := range router.clients {
-		glog.Infof("%d: %+v", i, c)
+		router.elog.Logf(elog.LogLevelInfo1, "%d: %+v", i, c)
 	}
 	return
 
@@ -188,9 +234,7 @@ func (router *Router) Failover() {
 	disconn := new(elvin.Disconn)
 	disconn.Reason = elvin.DisconnReasonRouterRedirect
 	disconn.Args = router.failoverProtocol.Address
-	if glog.V(5) {
-		glog.Infof("Disconn: %+v", disconn)
-	}
+	router.elog.Logf(elog.LogLevelDebug2, "Disconn: %+v", disconn)
 	for _, c := range router.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
@@ -210,6 +254,8 @@ func (router *Router) Init() {
 	router.channels.quenchAdd = make(chan *Quench)
 	router.channels.quenchMod = make(chan *Quench)
 	router.channels.quenchDel = make(chan *Quench)
+	router.SetLogLevel(elog.LogLevelWarning)
+	router.SetLogDateFormat(elog.LogDateEpochMilli)
 	router.initialized = true
 
 	// Start remove goroutine for client cleanup
@@ -231,7 +277,9 @@ func (router *Router) Start() (err error) {
 	defer router.Mu.Unlock()
 
 	if !router.initialized {
+		router.Mu.Unlock()
 		router.Init()
+		router.Mu.Lock()
 	}
 
 	// Check Protocols
@@ -239,14 +287,14 @@ func (router *Router) Start() (err error) {
 		switch protocol.Network {
 		case "tcp":
 		default:
-			glog.Errorf("network protocol %s is currently unsupported", protocol.Network)
+			router.elog.Logf(elog.LogLevelWarning, "network protocol %s is currently unsupported", protocol.Network)
 			delete(router.protocols, name)
 		}
 
 		switch protocol.Marshal {
 		case "xdr":
 		default:
-			glog.Errorf("marshal protocol %s is currently unsupport", protocol.Marshal)
+			router.elog.Logf(elog.LogLevelWarning, "marshal protocol %s is currently unsupport", protocol.Marshal)
 			delete(router.protocols, name)
 		}
 	}
@@ -257,7 +305,7 @@ func (router *Router) Start() (err error) {
 	// Set up listeners
 	router.listeners = make(map[string]net.Listener)
 	for name, protocol := range router.protocols {
-		glog.Infof("listener: %v", name)
+		router.elog.Logf(elog.LogLevelInfo1, "listener: %v", name)
 		go router.Listener(name, protocol)
 	}
 
@@ -273,6 +321,7 @@ func (router *Router) Stop() (err error) {
 	router.running = false
 
 	// Shut down the listeners
+	router.elog.Logf(elog.LogLevelInfo2, "Closing listeners")
 	for name, listener := range router.listeners {
 		listener.Close()
 		delete(router.listeners, name)
@@ -280,12 +329,11 @@ func (router *Router) Stop() (err error) {
 	}
 
 	// Shut down the clients
+	router.elog.Logf(elog.LogLevelInfo2, "Closing clients")
 	disconn := new(elvin.Disconn)
 	disconn.Reason = elvin.DisconnReasonRouterShuttingDown
 	disconn.Args = router.failoverProtocol.Address
-	if glog.V(5) {
-		glog.Infof("Disconn: %+v", disconn)
-	}
+	router.elog.Logf(elog.LogLevelDebug2, "Disconn: %+v", disconn)
 	for _, c := range router.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
 		disconn.Encode(buf)
@@ -293,6 +341,7 @@ func (router *Router) Stop() (err error) {
 	}
 
 	// FIXME: Shut down our goroutines
+	router.elog.Logf(elog.LogLevelInfo2, "Stopped")
 	return nil
 }
 
@@ -313,10 +362,8 @@ func (router *Router) Shutdown() (err error) {
 
 func (router *Router) Listener(name string, protocol Protocol) (err error) {
 
-	if glog.V(1) {
-		glog.Infof("Start listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
-		defer glog.Infof("Stop listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
-	}
+	router.elog.Logf(elog.LogLevelInfo1, "Start listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
+	defer router.elog.Logf(elog.LogLevelInfo1, "Stop listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
 
 	listener, err := net.Listen(protocol.Network, protocol.Address)
 	if err != nil {
@@ -334,6 +381,7 @@ func (router *Router) Listener(name string, protocol Protocol) (err error) {
 
 		var client Client
 
+		client.elog = router.elog
 		client.reader = conn
 		client.writer = conn
 		client.closer = conn
@@ -364,9 +412,7 @@ func (router *Router) AddClient(conn *Client) {
 		id++
 	}
 
-	if glog.V(4) {
-		glog.Infof("New client %d", id)
-	}
+	router.elog.Logf(elog.LogLevelDebug1, "New client %d", id)
 	conn.id = id
 	router.clients[id] = conn
 	conn.channels = router.channels
@@ -377,9 +423,7 @@ func (router *Router) AddClient(conn *Client) {
 func (router *Router) RemoveClient() {
 	for {
 		id := <-router.channels.remove
-		if glog.V(4) {
-			glog.Infof("Remove client %d", id)
-		}
+		router.elog.Logf(elog.LogLevelDebug1, "Remove client %d", id)
 
 		router.Mu.Lock()
 		delete(router.clients, id)
@@ -392,9 +436,7 @@ func (router *Router) RemoveClient() {
 func (router *Router) Notify() {
 	for {
 		nfn := <-router.channels.notify
-		if glog.V(5) {
-			glog.Infof("Remove notification %+v", nfn)
-		}
+		router.elog.Logf(elog.LogLevelDebug3, "notification %+v", nfn)
 
 		// FIXME: eval
 		// As a dummy for now we're going to send every message we see
@@ -431,21 +473,15 @@ func (router *Router) Subscriptions() {
 		var sub *Subscription
 		select {
 		case sub = <-router.channels.subAdd:
-			if glog.V(4) {
-				glog.Infof("SubAdd")
-			}
+			router.elog.Logf(elog.LogLevelInfo2, "SubAdd")
 		case sub = <-router.channels.subMod:
-			if glog.V(4) {
-				glog.Infof("SubMod")
-			}
+			router.elog.Logf(elog.LogLevelInfo2, "SubMod")
 		case sub = <-router.channels.subDel:
-			if glog.V(4) {
-				glog.Infof("SubDel")
-			}
+			router.elog.Logf(elog.LogLevelInfo2, "SubDel")
 		}
 
 		if sub.SubID == 0 {
-			glog.Infof("FIXME: Use sub to keep compiler happy")
+			router.elog.Logf(elog.LogLevelError, "FIXME: Use sub to keep compiler happy")
 		}
 
 	}
@@ -458,20 +494,14 @@ func (router *Router) Quenches() {
 		var quench *Quench
 		select {
 		case quench = <-router.channels.quenchAdd:
-			if glog.V(4) {
-				glog.Infof("QuenchAdd")
-			}
+			router.elog.Logf(elog.LogLevelInfo2, "QuenchAdd")
 		case quench = <-router.channels.quenchMod:
-			if glog.V(4) {
-				glog.Infof("QuenchMod")
-			}
+			router.elog.Logf(elog.LogLevelInfo2, "QuenchMod")
 		case quench = <-router.channels.quenchDel:
-			if glog.V(4) {
-				glog.Infof("QuenchDel")
-			}
+			router.elog.Logf(elog.LogLevelInfo2, "QuenchDel")
 		}
 		if quench.QuenchID == 0 {
-			glog.Infof("FIXME: Use quench to keep compiler happy")
+			router.elog.Logf(elog.LogLevelError, "FIXME: Use quench to keep compiler happy")
 		}
 	}
 

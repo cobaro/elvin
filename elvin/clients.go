@@ -23,10 +23,9 @@ package elvin
 import (
 	"bytes"
 	"encoding/binary"
-	_ "errors"
 	"fmt"
+	"github.com/cobaro/elvin/elog"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"sync/atomic"
@@ -85,7 +84,6 @@ func (client *Client) Close() {
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
-		// log.Printf("offset = %d, numToRead = %d", offset, numToRead)
 		length, err := reader.Read(buffer[offset:numToRead])
 		if err != nil {
 			return offset + length, err
@@ -121,7 +119,7 @@ func (client *Client) readHandler() {
 
 		// Deal with the packet
 		if err = client.HandlePacket(buffer); err != nil {
-			log.Printf("Read Handler error: %v", err)
+			client.elog.Logf(elog.LogLevelError, "Read Handler error: %v", err)
 			// FIXME: protocol error
 			// Or if say a disconnect timed out
 			// then should we exit?
@@ -148,7 +146,7 @@ func (client *Client) readHandler() {
 	}
 
 	client.wg.Done()
-	// log.Printf("read handler exiting")
+	client.elog.Logf(elog.LogLevelDebug2, "read handler exiting")
 }
 
 // Handle writing for now run as a goroutine
@@ -161,13 +159,12 @@ func (client *Client) writeHandler() {
 		case buffer := <-client.writeChannel:
 
 			// Write the frame header (packetsize)
-			//log.Printf("write header")
 			binary.BigEndian.PutUint32(header, uint32(buffer.Len()))
 			_, err := client.writer.Write(header)
 			if err != nil {
 				// Deal with more errors
 				if err != io.EOF {
-					log.Printf("Unexpected write error: %v", err)
+					client.elog.Logf(elog.LogLevelWarning, "Unexpected write error: %v", err)
 				}
 				client.wg.Done()
 				return
@@ -178,13 +175,13 @@ func (client *Client) writeHandler() {
 			if err != nil {
 				// Deal with more errors
 				if err != io.EOF {
-					log.Printf("Unexpected write error: %v", err)
+					client.elog.Logf(elog.LogLevelWarning, "Unexpected write error: %v", err)
 				}
 				client.wg.Done()
 				return
 			}
 		case <-client.writeTerminate:
-			// log.Printf("writeHandler exiting")
+			client.elog.Logf(elog.LogLevelDebug2, "Write handler exiting")
 			client.wg.Done()
 			return
 		}
@@ -194,7 +191,7 @@ func (client *Client) writeHandler() {
 // Handle a protocol packet
 func (client *Client) HandlePacket(buffer []byte) (err error) {
 
-	// log.Printf("HandlePacket received %v (%d)", PacketIDString(PacketID(buffer)), client.State())
+	client.elog.Logf(elog.LogLevelDebug3, "HandlePacket received %v (%d)", PacketIDString(PacketID(buffer)), client.State())
 
 	// Packets accepted independent of Client's connection state
 	switch PacketID(buffer) {
@@ -260,50 +257,50 @@ func (client *Client) ConnectionEventsDefault(event Packet) {
 	switch event.(type) {
 	case *Disconn:
 		disconn := event.(*Disconn)
-		log.Printf("Received Disconn:\n%v", disconn)
+		client.elog.Logf(elog.LogLevelDebug3, "Received Disconn:\n%+v", disconn)
 		switch disconn.Reason {
 
 		case DisconnReasonRouterShuttingDown:
-			log.Printf("router shutting down, exiting")
+			client.elog.Logf(elog.LogLevelError, "router shutting down, exiting")
 			os.Exit(1)
 
 		case DisconnReasonRouterProtocolErrors:
-			log.Printf("router detected protocol violation")
+			client.elog.Logf(elog.LogLevelError, "router detected protocol violation")
 			os.Exit(1)
 
 		case DisconnReasonRouterRedirect:
 			if len(disconn.Args) > 0 {
-				log.Printf("redirected to %s", disconn.Args)
+				client.elog.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 				client.Endpoint = disconn.Args
 				client.Close()
 				if err := client.Connect(); err != nil {
-					log.Printf("%v", err)
+					client.elog.Logf(elog.LogLevelError, "%v", err)
 					os.Exit(1)
 				}
-				log.Printf("connected to %s", client.Endpoint)
+				client.elog.Logf(elog.LogLevelInfo1, "connected to %s", client.Endpoint)
 			} else {
-				log.Printf("Disconn to nowhere")
+				client.elog.Logf(elog.LogLevelError, "Disconn to nowhere")
 				os.Exit(1)
 			}
 			break
 
 		case DisconnReasonClientConnectionLost:
-			log.Printf("Lost connection to %s, reconnecting", client.Endpoint)
+			client.elog.Logf(elog.LogLevelWarning, "Lost connection to %s, reconnecting", client.Endpoint)
 			if err := client.DefaultReconnect(10, time.Duration(0), time.Minute*2); err != nil {
-				log.Printf("Giving up reconnecting")
+				client.elog.Logf(elog.LogLevelError, "Giving up reconnecting")
 				os.Exit(1)
 			}
-			log.Printf("reconnected")
+			client.elog.Logf(elog.LogLevelWarning, "Reconnected")
 
 		case DisconnReasonClientProtocolErrors:
-			log.Printf("client library detected protocol errors")
+			client.elog.Logf(elog.LogLevelError, "client library detected protocol errors")
 			os.Exit(1)
 		}
 	case *DropWarn:
-		log.Printf("DropWarn (lost one or more packets)")
+		client.elog.Logf(elog.LogLevelWarning, "DropWarn (lost one or more packets)")
 
 	default:
-		log.Printf("FIXME: bad connection notification")
+		client.elog.Logf(elog.LogLevelError, "FIXME: bad connection notification")
 		os.Exit(1)
 	}
 }
@@ -316,7 +313,6 @@ func (client *Client) DefaultReconnect(retries int, minWait time.Duration, maxWa
 	wait := minWait + time.Duration(rand.Intn(50))*time.Millisecond
 
 	for {
-		// log.Printf("sleep for %v", wait)
 		time.Sleep(wait)
 		err = client.Connect()
 		if err == nil {
@@ -362,7 +358,7 @@ func (client *Client) DefaultReconnect(retries int, minWait time.Duration, maxWa
 func (client *Client) ProtocolError(err error) {
 
 	// Log
-	log.Println(err)
+	client.elog.Logf(elog.LogLevelError, "%s", err.Error())
 
 	// Tell the client (if they are listening)
 	disconn := new(Disconn)
@@ -548,15 +544,15 @@ func (client *Client) HandleNotifyDeliver(buffer []byte) (err error) {
 
 	// foreach matching subscription deliver it
 	for _, subID := range notifyDeliver.Secure {
-		// log.Printf("NotifyDeliver secure for %d", subID)
+		client.elog.Logf(elog.LogLevelDebug3, "NotifyDeliver secure for %d", subID)
 		sub, ok := subscriptions[subID]
 		if ok && sub.subID == subID {
 			sub.Notifications <- notifyDeliver.NameValue
 		}
 	}
 	for _, subID := range notifyDeliver.Insecure {
+		client.elog.Logf(elog.LogLevelDebug3, "NotifyDeliver insecure for %d", subID)
 		sub, ok := client.subscriptions[subID]
-		// log.Printf("NotifyDeliver insecure for %d", subID)
 		if ok && sub.subID == subID {
 			sub.Notifications <- notifyDeliver.NameValue
 		}
@@ -581,14 +577,14 @@ func (client *Client) HandleSubAddNotify(buffer []byte) (err error) {
 	notification := QuenchNotification{subAddNotify.TermID, subAddNotify.SubExpr}
 	// foreach matching quench deliver it
 	for _, quenchID := range subAddNotify.SecureQuenchIDs {
-		log.Printf("QuenchAddNotify secure for %d", quenchID)
+		client.elog.Logf(elog.LogLevelDebug3, "QuenchAddNotify secure for %d", quenchID)
 		quench, ok := quenches[quenchID]
 		if ok && quench.quenchID == quenchID {
 			quench.Notifications <- notification
 		}
 	}
 	for _, quenchID := range subAddNotify.InsecureQuenchIDs {
-		log.Printf("QuenchAddNotify insecure for %d", quenchID)
+		client.elog.Logf(elog.LogLevelDebug3, "QuenchAddNotify insecure for %d", quenchID)
 		quench, ok := quenches[quenchID]
 		if ok && quench.quenchID == quenchID {
 			quench.Notifications <- notification
@@ -614,14 +610,14 @@ func (client *Client) HandleSubModNotify(buffer []byte) (err error) {
 	notification := QuenchNotification{subModNotify.TermID, subModNotify.SubExpr}
 	// foreach matching quench deliver it
 	for _, quenchID := range subModNotify.SecureQuenchIDs {
-		log.Printf("QuenchModNotify secure for %d", quenchID)
+		client.elog.Logf(elog.LogLevelDebug3, "QuenchModNotify secure for %d", quenchID)
 		quench, ok := quenches[quenchID]
 		if ok && quench.quenchID == quenchID {
 			quench.Notifications <- notification
 		}
 	}
 	for _, quenchID := range subModNotify.InsecureQuenchIDs {
-		log.Printf("QuenchModNotify insecure for %d", quenchID)
+		client.elog.Logf(elog.LogLevelDebug3, "QuenchModNotify insecure for %d", quenchID)
 		quench, ok := quenches[quenchID]
 		if ok && quench.quenchID == quenchID {
 			quench.Notifications <- notification
@@ -647,7 +643,7 @@ func (client *Client) HandleSubDelNotify(buffer []byte) (err error) {
 	// FIXME: AST is mock (should be empty for delete)
 	notification := QuenchNotification{subDelNotify.TermID, SubAST{1}}
 	for _, quenchID := range subDelNotify.QuenchIDs {
-		log.Printf("QuenchDelNotify for %d", quenchID)
+		client.elog.Logf(elog.LogLevelDebug3, "QuenchDelNotify for %d", quenchID)
 		quench, ok := quenches[quenchID]
 		if ok && quench.quenchID == quenchID {
 			quench.Notifications <- notification

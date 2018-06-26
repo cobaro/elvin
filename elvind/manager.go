@@ -22,7 +22,7 @@ package main
 
 import (
 	"flag"
-	"github.com/golang/glog"
+	"github.com/cobaro/elvin/elog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -42,15 +42,14 @@ func main() {
 
 	// Argument parsing
 	configFile := flag.String("config", "elvind.json", "JSON config file path")
+	verbosity := flag.Int("verbose", 3, "Verbosity level (0-8)")
 	flag.Parse()
-	if manager.config, err = LoadConfig(*configFile); err != nil {
-		glog.Fatal("config load failed:", err)
-	}
-	if glog.V(3) {
-		glog.Infof("manager.config: %+v", *manager.config)
-	}
 
-	glog.Info("Start configuration")
+	manager.router.elog.Logf(elog.LogLevelError, "testing")
+	if manager.config, err = LoadConfig(*configFile); err != nil {
+		manager.router.elog.Logf(elog.LogLevelError, "config load failed:", err, "using defaults")
+		manager.config = DefaultConfig()
+	}
 	manager.router.SetMaxConnections(manager.config.MaxConnections)
 	manager.router.SetDoFailover(manager.config.DoFailover)
 	manager.router.SetTestConnInterval(time.Duration(manager.config.TestConnInterval) * time.Second)
@@ -62,8 +61,11 @@ func main() {
 	}
 	manager.failover = manager.config.Failover
 	manager.router.SetFailoverProtocol(manager.failover)
+	manager.router.elog.SetLogLevel(*verbosity)
+	manager.router.elog.SetLogDateFormat(elog.LogDateEpochMilli)
+	manager.router.elog.Logf(elog.LogLevelInfo2, "Loaded config:  %+v", *manager.config)
 
-	glog.Info("Start router")
+	manager.router.elog.Logf(elog.LogLevelInfo1, "Start router")
 	go manager.router.Start()
 
 	// Set up sigint handling and wait for one
@@ -83,9 +85,8 @@ func main() {
 		sig := <-ch
 		switch sig {
 		case os.Interrupt:
-			glog.Info("Exiting on ", sig)
-			glog.Flush()
-			manager.router.Stop()
+			manager.router.elog.Logf(elog.LogLevelInfo1, "Exiting on %v", sig)
+			// FIXME: Flush logs
 			// FIXME: wait group
 			os.Exit(0)
 		case syscall.SIGUSR1:

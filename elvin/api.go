@@ -22,9 +22,10 @@ package elvin
 
 import (
 	"bytes"
+	"github.com/cobaro/elvin/elog"
 	"io"
-	"log"
 	"net"
+	"os"
 	"sync"
 	"time"
 )
@@ -43,6 +44,7 @@ type Client struct {
 	KeysNfn  KeyBlock               // Connections keys for outgoing notifications
 	KeysSub  KeyBlock               // Connections keys for incoming notifications
 	Events   chan Packet            // Clients may listen here for connectionq events
+	elog     elog.Elog              // Logging
 
 	// Private
 	reader         io.Reader
@@ -147,8 +149,32 @@ func NewClient(endpoint string, options map[string]interface{}, keysNfn KeyBlock
 	// Async Events (Disconn, ECONN, DropWarn, Protocol, ConfConn etc)
 	client.Events = make(chan Packet)
 	client.confConn = make(chan bool)
-
 	return client
+}
+
+// Set the client's log func (rather than use the default)
+func (client *Client) SetLogFunc(logger func(io.Writer, string, ...interface{}) (int, error)) {
+	client.elog.SetLogFunc(logger)
+}
+
+// Call client's log func
+func (client *Client) Logf(level int, format string, a ...interface{}) (int, error) {
+	return client.elog.Logf(level, format, a...)
+}
+
+// Set the logfile to an open file
+func (client *Client) SetLogFile(file *os.File) {
+	client.elog.SetLogFile(file)
+}
+
+// Set the log level
+func (client *Client) SetLogLevel(level int) {
+	client.elog.SetLogLevel(level)
+}
+
+// Set the log format
+func (client *Client) SetLogDateFormat(format int) {
+	client.elog.SetLogDateFormat(format)
 }
 
 // Connect this client to it's endpoint
@@ -441,7 +467,7 @@ func (client *Client) SubscriptionModify(sub *Subscription, expr string, acceptI
 			subReply := reply.(*SubReply)
 			// Check the subscription id
 			if sub.subID != subReply.SubID {
-				log.Printf("FIXME: Protocol violation (%v)", reply)
+				client.elog.Logf(elog.LogLevelError, "FIXME: Protocol violation (%v)", reply)
 			}
 
 			// Update the local subscription details
@@ -496,7 +522,7 @@ func (client *Client) SubscriptionDelete(sub *Subscription) (err error) {
 			subReply := reply.(*SubReply)
 			// Check the subscription id
 			if sub.subID != subReply.SubID {
-				log.Printf("FIXME: Protocol violation (%v)", reply)
+				client.elog.Logf(elog.LogLevelError, "FIXME: Protocol violation (%v)", reply)
 			}
 			// Delete the local subscription details
 			client.mu.Lock()
@@ -604,7 +630,7 @@ func (client *Client) QuenchModify(quench *Quench, addNames map[string]bool, del
 			quenchReply := reply.(*QuenchReply)
 			// Check the quench id
 			if quench.quenchID != quenchReply.QuenchID {
-				log.Printf("FIXME: Protocol violation (%v)", reply)
+				client.elog.Logf(elog.LogLevelError, "FIXME: Protocol violation (%v)", reply)
 			}
 
 			quench.DeliverInsecure = deliverInsecure
@@ -661,7 +687,7 @@ func (client *Client) QuenchDelete(quench *Quench) (err error) {
 			quenchReply := reply.(*QuenchReply)
 			// Check the quench id
 			if quench.quenchID != quenchReply.QuenchID {
-				log.Printf("FIXME: Protocol violation (%v)", reply)
+				client.elog.Logf(elog.LogLevelError, "FIXME: Protocol violation (%v)", reply)
 			}
 			// Delete the local quench details
 			client.mu.Lock()

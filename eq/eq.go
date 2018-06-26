@@ -22,8 +22,8 @@ package main
 
 import (
 	"flag"
+	"github.com/cobaro/elvin/elog"
 	"github.com/cobaro/elvin/elvin"
-	"log"
 	"os"
 	"os/signal"
 	"time"
@@ -37,51 +37,51 @@ func disconnector(client *elvin.Client) {
 			switch event.(type) {
 			case *elvin.Disconn:
 				disconn := event.(*elvin.Disconn)
-				// log.Printf("Received Disconn:\n%v", disconn)
+				// client.Logf(elog.LogLevelInfo1, "Received Disconn:\n%v", disconn)
 				switch disconn.Reason {
 
 				case elvin.DisconnReasonRouterShuttingDown:
-					log.Printf("router shutting down, exiting")
+					client.Logf(elog.LogLevelInfo1, "router shutting down, exiting")
 					os.Exit(1)
 
 				case elvin.DisconnReasonRouterProtocolErrors:
-					log.Printf("router thinks we violated the protocol")
+					client.Logf(elog.LogLevelInfo1, "router thinks we violated the protocol")
 					os.Exit(1)
 
 				case elvin.DisconnReasonRouterRedirect:
 					if len(disconn.Args) > 0 {
-						log.Printf("redirected to %s", disconn.Args)
+						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 						// FIXME: tidy this
 						client.Endpoint = disconn.Args
 						client.Close()
-						// log.Printf("disconnector State(%d)", client.State())
+						// client.Logf(elog.LogLevelInfo1, "disconnector State(%d)", client.State())
 						if err := client.Connect(); err != nil {
-							log.Printf("%v", err)
+							client.Logf(elog.LogLevelInfo1, "%v", err)
 							os.Exit(1)
 						}
-						log.Printf("connected to %s", client.Endpoint)
+						client.Logf(elog.LogLevelInfo1, "connected to %s", client.Endpoint)
 					} else {
-						log.Printf("redirected to %s", disconn.Args)
+						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 					}
 					break
 
 				case elvin.DisconnReasonClientConnectionLost:
-					log.Printf("Lost connection. Reconnecting")
+					client.Logf(elog.LogLevelInfo1, "Lost connection. Reconnecting")
 					if err := client.DefaultReconnect(0, time.Duration(0), time.Duration(time.Minute)); err != nil {
-						log.Printf("Reconnect failed")
+						client.Logf(elog.LogLevelInfo1, "Reconnect failed")
 					} else {
-						log.Printf("Reconnected")
+						client.Logf(elog.LogLevelInfo1, "Reconnected")
 					}
 
 				case elvin.DisconnReasonClientProtocolErrors:
-					log.Printf("client library detected protocol errors")
+					client.Logf(elog.LogLevelInfo1, "client library detected protocol errors")
 					os.Exit(1)
 				}
 			case *elvin.DropWarn:
-				log.Printf("DropWarn (lost packets)")
+				client.Logf(elog.LogLevelInfo1, "DropWarn (lost packets)")
 
 			default:
-				log.Printf("FIXME: bad connection notification")
+				client.Logf(elog.LogLevelInfo1, "FIXME: bad connection notification")
 				os.Exit(1)
 
 			}
@@ -95,19 +95,21 @@ func main() {
 
 	endpoint := "localhost:2917"
 	eq := elvin.NewClient(endpoint, nil, nil, nil)
+	eq.SetLogDateFormat(elog.LogDateLocaltime)
+	eq.SetLogLevel(elog.LogLevelInfo1)
 	go disconnector(eq)
 
 	eq.Options = make(map[string]interface{})
 	// FIXME: At some point let's formalize these as test cases
 	// eq.Options["TestNack"] = 1
 	// eq.Options["TestDisconn"] = 1
-	// log.Printf("Options:%v\n", eq.Options)
+	// eq.Logf(elog.LogLevelInfo1, "Options:%v\n", eq.Options)
 
 	if err := eq.Connect(); err != nil {
-		log.Printf("%v", err)
+		eq.Logf(elog.LogLevelInfo1, "%v", err)
 		os.Exit(1)
 	}
-	log.Printf("connected to %s", endpoint)
+	eq.Logf(elog.LogLevelInfo1, "connected to %s", endpoint)
 
 	// FIXME: do a NewSubscription()
 	quench := new(elvin.Quench)
@@ -117,17 +119,17 @@ func main() {
 	quench.Notifications = make(chan elvin.QuenchNotification)
 
 	if err := eq.Quench(quench); err != nil {
-		log.Printf("Quench failed %v", err)
+		eq.Logf(elog.LogLevelInfo1, "Quench failed %v", err)
 	} else {
-		log.Printf("Quench succeeded %v", *quench)
+		eq.Logf(elog.LogLevelInfo1, "Quench succeeded %v", *quench)
 	}
 
 	addNames := map[string]bool{"int64": true}
 	delNames := map[string]bool{"float64": true}
 	if err := eq.QuenchModify(quench, addNames, delNames, true, nil, nil); err != nil {
-		log.Printf("Quench mod failed %v", err)
+		eq.Logf(elog.LogLevelInfo1, "Quench mod failed %v", err)
 	} else {
-		log.Printf("Quench mod succeeded %v", *quench)
+		eq.Logf(elog.LogLevelInfo1, "Quench mod succeeded %v", *quench)
 	}
 
 	ch := make(chan os.Signal)
@@ -137,26 +139,26 @@ Loop:
 	for {
 		select {
 		case sig := <-ch:
-			log.Printf("Exiting on %v", sig)
+			eq.Logf(elog.LogLevelInfo1, "Exiting on %v", sig)
 			break Loop
 		case pkt := <-quench.Notifications:
-			log.Printf("Received quench:\n%v", pkt)
+			eq.Logf(elog.LogLevelInfo1, "Received quench:\n%v", pkt)
 		}
 	}
 
 	if err := eq.QuenchDelete(quench); err != nil {
-		log.Printf("QuenchDel failed %v", err)
+		eq.Logf(elog.LogLevelInfo1, "QuenchDel failed %v", err)
 	} else {
-		log.Printf("QuenchDel succeeded %v", quench)
+		eq.Logf(elog.LogLevelInfo1, "QuenchDel succeeded %v", quench)
 	}
 
 	// Exit a little gracefully
-	log.Printf("Disconnecting")
+	eq.Logf(elog.LogLevelInfo1, "Disconnecting")
 	if err := eq.Disconnect(); err != nil {
-		log.Printf("%v", err)
+		eq.Logf(elog.LogLevelInfo1, "%v", err)
 		os.Exit(1)
 	}
 
-	log.Printf("Disconnected")
+	eq.Logf(elog.LogLevelInfo1, "Disconnected")
 	os.Exit(0)
 }

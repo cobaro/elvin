@@ -25,8 +25,8 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/cobaro/elvin/elog"
 	"github.com/cobaro/elvin/elvin"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -49,13 +49,15 @@ func main() {
 	var notify func(map[string]interface{}, bool, elvin.KeyBlock) error
 
 	ep := elvin.NewClient(args.endpoint, nil, nil, nil)
+	ep.SetLogDateFormat(elog.LogDateLocaltime)
+	ep.SetLogLevel(elog.LogLevelInfo1)
 
 	if !args.unotify {
 		if err := ep.Connect(); err != nil {
-			log.Printf("%v", err)
+			ep.Logf(elog.LogLevelInfo1, "%v", err)
 			os.Exit(1)
 		}
-		log.Printf("connected to %s", args.endpoint)
+		ep.Logf(elog.LogLevelInfo1, "connected to %s", args.endpoint)
 		notify = ep.Notify
 	} else {
 		notify = ep.UNotify
@@ -63,36 +65,36 @@ func main() {
 
 	// Set up our notitfication reader
 	notifications := make(chan map[string]interface{})
-	go parseNotifications(notifications)
+	go parseNotifications(ep, notifications)
 
 Loop:
 	for {
 		select {
 		case notification, more := <-notifications:
 			if more {
-				// log.Printf("read %+v", notification)
+				// ep.Logf(elog.LogLevelInfo1, "read %+v", notification)
 
 				for i := 0; i < args.number; i++ {
 					if err := notify(notification, true, nil); err != nil {
-						log.Printf("Notify failed")
+						ep.Logf(elog.LogLevelInfo1, "Notify failed")
 					}
 				}
 			} else {
-				log.Printf("Exiting")
+				ep.Logf(elog.LogLevelInfo1, "Exiting")
 				break Loop
 			}
 		case s := <-sig:
-			log.Printf("Exiting on %v", s)
+			ep.Logf(elog.LogLevelInfo1, "Exiting on %v", s)
 			break Loop
 		}
 	}
 
 	if !args.unotify {
 		if err := ep.Disconnect(); err != nil {
-			log.Printf("%v", err)
+			ep.Logf(elog.LogLevelInfo1, "%v", err)
 			os.Exit(1)
 		}
-		log.Printf("Disconnected")
+		ep.Logf(elog.LogLevelInfo1, "Disconnected")
 	}
 
 	os.Exit(0)
@@ -115,18 +117,17 @@ func flags() (args arguments) {
 }
 
 // Read's notifications from stdin into a channel, exits on EOF
-func parseNotifications(sendto chan map[string]interface{}) {
-	log.Println("parser starting")
+func parseNotifications(ep *elvin.Client, sendto chan map[string]interface{}) {
+	ep.Logf(elog.LogLevelInfo1, "parser starting")
 	scanner := bufio.NewScanner(os.Stdin)
 
 	nfn := make(map[string]interface{})
 
 	for scanner.Scan() {
-		// log.Println("parser processing:", scanner.Text())
+		// ep.Logf(elog.LogLevelInfo1, ("parser processing:", scanner.Text())
 		// Look for end of message marker '^---.*$'
 		if scanner.Text()[:3] == "---" {
 			if len(nfn) > 0 {
-				// fmt.Println("Send out", nfn)
 				sendto <- nfn
 				nfn = make(map[string]interface{})
 			}
@@ -134,12 +135,12 @@ func parseNotifications(sendto chan map[string]interface{}) {
 			// look for name : value (with or without space around :)
 			namevalue := strings.SplitN(scanner.Text(), ":", 2)
 			if len(namevalue) != 2 {
-				fmt.Printf("Failed to parse '%s' as attribute: value\n", scanner.Text())
+				ep.Logf(elog.LogLevelInfo1, "Failed to parse '%s' as attribute: value", scanner.Text())
 			} else {
 				// Try to convert the value
 				name := strings.TrimSpace(namevalue[0])
 				value := strings.TrimSpace(namevalue[1])
-				// log.Printf("%s:%s", name, value)
+				// ep.Logf(elog.LogLevelInfo1, "%s:%s", name, value)
 
 				if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 					// string "delimited"
@@ -150,12 +151,12 @@ func parseNotifications(sendto chan map[string]interface{}) {
 					size := (len(value) - 2) / 2 // half what's between the []
 					opaque := make([]byte, size)
 					len, err := hex.Decode(opaque, []byte(value[1:len(value)-1]))
-					// log.Printf("opaque %v len:%d, in:%d, out:%d", opaque, len, 7-2, 7)
+					// ep.Logf(elog.LogLevelInfo1, "opaque %v len:%d, in:%d, out:%d", opaque, len, 7-2, 7)
 					if err != nil {
-						log.Printf("ParseError: %s", err.Error())
+						ep.Logf(elog.LogLevelInfo1, "ParseError: %s", err.Error())
 
 					} else if size != len {
-						log.Printf("ParseError: Couldn't convert entirety of %s", value)
+						ep.Logf(elog.LogLevelInfo1, "ParseError: Couldn't convert entirety of %s", value)
 					} else {
 						nfn[name] = opaque
 					}
@@ -163,7 +164,7 @@ func parseNotifications(sendto chan map[string]interface{}) {
 					// int64 e.g., 123L
 					i64, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
 					if err != nil {
-						log.Printf("ParseError: converting '%s' to int64: %v", value, err.Error())
+						ep.Logf(elog.LogLevelInfo1, "ParseError: converting '%s' to int64: %v", value, err.Error())
 					} else {
 						nfn[name] = i64
 					}
@@ -171,7 +172,7 @@ func parseNotifications(sendto chan map[string]interface{}) {
 					// float64 e.g. 3.14
 					f64, err := strconv.ParseFloat(value, 64)
 					if err != nil {
-						log.Printf("ParseError: converting '%s' to float64: %v", value, err.Error())
+						ep.Logf(elog.LogLevelInfo1, "ParseError: converting '%s' to float64: %v", value, err.Error())
 					} else {
 						nfn[name] = f64
 					}
@@ -179,13 +180,13 @@ func parseNotifications(sendto chan map[string]interface{}) {
 					// int32
 					i64, err := strconv.ParseInt(value, 10, 32)
 					if err != nil {
-						log.Printf("ParseError: converting '%s' to int32: %v", value, err.Error())
+						ep.Logf(elog.LogLevelInfo1, "ParseError: converting '%s' to int32: %v", value, err.Error())
 					} else {
 						nfn[name] = int32(i64)
 					}
 				}
 			}
-			// log.Printf("%+v", nfn)
+			// ep.Logf(elog.LogLevelInfo1, "%+v", nfn)
 		}
 	}
 	// EOF which is normal if a file is redirected in for example

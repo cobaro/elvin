@@ -25,8 +25,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/cobaro/elvin/elog"
 	"github.com/cobaro/elvin/elvin"
-	"github.com/golang/glog"
 	"io"
 	"math"
 	"math/rand"
@@ -81,6 +81,7 @@ func (client *Client) SetTestConnState(state int) {
 type Client struct {
 	id             int32 // Id assigned by router
 	mu             sync.Mutex
+	elog           elog.Elog
 	channels       ClientChannels
 	subs           map[int32]*Subscription
 	quenches       map[int32]*Quench
@@ -110,9 +111,7 @@ func (client *Client) ID() int32 {
 }
 
 func (client *Client) Close() {
-	if glog.V(4) {
-		glog.Infof("Close()ing client %d", client.ID())
-	}
+	client.elog.Logf(elog.LogLevelInfo2, "Closing client %d", client.ID())
 	select {
 	case client.writeTerminate <- 1:
 	default:
@@ -126,9 +125,6 @@ func (client *Client) Close() {
 func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 	offset := 0
 	for offset < numToRead {
-		if glog.V(5) {
-			glog.Infof("offset = %d, numToRead = %d", offset, numToRead)
-		}
 		length, err := reader.Read(buffer[offset:numToRead])
 		if err != nil {
 			return offset + length, err
@@ -140,12 +136,8 @@ func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 
 // Handle reading for now run as a goroutine
 func (client *Client) readHandler() {
-	if glog.V(4) {
-		glog.Infof("Read Handler starting")
-	}
-	if glog.V(4) {
-		defer glog.Infof("Read Handler exiting")
-	}
+	client.elog.Logf(elog.LogLevelDebug1, "Read Handler starting")
+	defer client.elog.Logf(elog.LogLevelDebug1, "Read Handler exiting")
 
 	header := make([]byte, 4)
 	buffer := make([]byte, 2048)
@@ -161,9 +153,7 @@ func (client *Client) readHandler() {
 		packetSize := int(binary.BigEndian.Uint32(header))
 		// Grow our buffer if needed
 		if packetSize > len(buffer) {
-			if glog.V(4) {
-				glog.Infof("Growing buffer to %d bytes", packetSize)
-			}
+			client.elog.Logf(elog.LogLevelDebug2, "Growing buffer to %d bytes", packetSize)
 			buffer = make([]byte, packetSize)
 		}
 
@@ -174,23 +164,18 @@ func (client *Client) readHandler() {
 
 		// Deal with the packet
 		if err = client.HandlePacket(buffer); err != nil {
-			glog.Errorf("Read Handler error: %v", err)
+			client.elog.Logf(elog.LogLevelError, "Read Handler error: %v", err)
 			// FIXME: protocol error
 			break
 		}
-	}
-	if glog.V(4) {
-		glog.Infof("Read Handler Close()")
 	}
 	client.Close()
 }
 
 // Handle writing for now run as a goroutine
 func (client *Client) writeHandler() {
-	if glog.V(4) {
-		glog.Infof("Write Handler starting")
-		defer glog.Infof("Write Handler exiting")
-	}
+	client.elog.Logf(elog.LogLevelDebug1, "Write Handler starting")
+	defer client.elog.Logf(elog.LogLevelDebug1, "Write Handler exiting")
 
 	header := make([]byte, 4)
 
@@ -224,7 +209,7 @@ func (client *Client) writeHandler() {
 			if err != nil {
 				// Deal with more errors
 				if err != io.EOF {
-					glog.Errorf("Unexpected write error: %v", err)
+					client.elog.Logf(elog.LogLevelError, "Unexpected write error: %v", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
@@ -235,7 +220,7 @@ func (client *Client) writeHandler() {
 			if err != nil {
 				// Deal with more errors
 				if err != io.EOF {
-					glog.Errorf("Unexpected write error: %v", err)
+					client.elog.Logf(elog.LogLevelError, "Unexpected write error: %v", err)
 				}
 				bufferPool.Put(buffer)
 				return // We're done, cleanup done by read
@@ -244,9 +229,7 @@ func (client *Client) writeHandler() {
 			return // We're done, cleanup done by read
 
 		case <-time.After(currentTimeout):
-			if glog.V(4) {
-				glog.Infof("writeHandler timeout: %d", client.TestConnState())
-			}
+			client.elog.Logf(elog.LogLevelDebug1, "writeHandler timeout: %d", client.TestConnState())
 
 			switch client.TestConnState() {
 			case TestConnIdle:
@@ -257,9 +240,7 @@ func (client *Client) writeHandler() {
 				testConn.Encode(writeBuf)
 				client.writeChannel <- writeBuf
 			case TestConnAwaitingResponse:
-				if glog.V(3) {
-					glog.Infof("Closing client %d for not responding to TestConn", client.ID())
-				}
+				client.elog.Logf(elog.LogLevelInfo1, "Closing client %d for not responding to TestConn", client.ID())
 				// FIXME:Close the socket to trigger read exit
 				client.closer.Close()
 				return
@@ -274,9 +255,7 @@ func (client *Client) writeHandler() {
 // Handle a protocol packet
 func (client *Client) HandlePacket(buffer []byte) (err error) {
 
-	if glog.V(4) {
-		glog.Infof("received %s", elvin.PacketIDString(elvin.PacketID(buffer)))
-	}
+	client.elog.Logf(elog.LogLevelDebug3, "received %s", elvin.PacketIDString(elvin.PacketID(buffer)))
 
 	// Receiving any packet acts a ConfConn
 	client.SetTestConnState(TestConnHadResponse)
@@ -412,9 +391,7 @@ func (client *Client) HandleConnRequest(buffer []byte) (err error) {
 
 	// Check some options
 	if _, ok := connRequest.Options["TestNack"]; ok {
-		if glog.V(3) {
-			glog.Infof("Sending Nack for options:TestNack")
-		}
+		client.elog.Logf(elog.LogLevelInfo1, "Sending Nack for options:TestNack")
 		nack := new(elvin.Nack)
 		nack.XID = connRequest.XID
 		nack.ErrorCode = elvin.ErrorsImplementationLimit
@@ -426,9 +403,7 @@ func (client *Client) HandleConnRequest(buffer []byte) (err error) {
 		return nil
 	}
 	if _, ok := connRequest.Options["TestDisconn"]; ok {
-		if glog.V(3) {
-			glog.Infof("Sending Disconn for options:TestDisconn")
-		}
+		client.elog.Logf(elog.LogLevelInfo1, "Sending Disconn for options:TestDisconn")
 		disconn := new(elvin.Disconn)
 		disconn.Reason = 4 // a little bogus
 		buf := bufferPool.Get().(*bytes.Buffer)
@@ -448,9 +423,7 @@ func (client *Client) HandleConnRequest(buffer []byte) (err error) {
 	// FIXME; totally bogus
 	connReply.Options = connRequest.Options
 
-	if glog.V(3) {
-		glog.Infof("New client %d connected", client.ID())
-	}
+	client.elog.Logf(elog.LogLevelInfo1, "New client %d connected", client.ID())
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -475,9 +448,7 @@ func (client *Client) HandleDisconnRequest(buffer []byte) (err error) {
 	DisconnReply := new(elvin.DisconnReply)
 	DisconnReply.XID = disconnRequest.XID
 
-	if glog.V(3) {
-		glog.Infof("client %d disconnected", client.ID())
-	}
+	client.elog.Logf(elog.LogLevelInfo1, "client %d disconnected", client.ID())
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -497,9 +468,7 @@ func (client *Client) HandleDisconnRequest(buffer []byte) (err error) {
 // Handle a TestConn
 func (client *Client) HandleTestConn(buffer []byte) (err error) {
 	// Nothing to decode
-	if glog.V(4) {
-		glog.Infof("Received TestConn", client.ID())
-	}
+	client.elog.Logf(elog.LogLevelInfo2, "Received TestConn", client.ID())
 
 	// Only respond is there are no queued packets
 	if len(client.writeChannel) > 1 {
@@ -587,9 +556,7 @@ func (client *Client) HandleSubAddRequest(buffer []byte) (err error) {
 	subReply := new(elvin.SubReply)
 	subReply.XID = subRequest.XID
 	subReply.SubID = sub.SubID
-	if glog.V(4) {
-		glog.Infof("Client:%d New subscription:%d (%d)", client.ID(), s, sub.SubID)
-	}
+	client.elog.Logf(elog.LogLevelInfo2, "Client:%d New subscription:%d (%d)", client.ID(), s, sub.SubID)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
@@ -752,9 +719,7 @@ func (client *Client) HandleQuenchAddRequest(buffer []byte) (err error) {
 	quenchReply.XID = quenchRequest.XID
 	quenchReply.QuenchID = quench.QuenchID
 
-	if glog.V(4) {
-		glog.Infof("Client:%d New quench:%d %+v", client.ID(), quench.QuenchID, quench)
-	}
+	client.elog.Logf(elog.LogLevelInfo2, "Client:%d New quench:%d %+v", client.ID(), quench.QuenchID, quench)
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)
 	quenchReply.Encode(buf)
@@ -805,9 +770,7 @@ func (client *Client) HandleQuenchModRequest(buffer []byte) (err error) {
 	quenchReply.XID = quenchModRequest.XID
 	quenchReply.QuenchID = quench.QuenchID
 
-	if glog.V(4) {
-		glog.Infof("Client:%d  quench:%d modified %+v", client.ID(), quench.QuenchID, quench)
-	}
+	client.elog.Logf(elog.LogLevelInfo2, "Client:%d  quench:%d modified %+v", client.ID(), quench.QuenchID, quench)
 
 	// Encode that into a buffer for the write handler
 	buf := bufferPool.Get().(*bytes.Buffer)

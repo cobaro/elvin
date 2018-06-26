@@ -14,5 +14,8 @@
     "FailoverProtocol" : { "Network" : "tcp", "Marshal" : "xdr", "Address" : "0.0.0.0:2918" },
 
     "TestConnInterval" : 10,
-    "TestConnTimeout" : 10
+    "TestConnTimeout" : 10,
+
+    "LogLevel" : 3,
+    "LogFormat" : 0
 }

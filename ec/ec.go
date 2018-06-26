@@ -23,8 +23,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/cobaro/elvin/elog"
 	"github.com/cobaro/elvin/elvin"
-	"log"
 	"os"
 	"os/signal"
 	"time"
@@ -42,6 +42,9 @@ func main() {
 	flag.Parse()
 
 	ec := elvin.NewClient(args.endpoint, nil, nil, nil)
+	ec.SetLogDateFormat(elog.LogDateLocaltime)
+	ec.SetLogLevel(elog.LogLevelInfo1)
+
 	// Using default disconnector for now
 	// go disconnector(ec)
 
@@ -49,13 +52,13 @@ func main() {
 	// FIXME: At some point let's formalize these as test cases
 	// ec.Options["TestNack"] = 1
 	// ec.Options["TestDisconn"] = 1
-	// log.Printf("Options:%v\n", ec.Options)
+	// ec.Logf(elog.LogLevelInfo1, "Options:%v\n", ec.Options)
 
 	if err := ec.Connect(); err != nil {
-		log.Printf("%v", err)
+		ec.Logf(elog.LogLevelInfo1, "%v", err)
 		os.Exit(1)
 	}
-	log.Printf("connected to %s", args.endpoint)
+	ec.Logf(elog.LogLevelInfo1, "connected to %s", args.endpoint)
 
 	// FIXME: do a NewSubscription()
 	sub := new(elvin.Subscription)
@@ -66,13 +69,13 @@ func main() {
 	sub.Notifications = make(chan map[string]interface{})
 
 	if err := ec.Subscribe(sub); err != nil {
-		log.Printf("Subscribe failed %v", err)
+		ec.Logf(elog.LogLevelInfo1, "Subscribe failed %v", err)
 	} else {
-		log.Printf("Subscribe succeeded %v", sub)
+		ec.Logf(elog.LogLevelInfo1, "Subscribe succeeded %v", sub)
 		if err := ec.SubscriptionModify(sub, "bogus", true, nil, nil); err != nil {
-			log.Printf("SubMod failed %v", err)
+			ec.Logf(elog.LogLevelInfo1, "SubMod failed %v", err)
 		} else {
-			log.Printf("SubMod succeeded %v", sub)
+			ec.Logf(elog.LogLevelInfo1, "SubMod succeeded %v", sub)
 		}
 	}
 
@@ -85,11 +88,11 @@ Loop:
 	for {
 		select {
 		case sig := <-ch:
-			log.Printf("Exiting on %v", sig)
+			ec.Logf(elog.LogLevelInfo1, "Exiting on %v", sig)
 			break Loop
 		case nfn := <-sub.Notifications:
 			if args.number == 1 {
-				log.Printf("Received notification:\n%v", nfn)
+				ec.Logf(elog.LogLevelInfo1, "Received notification:\n%v", nfn)
 			} else {
 				received++
 				if received == args.number {
@@ -103,19 +106,19 @@ Loop:
 	}
 
 	if err := ec.SubscriptionDelete(sub); err != nil {
-		log.Printf("SubDel failed %v", err)
+		ec.Logf(elog.LogLevelInfo1, "SubDel failed %v", err)
 	} else {
-		log.Printf("SubDel succeeded %v", sub)
+		ec.Logf(elog.LogLevelInfo1, "SubDel succeeded %v", sub)
 	}
 
 	// Exit a little gracefully
-	log.Printf("Disconnecting")
+	ec.Logf(elog.LogLevelInfo1, "Disconnecting")
 	if err := ec.Disconnect(); err != nil {
-		log.Printf("%v", err)
+		ec.Logf(elog.LogLevelInfo1, "%v", err)
 		os.Exit(1)
 	}
 
-	log.Printf("Disconnected")
+	ec.Logf(elog.LogLevelInfo1, "Disconnected")
 	os.Exit(0)
 }
 
@@ -141,47 +144,47 @@ func disconnector(client *elvin.Client) {
 			switch event.(type) {
 			case *elvin.Disconn:
 				disconn := event.(*elvin.Disconn)
-				log.Printf("Received Disconn:\n%v", disconn)
+				client.Logf(elog.LogLevelInfo1, "Received Disconn:\n%v", disconn)
 				switch disconn.Reason {
 
 				case elvin.DisconnReasonRouterShuttingDown:
-					log.Printf("router shutting down, exiting")
+					client.Logf(elog.LogLevelInfo1, "router shutting down, exiting")
 					os.Exit(1)
 
 				case elvin.DisconnReasonRouterProtocolErrors:
-					log.Printf("router thinks we violated the protocol")
+					client.Logf(elog.LogLevelInfo1, "router thinks we violated the protocol")
 					os.Exit(1)
 
 				case elvin.DisconnReasonRouterRedirect:
 					if len(disconn.Args) > 0 {
-						log.Printf("redirected to %s", disconn.Args)
+						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 						// FIXME: tidy this
 						client.Endpoint = disconn.Args
 						client.Close()
-						// log.Printf("disconnector State(%d)", client.State())
+						// client.Logf(elog.LogLevelInfo1, "disconnector State(%d)", client.State())
 						if err := client.Connect(); err != nil {
-							log.Printf("%v", err)
+							client.Logf(elog.LogLevelInfo1, "%v", err)
 							os.Exit(1)
 						}
-						log.Printf("connected to %s", client.Endpoint)
+						client.Logf(elog.LogLevelInfo1, "connected to %s", client.Endpoint)
 					} else {
-						log.Printf("redirected to %s", disconn.Args)
+						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 					}
 					break
 
 				case elvin.DisconnReasonClientConnectionLost:
-					log.Printf("FIXME: connection lost")
+					client.Logf(elog.LogLevelInfo1, "FIXME: connection lost")
 					os.Exit(1)
 
 				case elvin.DisconnReasonClientProtocolErrors:
-					log.Printf("client library detected protocol errors")
+					client.Logf(elog.LogLevelInfo1, "client library detected protocol errors")
 					os.Exit(1)
 				}
 			case *elvin.DropWarn:
-				log.Printf("DropWarn (lost packets)")
+				client.Logf(elog.LogLevelInfo1, "DropWarn (lost packets)")
 
 			default:
-				log.Printf("FIXME: bad connection notification")
+				client.Logf(elog.LogLevelInfo1, "FIXME: bad connection notification")
 				os.Exit(1)
 
 			}

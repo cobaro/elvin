@@ -23,6 +23,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/cobaro/elvin/elog"
 	"os"
 )
 
@@ -39,6 +40,8 @@ type Configuration struct {
 	MaxConnections   int
 	TestConnInterval int64 // idle seconds to trigger, 0 to disable
 	TestConnTimeout  int64 // Time to await a response
+	LogLevel         int
+	LogDateFormat    int
 }
 
 func LoadConfig(configFile string) (config *Configuration, err error) {
@@ -53,15 +56,18 @@ func LoadConfig(configFile string) (config *Configuration, err error) {
 	return &configuration, err
 }
 
-func TestConfig() (config *Configuration) {
+func DefaultConfig() (config *Configuration) {
 	config = new(Configuration)
 
-	config.Protocols = []Protocol{Protocol{"tcp", "xdr", "localhost:3917"}}
-	config.Failover = Protocol{"tcp", "xdr", "localhost:3917"}
+	config.Protocols = []Protocol{Protocol{"tcp", "xdr", "localhost:2917"}}
+	config.Failover = Protocol{"tcp", "xdr", "localhost:2917"}
 	config.DoFailover = false
 	config.MaxConnections = 64
 	config.TestConnInterval = 0
 	config.TestConnTimeout = 10
+	config.LogLevel = elog.LogLevelInfo1
+	config.LogDateFormat = elog.LogDateLocaltime
+	// config.Logfile = os.Stderr
 
 	return config
 }
