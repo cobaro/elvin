@@ -39,7 +39,8 @@ import (
 //      client.Disonnect()
 // See individual methods for details
 type Client struct {
-	Endpoint string                 // Router descriptor
+	URL      string                 // Router descriptor
+	Protocol *Protocol              // Router specification
 	Options  map[string]interface{} // Router options
 	KeysNfn  KeyBlock               // Connections keys for outgoing notifications
 	KeysSub  KeyBlock               // Connections keys for incoming notifications
@@ -131,9 +132,9 @@ const TestConnTimeout = (10 * time.Second)
 
 // Create a new client.
 // Using new(Client) will not result in proper initialization
-func NewClient(endpoint string, options map[string]interface{}, keysNfn KeyBlock, keysSub KeyBlock) (conn *Client) {
+func NewClient(url string, options map[string]interface{}, keysNfn KeyBlock, keysSub KeyBlock) (conn *Client) {
 	client := new(Client)
-	client.Endpoint = endpoint
+	client.URL = url
 	client.Options = options
 	client.KeysNfn = keysNfn
 	client.KeysSub = keysSub
@@ -177,12 +178,17 @@ func (client *Client) SetLogDateFormat(format int) {
 	client.elog.SetLogDateFormat(format)
 }
 
-// Connect this client to it's endpoint
+// Connect this client
 // Note this is not thread safe and hence not public
 // Client's should call Unotify() or Connect()
 func (client *Client) open() (err error) {
 	// Establish a socket to the server
-	conn, err := net.Dial("tcp", client.Endpoint)
+	protocol, err := URLToProtocol(client.URL)
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.Dial("tcp", protocol.Address)
 	if err != nil {
 		return err
 	}
@@ -199,7 +205,7 @@ func (client *Client) open() (err error) {
 	return nil
 }
 
-// Connect this client to it's endpoint
+// Connect this client
 func (client *Client) Connect() (err error) {
 
 	client.mu.Lock()

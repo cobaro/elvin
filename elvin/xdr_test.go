@@ -242,9 +242,9 @@ func TestXdrNotification(t *testing.T) {
 	// encode
 	var buffer = new(bytes.Buffer)
 	XdrPutNotification(buffer, nfn)
-	t.Logf("%d:%v\n", buffer.Len(), buffer.Bytes())
+	// t.Logf("%d:%v\n", buffer.Len(), buffer.Bytes())
 	bytes := buffer.Bytes()
-	t.Logf("%d: %v", len(bytes), bytes)
+	// t.Logf("%d: %v", len(bytes), bytes)
 
 	// decode
 	nfn2, _, err := XdrGetNotification(bytes)
@@ -253,8 +253,8 @@ func TestXdrNotification(t *testing.T) {
 		t.Fail()
 	}
 
-	t.Log("nfn1:", nfn)
-	t.Log("nfn2:", nfn2)
+	//t.Log("nfn1:", nfn)
+	//t.Log("nfn2:", nfn2)
 	// The floats won't be perfectly equal but should be close
 	if nfn["float64"].(float64)-nfn2["float64"].(float64) > 0.000001 {
 		t.Logf("Floats differ by too much, %v!=%v",
@@ -304,7 +304,7 @@ func TestXdrKeys(t *testing.T) {
 		t.Log("Keys differ\n", pkb1, "\n", pkb2)
 		t.Fail()
 	}
-	t.Log("\n", pkb1, "\n", pkb2)
+	//t.Log("\n", pkb1, "\n", pkb2)
 }
 
 // Benchmarks

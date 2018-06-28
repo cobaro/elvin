@@ -271,13 +271,13 @@ func (client *Client) ConnectionEventsDefault(event Packet) {
 		case DisconnReasonRouterRedirect:
 			if len(disconn.Args) > 0 {
 				client.elog.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
-				client.Endpoint = disconn.Args
+				client.URL = disconn.Args
 				client.Close()
 				if err := client.Connect(); err != nil {
 					client.elog.Logf(elog.LogLevelError, "%v", err)
 					os.Exit(1)
 				}
-				client.elog.Logf(elog.LogLevelInfo1, "connected to %s", client.Endpoint)
+				client.elog.Logf(elog.LogLevelInfo1, "connected to %s", client.URL)
 			} else {
 				client.elog.Logf(elog.LogLevelError, "Disconn to nowhere")
 				os.Exit(1)
@@ -285,7 +285,7 @@ func (client *Client) ConnectionEventsDefault(event Packet) {
 			break
 
 		case DisconnReasonClientConnectionLost:
-			client.elog.Logf(elog.LogLevelWarning, "Lost connection to %s, reconnecting", client.Endpoint)
+			client.elog.Logf(elog.LogLevelWarning, "Lost connection to %s, reconnecting", client.URL)
 			if err := client.DefaultReconnect(10, time.Duration(0), time.Minute*2); err != nil {
 				client.elog.Logf(elog.LogLevelError, "Giving up reconnecting")
 				os.Exit(1)
