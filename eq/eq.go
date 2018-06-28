@@ -26,78 +26,21 @@ import (
 	"github.com/cobaro/elvin/elvin"
 	"os"
 	"os/signal"
-	"time"
 )
 
-// Handle Disconnects stub
-func disconnector(client *elvin.Client) {
-	for {
-		select {
-		case event := <-client.Events:
-			switch event.(type) {
-			case *elvin.Disconn:
-				disconn := event.(*elvin.Disconn)
-				// client.Logf(elog.LogLevelInfo1, "Received Disconn:\n%v", disconn)
-				switch disconn.Reason {
-
-				case elvin.DisconnReasonRouterShuttingDown:
-					client.Logf(elog.LogLevelInfo1, "router shutting down, exiting")
-					os.Exit(1)
-
-				case elvin.DisconnReasonRouterProtocolErrors:
-					client.Logf(elog.LogLevelInfo1, "router thinks we violated the protocol")
-					os.Exit(1)
-
-				case elvin.DisconnReasonRouterRedirect:
-					if len(disconn.Args) > 0 {
-						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
-						// FIXME: tidy this
-						client.Endpoint = disconn.Args
-						client.Close()
-						// client.Logf(elog.LogLevelInfo1, "disconnector State(%d)", client.State())
-						if err := client.Connect(); err != nil {
-							client.Logf(elog.LogLevelInfo1, "%v", err)
-							os.Exit(1)
-						}
-						client.Logf(elog.LogLevelInfo1, "connected to %s", client.Endpoint)
-					} else {
-						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
-					}
-					break
-
-				case elvin.DisconnReasonClientConnectionLost:
-					client.Logf(elog.LogLevelInfo1, "Lost connection. Reconnecting")
-					if err := client.DefaultReconnect(0, time.Duration(0), time.Duration(time.Minute)); err != nil {
-						client.Logf(elog.LogLevelInfo1, "Reconnect failed")
-					} else {
-						client.Logf(elog.LogLevelInfo1, "Reconnected")
-					}
-
-				case elvin.DisconnReasonClientProtocolErrors:
-					client.Logf(elog.LogLevelInfo1, "client library detected protocol errors")
-					os.Exit(1)
-				}
-			case *elvin.DropWarn:
-				client.Logf(elog.LogLevelInfo1, "DropWarn (lost packets)")
-
-			default:
-				client.Logf(elog.LogLevelInfo1, "FIXME: bad connection notification")
-				os.Exit(1)
-
-			}
-		}
-	}
+type arguments struct {
+	help bool
+	url  string
 }
 
 func main() {
 	// Argument parsing
+	args := flags()
 	flag.Parse()
 
-	endpoint := "localhost:2917"
-	eq := elvin.NewClient(endpoint, nil, nil, nil)
+	eq := elvin.NewClient(args.url, nil, nil, nil)
 	eq.SetLogDateFormat(elog.LogDateLocaltime)
 	eq.SetLogLevel(elog.LogLevelInfo1)
-	go disconnector(eq)
 
 	eq.Options = make(map[string]interface{})
 	// FIXME: At some point let's formalize these as test cases
@@ -109,7 +52,7 @@ func main() {
 		eq.Logf(elog.LogLevelInfo1, "%v", err)
 		os.Exit(1)
 	}
-	eq.Logf(elog.LogLevelInfo1, "connected to %s", endpoint)
+	eq.Logf(elog.LogLevelInfo1, "connected to %s", args.url)
 
 	// FIXME: do a NewSubscription()
 	quench := new(elvin.Quench)
@@ -161,4 +104,18 @@ Loop:
 
 	eq.Logf(elog.LogLevelInfo1, "Disconnected")
 	os.Exit(0)
+}
+
+// Argument parsing
+func flags() (args arguments) {
+	flag.BoolVar(&args.help, "h", false, "Print this help")
+	flag.StringVar(&args.url, "e", "elvin://", "elvin url e.g., elvin://host")
+	flag.Parse()
+
+	if args.help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	return args
 }

@@ -31,9 +31,9 @@ import (
 )
 
 type arguments struct {
-	help     bool
-	endpoint string
-	number   int
+	help   bool
+	url    string
+	number int
 }
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 	args := flags()
 	flag.Parse()
 
-	ec := elvin.NewClient(args.endpoint, nil, nil, nil)
+	ec := elvin.NewClient(args.url, nil, nil, nil)
 	ec.SetLogDateFormat(elog.LogDateLocaltime)
 	ec.SetLogLevel(elog.LogLevelInfo1)
 
@@ -58,7 +58,7 @@ func main() {
 		ec.Logf(elog.LogLevelInfo1, "%v", err)
 		os.Exit(1)
 	}
-	ec.Logf(elog.LogLevelInfo1, "connected to %s", args.endpoint)
+	ec.Logf(elog.LogLevelInfo1, "connected to %s", args.url)
 
 	// FIXME: do a NewSubscription()
 	sub := new(elvin.Subscription)
@@ -125,7 +125,7 @@ Loop:
 // Argument parsing
 func flags() (args arguments) {
 	flag.BoolVar(&args.help, "h", false, "Print this help")
-	flag.StringVar(&args.endpoint, "e", "localhost:2917", "host:port of router")
+	flag.StringVar(&args.url, "e", "elvin://", "elvin url e.g., elvin://host")
 	flag.IntVar(&args.number, "n", 1, "number of notifications to receive before reporting")
 	flag.Parse()
 
@@ -159,14 +159,14 @@ func disconnector(client *elvin.Client) {
 					if len(disconn.Args) > 0 {
 						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 						// FIXME: tidy this
-						client.Endpoint = disconn.Args
+						client.URL = disconn.Args
 						client.Close()
 						// client.Logf(elog.LogLevelInfo1, "disconnector State(%d)", client.State())
 						if err := client.Connect(); err != nil {
 							client.Logf(elog.LogLevelInfo1, "%v", err)
 							os.Exit(1)
 						}
-						client.Logf(elog.LogLevelInfo1, "connected to %s", client.Endpoint)
+						client.Logf(elog.LogLevelInfo1, "connected to %s", client.URL)
 					} else {
 						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 					}

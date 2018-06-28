@@ -27,15 +27,9 @@ import (
 	"os"
 )
 
-type Protocol struct {
-	Network string
-	Marshal string
-	Address string
-}
-
 type Configuration struct {
-	Protocols        []Protocol
-	Failover         Protocol
+	Protocols        []string
+	Failover         string
 	DoFailover       bool
 	MaxConnections   int
 	TestConnInterval int64 // idle seconds to trigger, 0 to disable
@@ -59,8 +53,8 @@ func LoadConfig(configFile string) (config *Configuration, err error) {
 func DefaultConfig() (config *Configuration) {
 	config = new(Configuration)
 
-	config.Protocols = []Protocol{Protocol{"tcp", "xdr", "localhost:2917"}}
-	config.Failover = Protocol{"tcp", "xdr", "localhost:2917"}
+	config.Failover = "elvin://0.0.0.0"
+	config.Protocols = []string{"elvin://0.0.0.0"}
 	config.DoFailover = false
 	config.MaxConnections = 64
 	config.TestConnInterval = 0

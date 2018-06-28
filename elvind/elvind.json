@@ -1,21 +1,16 @@
 {
     "Protocols" : [
-	{ "Network" : "tcp", "Marshal" : "xdr",	     "Address" : "0.0.0.0:2917" },
-	{ "Network" : "tcp", "Marshal" : "xdr",	     "Address" : "0.0.0.0:2918" },
-	{ "Network" : "tcp", "Marshal" : "protobuf", "Address" : "0.0.0.0:12301" },
-	{ "Network" : "ssl", "Marshal" : "xdr",      "Address" : "0.0.0.0:12302" },
-	{ "Network" : "tcp", "Marshal" : "xdr",      "Address" : "[::1]:2917" }
+	"elvin://0.0.0.0",
+	"elvin://0.0.0.0:2918",
+	"elvin:/tcp,none,protobuf/0.0.0.0:12301",
+	"elvin:/ssl,none,xdr/0.0.0.0:12302",
+	"elvin://[::1]:2917"
     ],
-
+    "FailoverProtocol" : "elvin://0.0.0.0",
     "MaxConnections" : 1024,
-
     "DoFailover" : true,
-
-    "FailoverProtocol" : { "Network" : "tcp", "Marshal" : "xdr", "Address" : "0.0.0.0:2918" },
-
     "TestConnInterval" : 10,
     "TestConnTimeout" : 10,
-
     "LogLevel" : 3,
     "LogFormat" : 0
 }

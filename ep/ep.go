@@ -34,10 +34,10 @@ import (
 )
 
 type arguments struct {
-	help     bool
-	endpoint string
-	number   int
-	unotify  bool
+	help    bool
+	url     string
+	number  int
+	unotify bool
 }
 
 func main() {
@@ -48,7 +48,7 @@ func main() {
 
 	var notify func(map[string]interface{}, bool, elvin.KeyBlock) error
 
-	ep := elvin.NewClient(args.endpoint, nil, nil, nil)
+	ep := elvin.NewClient(args.url, nil, nil, nil)
 	ep.SetLogDateFormat(elog.LogDateLocaltime)
 	ep.SetLogLevel(elog.LogLevelInfo1)
 
@@ -57,7 +57,7 @@ func main() {
 			ep.Logf(elog.LogLevelInfo1, "%v", err)
 			os.Exit(1)
 		}
-		ep.Logf(elog.LogLevelInfo1, "connected to %s", args.endpoint)
+		ep.Logf(elog.LogLevelInfo1, "connected to %s", args.url)
 		notify = ep.Notify
 	} else {
 		notify = ep.UNotify
@@ -76,7 +76,7 @@ Loop:
 
 				for i := 0; i < args.number; i++ {
 					if err := notify(notification, true, nil); err != nil {
-						ep.Logf(elog.LogLevelInfo1, "Notify failed")
+						ep.Logf(elog.LogLevelInfo1, "Notify failed: %v", err)
 					}
 				}
 			} else {
@@ -103,7 +103,7 @@ Loop:
 // Argument parsing
 func flags() (args arguments) {
 	flag.BoolVar(&args.help, "h", false, "prints this help")
-	flag.StringVar(&args.endpoint, "e", "localhost:2917", "host:port of router")
+	flag.StringVar(&args.url, "e", "elvin://", "elvin url e.g. elvin://host")
 	flag.IntVar(&args.number, "n", 1, "number of notifications to send")
 	flag.BoolVar(&args.unotify, "unotify", false, "send using UNotify")
 	flag.Parse()

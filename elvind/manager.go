@@ -23,6 +23,7 @@ package main
 import (
 	"flag"
 	"github.com/cobaro/elvin/elog"
+	"github.com/cobaro/elvin/elvin"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,8 +33,8 @@ import (
 type Manager struct {
 	config    *Configuration
 	router    Router
-	protocols map[string]Protocol
-	failover  Protocol
+	protocols map[string]*elvin.Protocol
+	failover  *elvin.Protocol
 }
 
 func main() {
@@ -50,20 +51,30 @@ func main() {
 		manager.router.elog.Logf(elog.LogLevelError, "config load failed:", err, "using defaults")
 		manager.config = DefaultConfig()
 	}
+	manager.router.elog.SetLogLevel(*verbosity)
+	manager.router.elog.Logf(elog.LogLevelInfo1, "Logging at log level %d", manager.router.elog.LogLevel())
+	manager.router.elog.SetLogDateFormat(elog.LogDateEpochMilli)
+	manager.router.elog.Logf(elog.LogLevelInfo2, "Loaded config:  %+v", *manager.config)
 	manager.router.SetMaxConnections(manager.config.MaxConnections)
 	manager.router.SetDoFailover(manager.config.DoFailover)
 	manager.router.SetTestConnInterval(time.Duration(manager.config.TestConnInterval) * time.Second)
 	manager.router.SetTestConnTimeout(time.Duration(manager.config.TestConnTimeout) * time.Second)
-	manager.protocols = make(map[string]Protocol)
-	for _, protocol := range manager.config.Protocols {
-		manager.protocols[protocol.Address] = protocol
-		manager.router.AddProtocol(protocol.Address, protocol)
+
+	manager.protocols = make(map[string]*elvin.Protocol)
+	for _, url := range manager.config.Protocols {
+		if protocol, err := elvin.URLToProtocol(url); err != nil {
+			manager.router.elog.Logf(elog.LogLevelWarning, "Can't convert utl %s to protocol: %v", err)
+		} else {
+			manager.protocols[protocol.Address] = protocol
+			manager.router.AddProtocol(protocol.Address, protocol)
+		}
 	}
-	manager.failover = manager.config.Failover
-	manager.router.SetFailoverProtocol(manager.failover)
-	manager.router.elog.SetLogLevel(*verbosity)
-	manager.router.elog.SetLogDateFormat(elog.LogDateEpochMilli)
-	manager.router.elog.Logf(elog.LogLevelInfo2, "Loaded config:  %+v", *manager.config)
+
+	if manager.failover, err = elvin.URLToProtocol(manager.config.Failover); err != nil {
+		manager.router.SetFailoverProtocol(manager.failover)
+	} else {
+		manager.router.elog.Logf(elog.LogLevelWarning, err.Error())
+	}
 
 	manager.router.elog.Logf(elog.LogLevelInfo1, "Start router")
 	go manager.router.Start()

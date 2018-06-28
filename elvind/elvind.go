@@ -41,8 +41,8 @@ type Router struct {
 	elog      elog.Elog
 
 	// Configurable
-	protocols        map[string]Protocol
-	failoverProtocol Protocol
+	protocols        map[string]*elvin.Protocol
+	failoverProtocol *elvin.Protocol
 	testConnInterval time.Duration
 	testConnTimeout  time.Duration
 	maxConnections   int
@@ -167,11 +167,11 @@ func (router *Router) LogFile() (file os.File) {
 }
 
 // Add a protocol
-func (router *Router) AddProtocol(name string, protocol Protocol) {
+func (router *Router) AddProtocol(name string, protocol *elvin.Protocol) {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
 	if router.protocols == nil {
-		router.protocols = make(map[string]Protocol)
+		router.protocols = make(map[string]*elvin.Protocol)
 	}
 	router.protocols[name] = protocol
 
@@ -197,14 +197,14 @@ func (router *Router) DeleteProtocol(name string) (err error) {
 }
 
 // Add a failover host
-func (router *Router) SetFailoverProtocol(protocol Protocol) {
+func (router *Router) SetFailoverProtocol(protocol *elvin.Protocol) {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
 	router.failoverProtocol = protocol
 }
 
 // Delete a failover host
-func (router *Router) FailoverProtocol() (protocol Protocol) {
+func (router *Router) FailoverProtocol() (protocol *elvin.Protocol) {
 	router.Mu.Lock()
 	defer router.Mu.Unlock()
 	return router.failoverProtocol
@@ -254,8 +254,6 @@ func (router *Router) Init() {
 	router.channels.quenchAdd = make(chan *Quench)
 	router.channels.quenchMod = make(chan *Quench)
 	router.channels.quenchDel = make(chan *Quench)
-	router.SetLogLevel(elog.LogLevelWarning)
-	router.SetLogDateFormat(elog.LogDateEpochMilli)
 	router.initialized = true
 
 	// Start remove goroutine for client cleanup
@@ -294,7 +292,7 @@ func (router *Router) Start() (err error) {
 		switch protocol.Marshal {
 		case "xdr":
 		default:
-			router.elog.Logf(elog.LogLevelWarning, "marshal protocol %s is currently unsupport", protocol.Marshal)
+			router.elog.Logf(elog.LogLevelWarning, "marshal protocol %s is currently unsupported", protocol.Marshal)
 			delete(router.protocols, name)
 		}
 	}
@@ -305,7 +303,6 @@ func (router *Router) Start() (err error) {
 	// Set up listeners
 	router.listeners = make(map[string]net.Listener)
 	for name, protocol := range router.protocols {
-		router.elog.Logf(elog.LogLevelInfo1, "listener: %v", name)
 		go router.Listener(name, protocol)
 	}
 
@@ -332,7 +329,6 @@ func (router *Router) Stop() (err error) {
 	router.elog.Logf(elog.LogLevelInfo2, "Closing clients")
 	disconn := new(elvin.Disconn)
 	disconn.Reason = elvin.DisconnReasonRouterShuttingDown
-	disconn.Args = router.failoverProtocol.Address
 	router.elog.Logf(elog.LogLevelDebug2, "Disconn: %+v", disconn)
 	for _, c := range router.clients {
 		buf := bufferPool.Get().(*bytes.Buffer)
@@ -360,7 +356,7 @@ func (router *Router) Shutdown() (err error) {
 	return nil
 }
 
-func (router *Router) Listener(name string, protocol Protocol) (err error) {
+func (router *Router) Listener(name string, protocol *elvin.Protocol) (err error) {
 
 	router.elog.Logf(elog.LogLevelInfo1, "Start listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
 	defer router.elog.Logf(elog.LogLevelInfo1, "Stop listening on %s %s %s", protocol.Network, protocol.Marshal, protocol.Address)
