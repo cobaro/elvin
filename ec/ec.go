@@ -160,7 +160,7 @@ func disconnector(client *elvin.Client) {
 						client.Logf(elog.LogLevelInfo1, "redirected to %s", disconn.Args)
 						// FIXME: tidy this
 						client.URL = disconn.Args
-						client.Close()
+						client.Disconnect()
 						// client.Logf(elog.LogLevelInfo1, "disconnector State(%d)", client.State())
 						if err := client.Connect(); err != nil {
 							client.Logf(elog.LogLevelInfo1, "%v", err)
