@@ -62,8 +62,8 @@ func main() {
 
 	manager.protocols = make(map[string]*elvin.Protocol)
 	for _, url := range manager.config.Protocols {
-		if protocol, err := elvin.URLToProtocol(url); err != nil {
-			manager.router.elog.Logf(elog.LogLevelWarning, "Can't convert utl %s to protocol: %v", err)
+		if protocol, e := elvin.URLToProtocol(url); e != nil {
+			manager.router.elog.Logf(elog.LogLevelWarning, "Can't convert url %s to protocol: %v", e)
 		} else {
 			manager.protocols[protocol.Address] = protocol
 			manager.router.AddProtocol(protocol.Address, protocol)
