@@ -38,7 +38,7 @@ type Protocol struct {
 func ProtocolToURL(protocol *Protocol) (url string) {
 	var version, args string
 	if protocol.Major == 0 && protocol.Minor == 0 {
-		version = "4.1"
+		version = ProtocolVersion()
 	} else {
 		version = fmt.Sprintf("%d.%d", protocol.Major, protocol.Minor)
 	}
