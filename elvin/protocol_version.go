@@ -28,14 +28,14 @@ import (
 const protocolVersionMajor = 4
 const protocolVersionMinor = 1
 
-func ProtocolVersionMajor() (uint32) {
-    return protocolVersionMajor
+func ProtocolVersionMajor() uint32 {
+	return protocolVersionMajor
 }
 
-func ProtocolVersionMinor() (uint32) {
-    return protocolVersionMinor
+func ProtocolVersionMinor() uint32 {
+	return protocolVersionMinor
 }
 
-func ProtocolVersion() (string) {
-    return fmt.Sprintf("%d.%d", protocolVersionMajor, protocolVersionMinor)
+func ProtocolVersion() string {
+	return fmt.Sprintf("%d.%d", protocolVersionMajor, protocolVersionMinor)
 }

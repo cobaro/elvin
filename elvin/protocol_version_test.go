@@ -25,7 +25,7 @@ import (
 )
 
 func TestProtocol(t *testing.T) {
-    if ProtocolVersion() != "4.1" {
+	if ProtocolVersion() != "4.1" {
 		t.Error("Error in protocol version")
 	}
 }
