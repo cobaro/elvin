@@ -21,6 +21,7 @@
 package elvin
 
 import (
+	"crypto/sha1"
 	"crypto/sha256"
 )
 
@@ -58,47 +59,35 @@ import (
 // attached to a connection, rather than each message. Connection
 // level security acts in the same manner but are then not required on
 // each message.  Connection level and message level schemes may be
-// used in tandem and augment each other
+// used in tandem and augment each other.
 
+// Supported key schemes
 const (
-	KeySchemeSha1Dual       = 1 // (deprecated) The SHA-1 dual key scheme
-	KeySchemeSha1Producer   = 2 // (deprecated) The SHA-1 producer key scheme
-	KeySchemeSha1Consumer   = 3 // (deprecated) The SHA-1 consumer key scheme
-	KeySchemeSha256Dual     = 7 // The SHA-256 dual key scheme
-	KeySchemeSha256Producer = 8 // The SHA-256 producer key scheme
-	KeySchemeSha256Consumer = 9 // The SHA-256 consumer key scheme
+	KeySchemeSha1Dual       = 1 // (deprecated) SHA-1 dual
+	KeySchemeSha1Producer   = 2 // (deprecated) SHA-1 producer
+	KeySchemeSha1Consumer   = 3 // (deprecated) SHA-1 consumer
+	KeySchemeSha256Dual     = 7 // SHA-256 dual
+	KeySchemeSha256Producer = 8 // SHA-256 producer
+	KeySchemeSha256Consumer = 9 // SHA-256 consumer
 )
 
 type Key []byte                  // A single key
 type KeySet []Key                // An unordered set of keys
 type KeySetList []KeySet         // indexed numerically (ordering matters for dual)
-type KeyBlock map[int]KeySetList // This is for usage in the API
+type KeyBlock map[int]KeySetList // This is what notify/subscribe use
 
-// A simple KeySchemeSha256Dual example by way of documentation
-func DualExample() (producerKeyBlock KeyBlock, consumerKeyBlock KeyBlock) {
-	var producerPrivate Key = []byte("Producer")
-	ptmp := sha256.Sum256(producerPrivate)
-	var producerPublic Key = ptmp[:]
-	var consumerPrivate Key = []byte("Consumer")
-	ctmp := sha256.Sum256(consumerPrivate)
-	var consumerPublic Key = ctmp[:]
+// Prime the key by running it the sha1()
+func PrimeSha1(in Key) Key {
+	// can't slice something that's not assigned to a variable
+	// and we want to convert it from a fixed size
+	tmp := sha1.Sum(in)
+	return tmp[:]
+}
 
-	var producerKeySet KeySet
-	var consumerKeySet KeySet
-
-	// A KeyBlock for notifications
-	producerKeySet = append(producerKeySet, producerPrivate)
-	consumerKeySet = append(consumerKeySet, consumerPublic)
-	notificationKeySetList := KeySetList{producerKeySet, consumerKeySet}
-	producerKeyBlock = make(map[int]KeySetList)
-	producerKeyBlock[KeySchemeSha256Dual] = notificationKeySetList
-
-	// A KeyBlock for subscriptions
-	producerKeySet = append(producerKeySet, producerPublic)
-	consumerKeySet = append(consumerKeySet, consumerPrivate)
-	subscriptionKeySetList := KeySetList{producerKeySet, consumerKeySet}
-	consumerKeyBlock = make(map[int]KeySetList)
-	consumerKeyBlock[KeySchemeSha256Dual] = subscriptionKeySetList
-
-	return
+// Prime the key by running it the sha1()
+func PrimeSha256(in Key) Key {
+	// can't slice something that's not assigned to a variable
+	// and we want to convert it from a fixed size
+	tmp := sha256.Sum256(in)
+	return tmp[:]
 }

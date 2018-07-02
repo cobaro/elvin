@@ -330,3 +330,30 @@ func BenchmarkXdrGetInt32(b *testing.B) {
 		b.Fatalf("Marshal/Unmarshal of %v failed: %v", in, out)
 	}
 }
+
+// A simple KeySchemeSha256Dual example by way of documentation
+func DualExample() (producerKeyBlock KeyBlock, consumerKeyBlock KeyBlock) {
+	var producerPrivate Key = []byte("Producer")
+	var producerPublic Key = PrimeSha256(producerPrivate)
+	var consumerPrivate Key = []byte("Consumer")
+	var consumerPublic Key = PrimeSha256(consumerPrivate)
+
+	var producerKeySet KeySet
+	var consumerKeySet KeySet
+
+	// A KeyBlock for notifications
+	producerKeySet = append(producerKeySet, producerPrivate)
+	consumerKeySet = append(consumerKeySet, consumerPublic)
+	notificationKeySetList := KeySetList{producerKeySet, consumerKeySet}
+	producerKeyBlock = make(map[int]KeySetList)
+	producerKeyBlock[KeySchemeSha256Dual] = notificationKeySetList
+
+	// A KeyBlock for subscriptions
+	producerKeySet = append(producerKeySet, producerPublic)
+	consumerKeySet = append(consumerKeySet, consumerPrivate)
+	subscriptionKeySetList := KeySetList{producerKeySet, consumerKeySet}
+	consumerKeyBlock = make(map[int]KeySetList)
+	consumerKeyBlock[KeySchemeSha256Dual] = subscriptionKeySetList
+
+	return
+}
