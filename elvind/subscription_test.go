@@ -34,7 +34,8 @@ var client *elvin.Client
 func TestMain(m *testing.M) {
 	flag.Parse() // FIXME: do something about logging
 	// Create a router instance using standard test config
-	protocol, _ := elvin.URLToProtocol("elvin://localhost:3917")
+	url := "elvin://localhost:3917"
+	protocol, _ := elvin.URLToProtocol(url)
 	var router Router
 	router.SetMaxConnections(10)
 	router.SetDoFailover(false)
@@ -45,9 +46,9 @@ func TestMain(m *testing.M) {
 	time.Sleep(time.Millisecond * 10) // Yield to get that started
 
 	// Create and connect a client
-	client = elvin.NewClient(protocol.Address, nil, nil, nil)
+	client = elvin.NewClient(url, nil, nil, nil)
 	if err := client.Connect(); err != nil {
-		log.Printf("Connect failed: %v", err)
+		log.Printf("Connect to %s failed: %v", url, err)
 		return
 	}
 
