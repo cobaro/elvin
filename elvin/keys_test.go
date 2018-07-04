@@ -42,3 +42,27 @@ func TestPrime(t *testing.T) {
 	}
 
 }
+
+func TestKeySet(t *testing.T) {
+	var ks KeySet
+
+	KeySetAddKey(&ks, []byte("foo"))
+	if len(ks) != 1 {
+		t.Fatalf("AddKey() failed")
+	}
+
+	KeySetAddKey(&ks, []byte("foo"))
+	if len(ks) != 1 {
+		t.Fatalf("AddKey() failed")
+	}
+
+	KeySetDeleteKey(&ks, []byte("NOTfoo"))
+	if len(ks) != 1 {
+		t.Fatalf("DeleteKey() failed")
+	}
+
+	KeySetDeleteKey(&ks, []byte("foo"))
+	if len(ks) != 0 {
+		t.Fatalf("DeleteKey() failed")
+	}
+}

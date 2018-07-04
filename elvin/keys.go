@@ -21,6 +21,7 @@
 package elvin
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"crypto/sha256"
 )
@@ -90,4 +91,28 @@ func PrimeSha256(in Key) Key {
 	// and we want to convert it from a fixed size
 	tmp := sha256.Sum256(in)
 	return tmp[:]
+}
+
+// Add a key to a keyset.
+// Duplicates are not added but this is not an error/
+func KeySetAddKey(keyset *KeySet, new Key) {
+	for _, old := range *keyset {
+		if bytes.Equal(old, new) {
+			return
+		}
+	}
+	*keyset = append(*keyset, new)
+}
+
+// Delete a key to a keyset.
+// Duplicates are not added but this is not an error/
+func KeySetDeleteKey(keyset *KeySet, delete Key) {
+	for i, old := range *keyset {
+		if bytes.Equal(old, delete) {
+			(*keyset)[i] = (*keyset)[len(*keyset)-1]
+			*keyset = (*keyset)[:len(*keyset)-1]
+			return
+		}
+	}
+	return
 }
