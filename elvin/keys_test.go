@@ -46,6 +46,10 @@ func TestPrime(t *testing.T) {
 func TestKeySet(t *testing.T) {
 	var ks KeySet
 
+	// Don't crash on nil even though it won't succeed
+	KeySetAddKey(nil, []byte("foo"))
+	KeySetDeleteKey(nil, []byte("foo"))
+
 	KeySetAddKey(&ks, []byte("foo"))
 	if len(ks) != 1 {
 		t.Fatalf("AddKey() failed")
@@ -65,4 +69,49 @@ func TestKeySet(t *testing.T) {
 	if len(ks) != 0 {
 		t.Fatalf("DeleteKey() failed")
 	}
+}
+
+func TestKeyBlock(t *testing.T) {
+	var ks1, ks2 KeySet
+
+	KeySetAddKey(&ks1, []byte("foo"))
+	KeySetAddKey(&ks1, []byte("bar"))
+
+	KeySetAddKey(&ks2, []byte("bar"))
+	KeySetAddKey(&ks2, []byte("baz"))
+
+	b1 := make(map[int]KeySetList)
+	b2 := make(map[int]KeySetList)
+
+	b1[KeySchemeSha1Producer] = KeySetList{ks1}
+	b2[KeySchemeSha1Producer] = KeySetList{ks2}
+
+	KeyBlockAddKeys(b1, b2)
+	if len(b1[KeySchemeSha1Producer][KeySetProducer]) != 3 { // foo, bar, baz
+		t.Fatalf("KeyBlockAddKeys() failed")
+	}
+
+	b1[KeySchemeSha256Dual] = KeySetList{ks1, ks2}
+	b2[KeySchemeSha256Dual] = KeySetList{ks2, ks1}
+	KeyBlockAddKeys(b1, b2)
+
+	if len(b1[KeySchemeSha1Producer][KeySetProducer]) != 3 { // foo, bar, baz
+		t.Fatalf("KeyBlockAddKeys() failed")
+	}
+	if len(b1[KeySchemeSha256Dual][KeySetProducer]) != 3 { // foo, bar, baz
+		t.Fatalf("KeyBlockAddKeys() failed")
+	}
+	if len(b1[KeySchemeSha256Dual][KeySetConsumer]) != 3 { // foo, bar, baz
+		t.Fatalf("KeyBlockAddKeys() failed")
+	}
+
+	b1 = make(map[int]KeySetList)
+	KeyBlockAddKeys(b1, b2)
+	if len(b1[KeySchemeSha256Dual][KeySetProducer]) != 2 { // bar, baz
+		t.Fatalf("KeyBlockAddKeys() failed: %v", b1)
+	}
+	if len(b1[KeySchemeSha256Dual][KeySetConsumer]) != 2 { // bar, baz
+		t.Fatalf("KeyBlockAddKeys() failed: %v", b1)
+	}
+
 }

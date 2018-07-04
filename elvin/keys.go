@@ -72,9 +72,15 @@ const (
 	KeySchemeSha256Consumer = 9 // SHA-256 consumer
 )
 
+// KeySetList indices
+const (
+	KeySetProducer = 0
+	KeySetConsumer = 1
+)
+
 type Key []byte                  // A single key
 type KeySet []Key                // An unordered set of keys
-type KeySetList []KeySet         // indexed numerically (ordering matters for dual)
+type KeySetList []KeySet         // indexed numerically (dual ordering matters)
 type KeyBlock map[int]KeySetList // This is what notify/subscribe use
 
 // Prime the key by running it the sha1()
@@ -96,6 +102,10 @@ func PrimeSha256(in Key) Key {
 // Add a key to a keyset.
 // Duplicates are not added but this is not an error/
 func KeySetAddKey(keyset *KeySet, new Key) {
+	if keyset == nil {
+		return // bail
+	}
+
 	for _, old := range *keyset {
 		if bytes.Equal(old, new) {
 			return
@@ -107,6 +117,10 @@ func KeySetAddKey(keyset *KeySet, new Key) {
 // Delete a key to a keyset.
 // Duplicates are not added but this is not an error/
 func KeySetDeleteKey(keyset *KeySet, delete Key) {
+	if keyset == nil {
+		return // bail
+	}
+
 	for i, old := range *keyset {
 		if bytes.Equal(old, delete) {
 			(*keyset)[i] = (*keyset)[len(*keyset)-1]
@@ -115,4 +129,49 @@ func KeySetDeleteKey(keyset *KeySet, delete Key) {
 		}
 	}
 	return
+}
+
+// Add the keys in the second KeyBlock to the existing
+// Does not prime keys.
+// Duplicates are simple ignored.
+// The dual schemes have two keysets where producer and consumer have only one
+func KeyBlockAddKeys(existing KeyBlock, add KeyBlock) {
+	if existing == nil {
+		return // bail
+	}
+
+	for scheme, kslAdd := range add {
+		switch scheme {
+		case KeySchemeSha1Dual:
+			fallthrough
+		case KeySchemeSha256Dual:
+			// If we don't have this scheme already then we can
+			// just copy it in, otherwise check every key
+			if kslExisting, ok := existing[scheme]; !ok {
+				existing[scheme] = add[scheme]
+			} else {
+				for _, keyAdd := range kslAdd[KeySetConsumer] {
+					KeySetAddKey(&kslExisting[KeySetConsumer], keyAdd)
+					continue
+				}
+			}
+			fallthrough
+		case KeySchemeSha1Producer:
+			fallthrough
+		case KeySchemeSha1Consumer:
+			fallthrough
+		case KeySchemeSha256Producer:
+			fallthrough
+		case KeySchemeSha256Consumer:
+			// If we don't have this scheme already then we can
+			// just copy it in, otherwise check every key
+			if kslExisting, ok := existing[scheme]; !ok {
+				existing[scheme] = add[scheme]
+			} else {
+				for _, keyAdd := range kslAdd[KeySetProducer] {
+					KeySetAddKey(&kslExisting[KeySetProducer], keyAdd)
+				}
+			}
+		}
+	}
 }
