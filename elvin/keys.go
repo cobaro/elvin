@@ -132,7 +132,6 @@ func KeySetDeleteKey(keyset *KeySet, delete Key) {
 }
 
 // Add the keys in the second KeyBlock to the existing
-// Does not prime keys.
 // Duplicates are simple ignored.
 // The dual schemes have two keysets where producer and consumer have only one
 func KeyBlockAddKeys(existing KeyBlock, add KeyBlock) {
@@ -152,7 +151,6 @@ func KeyBlockAddKeys(existing KeyBlock, add KeyBlock) {
 			} else {
 				for _, keyAdd := range kslAdd[KeySetConsumer] {
 					KeySetAddKey(&kslExisting[KeySetConsumer], keyAdd)
-					continue
 				}
 			}
 			fallthrough
@@ -170,6 +168,49 @@ func KeyBlockAddKeys(existing KeyBlock, add KeyBlock) {
 			} else {
 				for _, keyAdd := range kslAdd[KeySetProducer] {
 					KeySetAddKey(&kslExisting[KeySetProducer], keyAdd)
+				}
+			}
+		}
+	}
+}
+
+// Remove the keys in the second KeyBlock from the existing
+// Duplicates are simple ignored.
+// The dual schemes have two keysets where producer and consumer have only one
+func KeyBlockDeleteKeys(existing KeyBlock, del KeyBlock) {
+	if existing == nil {
+		return // bail
+	}
+
+	for scheme, kslDel := range del {
+		switch scheme {
+		case KeySchemeSha1Dual:
+			fallthrough
+		case KeySchemeSha256Dual:
+			// If we don't have this scheme already then ignore
+			// otherwise check every key
+			if kslExisting, ok := existing[scheme]; !ok {
+				continue
+			} else {
+				for _, keyDel := range kslDel[KeySetConsumer] {
+					KeySetDeleteKey(&kslExisting[KeySetConsumer], keyDel)
+				}
+			}
+			fallthrough
+		case KeySchemeSha1Producer:
+			fallthrough
+		case KeySchemeSha1Consumer:
+			fallthrough
+		case KeySchemeSha256Producer:
+			fallthrough
+		case KeySchemeSha256Consumer:
+			// If we don't have this scheme already then we can
+			// just copy it in, otherwise check every key
+			if kslExisting, ok := existing[scheme]; !ok {
+				existing[scheme] = del[scheme]
+			} else {
+				for _, keyDel := range kslDel[KeySetProducer] {
+					KeySetDeleteKey(&kslExisting[KeySetProducer], keyDel)
 				}
 			}
 		}

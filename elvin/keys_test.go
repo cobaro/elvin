@@ -91,6 +91,7 @@ func TestKeyBlock(t *testing.T) {
 		t.Fatalf("KeyBlockAddKeys() failed")
 	}
 
+	// Test adding one keyblock to another
 	b1[KeySchemeSha256Dual] = KeySetList{ks1, ks2}
 	b2[KeySchemeSha256Dual] = KeySetList{ks2, ks1}
 	KeyBlockAddKeys(b1, b2)
@@ -112,6 +113,16 @@ func TestKeyBlock(t *testing.T) {
 	}
 	if len(b1[KeySchemeSha256Dual][KeySetConsumer]) != 2 { // bar, baz
 		t.Fatalf("KeyBlockAddKeys() failed: %v", b1)
+	}
+
+	// Test deleting a keyblock from another
+	b1 = make(map[int]KeySetList)
+	b2 = make(map[int]KeySetList)
+	b1[KeySchemeSha1Producer] = KeySetList{ks1}
+	b2[KeySchemeSha1Producer] = KeySetList{ks2}
+	KeyBlockDeleteKeys(b1, b2) // just leave foo
+	if len(b1[KeySchemeSha1Producer][KeySetProducer]) != 1 {
+		t.Fatalf("KeyBlockDeleteKeys() failed: %v", b1)
 	}
 
 }
