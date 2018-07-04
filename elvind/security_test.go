@@ -23,7 +23,6 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"github.com/cobaro/elvin/elvin"
 	"testing"
 )
@@ -36,6 +35,8 @@ var k1SHA1, k2SHA1, k3SHA1 []byte
 
 var k1SHA256, k2SHA256, k3SHA256 []byte
 
+var namevalue map[string]interface{}
+
 func init() {
 	// Hash the keys
 	k1SHA1 = elvin.PrimeSha1(k1)
@@ -45,6 +46,12 @@ func init() {
 	k1SHA256 = elvin.PrimeSha256(k1)
 	k2SHA256 = elvin.PrimeSha256(k2)
 	k3SHA256 = elvin.PrimeSha256(k3)
+
+	// namevalue initilization
+	namevalue = make(map[string]interface{})
+	namevalue["foo"] = 1
+
+	fmt.Println()
 }
 
 // Test the Prime function used to convert keys in the router
@@ -117,9 +124,6 @@ func TestPrime(t *testing.T) {
 		t.Fatalf("Producer and consumer show now match %s,%s", hex.EncodeToString(keyBlock[elvin.KeySchemeSha1Dual][0][0]), hex.EncodeToString(keyBlock[elvin.KeySchemeSha1Dual][0][1]))
 	}
 
-	fmt.Printf("%+v\n", keyBlock[elvin.KeySchemeSha1Dual][0][0])
-	fmt.Printf("%+v\n", keyBlock[elvin.KeySchemeSha1Dual][1][0])
-
 	// SHA256 Dual
 	producerKeySet = nil // reset
 	consumerKeySet = nil
@@ -140,9 +144,61 @@ func TestPrime(t *testing.T) {
 	// Should change the producer not the consumer so now equal
 	Prime(keyBlock, true)
 	if !bytes.Equal(keyBlock[elvin.KeySchemeSha256Dual][0][0], keyBlock[elvin.KeySchemeSha256Dual][1][0]) {
-		t.Fatalf("Producer and consumer show now match %s,%s", hex.EncodeToString(keyBlock[elvin.KeySchemeSha256Dual][0][0]), hex.EncodeToString(keyBlock[elvin.KeySchemeSha256Dual][0][1]))
+		t.Fatalf("Producer and consumer should now match %s,%s", hex.EncodeToString(keyBlock[elvin.KeySchemeSha256Dual][0][0]), hex.EncodeToString(keyBlock[elvin.KeySchemeSha256Dual][0][1]))
+	}
+}
+
+// Test some matching
+func TestMatching(t *testing.T) {
+
+	// Producer keyblock
+	var producerKeySet elvin.KeySet
+	producerKeySet = append(producerKeySet, k1)
+	producerKeySetList := elvin.KeySetList{producerKeySet}
+	producerKeyBlock := make(map[int]elvin.KeySetList)
+	producerKeyBlock[elvin.KeySchemeSha1Producer] = producerKeySetList
+
+	// Make a notification with that key block that must match
+	nfn := elvin.NotifyEmit{namevalue, false, producerKeyBlock}
+
+	// Consumer keyblock
+	var consumerKeySet elvin.KeySet
+	consumerKeySet = append(consumerKeySet, elvin.PrimeSha1(k1))
+	consumerKeySetList := elvin.KeySetList{consumerKeySet}
+	consumerKeyBlock := make(map[int]elvin.KeySetList)
+	consumerKeyBlock[elvin.KeySchemeSha1Producer] = consumerKeySetList
+
+	// Make s subscription with that keyBlock that must match
+	sub := Subscription{1, false, consumerKeyBlock, nil}
+
+	// Because the producer key is not yet primed, these should not match
+	if SecurityMatches(nfn, sub, nil, nil) {
+		t.Fatalf("unprimed producer shoud not match")
 	}
 
-	fmt.Printf("%+v\n", keyBlock[elvin.KeySchemeSha256Dual][0][0])
-	fmt.Printf("%+v\n", keyBlock[elvin.KeySchemeSha256Dual][1][0])
+	nfn.Keys = nil
+	if SecurityMatches(nfn, sub, producerKeyBlock, nil) {
+		t.Fatalf("unprimed producer shoud not match")
+	}
+
+	sub.Keys = nil
+	if SecurityMatches(nfn, sub, nil, consumerKeyBlock) {
+		t.Fatalf("unprimed producer shoud not match")
+	}
+
+	// Prime the producer key and those tests should all work
+	producerKeySet[0] = elvin.PrimeSha1(producerKeySet[0])
+	if !SecurityMatches(nfn, sub, producerKeyBlock, consumerKeyBlock) {
+		t.Fatalf("primed producer shoud match")
+	}
+
+	sub.Keys = consumerKeyBlock
+	if !SecurityMatches(nfn, sub, producerKeyBlock, nil) {
+		t.Fatalf("primed producer shoud match")
+	}
+
+	nfn.Keys = producerKeyBlock
+	if !SecurityMatches(nfn, sub, nil, nil) {
+		t.Fatalf("primed producer shoud match")
+	}
 }

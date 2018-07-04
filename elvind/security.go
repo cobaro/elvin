@@ -22,6 +22,7 @@ package main
 
 import (
 	"bytes"
+	//"fmt"
 	"github.com/cobaro/elvin/elvin"
 )
 
@@ -43,54 +44,47 @@ import (
 // and consumer connections keys we might mark (cache)a pair as
 // matching updating as needed.
 
-// Prime (run through one way func) a KeyBlock, which keys is dependent
-// on whether we are a producer or consumer
-func Prime(keys elvin.KeyBlock, producer bool) {
+// Prime (run through one way func) a KeyBlock
+
+// Prime a consumer
+func PrimeConsumer(keys elvin.KeyBlock) {
+	for scheme, ksl := range keys {
+		switch scheme {
+		case elvin.KeySchemeSha1Consumer:
+			for i, raw := range ksl[0] {
+				ksl[0][i] = elvin.PrimeSha1(raw)
+			}
+		case elvin.KeySchemeSha1Dual:
+			for i, raw := range ksl[1] {
+				ksl[1][i] = elvin.PrimeSha1(raw)
+			}
+		case elvin.KeySchemeSha256Consumer:
+			for i, raw := range ksl[0] {
+				ksl[0][i] = elvin.PrimeSha256(raw)
+			}
+		case elvin.KeySchemeSha256Dual:
+			for i, raw := range ksl[1] {
+				ksl[1][i] = elvin.PrimeSha256(raw)
+			}
+		}
+	}
+}
+
+// Prime a producer
+func PrimeProducer(keys elvin.KeyBlock) {
 	for scheme, ksl := range keys {
 		switch scheme {
 		case elvin.KeySchemeSha1Producer:
-			if producer {
-				for i, raw := range ksl[0] {
-					ksl[0][i] = elvin.PrimeSha1(raw)
-				}
-			}
-		case elvin.KeySchemeSha1Consumer:
-			if !producer {
-				for i, raw := range ksl[0] {
-					ksl[0][i] = elvin.PrimeSha1(raw)
-				}
-			}
+			fallthrough
 		case elvin.KeySchemeSha1Dual:
-			if producer {
-				for i, raw := range ksl[0] {
-					ksl[0][i] = elvin.PrimeSha1(raw)
-				}
-			} else {
-				for i, raw := range ksl[1] {
-					ksl[1][i] = elvin.PrimeSha1(raw)
-				}
+			for i, raw := range ksl[0] {
+				ksl[0][i] = elvin.PrimeSha1(raw)
 			}
 		case elvin.KeySchemeSha256Producer:
-			if producer {
-				for i, raw := range ksl[0] {
-					ksl[0][i] = elvin.PrimeSha256(raw)
-				}
-			}
-		case elvin.KeySchemeSha256Consumer:
-			if !producer {
-				for i, raw := range ksl[0] {
-					ksl[0][i] = elvin.PrimeSha256(raw)
-				}
-			}
+			fallthrough
 		case elvin.KeySchemeSha256Dual:
-			if producer {
-				for i, raw := range ksl[0] {
-					ksl[0][i] = elvin.PrimeSha256(raw)
-				}
-			} else {
-				for i, raw := range ksl[1] {
-					ksl[1][i] = elvin.PrimeSha256(raw)
-				}
+			for i, raw := range ksl[0] {
+				ksl[0][i] = elvin.PrimeSha256(raw)
 			}
 		}
 	}
@@ -99,9 +93,10 @@ func Prime(keys elvin.KeyBlock, producer bool) {
 // Do the keys match
 // i.e, amongst the notifications and producer's keys does one of
 // our schemes succeed agains the subscriptions and consumer's keys.
-func SecurityMatches(nfn elvin.NotifyEmit, sub elvin.Subscription, pKeys, cKeys elvin.KeyBlock) bool {
+func SecurityMatches(nfn elvin.NotifyEmit, sub Subscription, pKeys, cKeys elvin.KeyBlock) bool {
 
 	// Start with the simple (and hence common) cases
+	//fmt.Printf("%v\n%v\n%v\n%v\n", nfn, sub, pKeys, cKeys)
 
 	// No-one cares
 	if nfn.DeliverInsecure && sub.AcceptInsecure {
@@ -124,9 +119,6 @@ func SecurityMatches(nfn elvin.NotifyEmit, sub elvin.Subscription, pKeys, cKeys 
 	// keys but it's simpler just to run the combinations
 
 	if len(nfn.Keys) > 0 {
-		// Prime the notification's keys
-		Prime(nfn.Keys, true)
-
 		// A Match is always true
 		if KeyBlocksMatches(nfn.Keys, sub.Keys) || KeyBlocksMatches(nfn.Keys, cKeys) {
 			return true
@@ -144,6 +136,9 @@ func SecurityMatches(nfn elvin.NotifyEmit, sub elvin.Subscription, pKeys, cKeys 
 }
 
 func KeyBlocksMatches(producer, consumer elvin.KeyBlock) bool {
+	if len(producer) == 0 || len(consumer) == 0 {
+		return false
+	}
 	for scheme, ksl := range producer {
 		switch scheme {
 		case elvin.KeySchemeSha1Dual:
