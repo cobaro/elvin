@@ -21,6 +21,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"github.com/cobaro/elvin/elog"
@@ -31,9 +32,16 @@ import (
 )
 
 type arguments struct {
-	help   bool
-	url    string
-	number int
+	help              bool
+	verbosity         int
+	url               string
+	number            int
+	acceptInsecure    bool
+	producerKeyString string
+	producerKeyHex    string
+	consumerKeyString string
+	consumerKeyHex    string
+	secureAcceptance  bool
 }
 
 func main() {
@@ -43,7 +51,48 @@ func main() {
 
 	ec := elvin.NewClient(args.url, nil, nil, nil)
 	ec.SetLogDateFormat(elog.LogDateLocaltime)
-	ec.SetLogLevel(elog.LogLevelInfo1)
+	ec.SetLogLevel(args.verbosity)
+
+	// Process security arguments
+	// FIXME; How compatible to be here? for now not very
+	// !multiple args
+	// !smart security
+	// !load from file
+	// stick with sha1 instead of 256?
+	// producerKeyBlock := make(map[int]elvin.KeySetList)
+	// consumerKeyBlock := make(map[int]elvin.KeySetList)
+	ec.KeysSub = make(map[int]elvin.KeySetList)
+	var producerKeySet elvin.KeySet
+	var consumerKeySet elvin.KeySet
+
+	if len(args.producerKeyString) > 0 {
+		// This is totally bogus as it can't be primed and we're not handling files
+		ec.Logf(elog.LogLevelError, "Opening keyfiles not supported yet")
+		os.Exit(1)
+	}
+	if len(args.producerKeyHex) > 0 {
+		if key, err := hex.DecodeString(args.producerKeyHex); err != nil {
+			ec.Logf(elog.LogLevelError, "Failed to interpret keyhex: %v", err)
+			os.Exit(1)
+		} else {
+			elvin.KeySetAddKey(&producerKeySet, key)
+		}
+	}
+	ec.KeysSub[elvin.KeySchemeSha1Producer] = elvin.KeySetList{producerKeySet}
+
+	if len(args.consumerKeyString) > 0 {
+		elvin.KeySetAddKey(&consumerKeySet, []byte(args.consumerKeyString))
+	}
+	if len(args.consumerKeyHex) > 0 {
+		if key, err := hex.DecodeString(args.consumerKeyHex); err != nil {
+			ec.Logf(elog.LogLevelError, "Failed to interpret keyhex: %v", err)
+			os.Exit(1)
+		} else {
+			elvin.KeySetAddKey(&consumerKeySet, key)
+		}
+	}
+	ec.KeysSub[elvin.KeySchemeSha1Consumer] = elvin.KeySetList{consumerKeySet}
+	ec.Logf(elog.LogLevelDebug2, "secureAcceptance is: %v, keys: %v", args.secureAcceptance, ec.KeysSub)
 
 	// Using default disconnector for now
 	// go disconnector(ec)
@@ -72,11 +121,6 @@ func main() {
 		ec.Logf(elog.LogLevelInfo1, "Subscribe failed %v", err)
 	} else {
 		ec.Logf(elog.LogLevelInfo1, "Subscribe succeeded %v", sub)
-		if err := ec.SubscriptionModify(sub, "bogus", true, nil, nil); err != nil {
-			ec.Logf(elog.LogLevelInfo1, "SubMod failed %v", err)
-		} else {
-			ec.Logf(elog.LogLevelInfo1, "SubMod succeeded %v", sub)
-		}
 	}
 
 	ch := make(chan os.Signal)
@@ -127,6 +171,13 @@ func flags() (args arguments) {
 	flag.BoolVar(&args.help, "h", false, "Print this help")
 	flag.StringVar(&args.url, "e", "elvin://", "elvin url e.g., elvin://host")
 	flag.IntVar(&args.number, "n", 1, "number of notifications to receive before reporting")
+	flag.IntVar(&args.verbosity, "v", 3, "verbosity (default 3)")
+	flag.StringVar(&args.producerKeyString, "p", "", "SHA1 producer public key (string) ")
+	flag.StringVar(&args.producerKeyHex, "P", "", "SHA1 producer public key (hex)")
+	flag.StringVar(&args.consumerKeyString, "c", "", "SHA1 consumer private key (string) ")
+	flag.StringVar(&args.consumerKeyHex, "C", "", "SHA1 consumer private key (hex)")
+	flag.BoolVar(&args.secureAcceptance, "x", false, "Don't allow insecure acceptance (default is to allow)")
+
 	flag.Parse()
 
 	if args.help {

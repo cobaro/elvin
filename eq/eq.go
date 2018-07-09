@@ -21,6 +21,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"github.com/cobaro/elvin/elog"
 	"github.com/cobaro/elvin/elvin"
@@ -29,8 +30,16 @@ import (
 )
 
 type arguments struct {
-	help bool
-	url  string
+	help              bool
+	verbosity         int
+	url               string
+	number            int
+	unotify           bool
+	producerKeyString string
+	producerKeyHex    string
+	consumerKeyString string
+	consumerKeyHex    string
+	secureDelivery    bool
 }
 
 func main() {
@@ -40,9 +49,51 @@ func main() {
 
 	eq := elvin.NewClient(args.url, nil, nil, nil)
 	eq.SetLogDateFormat(elog.LogDateLocaltime)
-	eq.SetLogLevel(elog.LogLevelInfo1)
+	eq.SetLogLevel(args.verbosity)
+
+	// Process security arguments
+	// FIXME; How compatible to be here? for now not very
+	// !multiple args
+	// !smart security
+	// !load from file
+	// stick with sha1 instead of 256?
+	// producerKeyBlock := make(map[int]elvin.KeySetList)
+	// consumerKeyBlock := make(map[int]elvin.KeySetList)
+	eq.KeysNfn = make(map[int]elvin.KeySetList)
+	var producerKeySet elvin.KeySet
+	var consumerKeySet elvin.KeySet
+
+	if len(args.producerKeyString) > 0 {
+		elvin.KeySetAddKey(&producerKeySet, []byte(args.producerKeyString))
+	}
+	if len(args.producerKeyHex) > 0 {
+		if key, err := hex.DecodeString(args.producerKeyHex); err != nil {
+			eq.Logf(elog.LogLevelError, "Failed to interpret keyhex: %v", err)
+			os.Exit(1)
+		} else {
+			elvin.KeySetAddKey(&producerKeySet, key)
+		}
+	}
+	eq.KeysNfn[elvin.KeySchemeSha1Producer] = elvin.KeySetList{producerKeySet}
+
+	if len(args.consumerKeyString) > 0 {
+		// This is totally bogus as it can't be primed and we're not handling files
+		eq.Logf(elog.LogLevelError, "Opening keyfiles not supported yet")
+		os.Exit(1)
+	}
+	if len(args.consumerKeyHex) > 0 {
+		if key, err := hex.DecodeString(args.consumerKeyHex); err != nil {
+			eq.Logf(elog.LogLevelError, "Failed to interpret keyhex: %v", err)
+			os.Exit(1)
+		} else {
+			elvin.KeySetAddKey(&consumerKeySet, key)
+		}
+	}
+	eq.KeysNfn[elvin.KeySchemeSha1Consumer] = elvin.KeySetList{consumerKeySet}
+	eq.Logf(elog.LogLevelDebug2, "secureDelivery is: %v, keys: %v", args.secureDelivery, eq.KeysNfn)
 
 	eq.Options = make(map[string]interface{})
+
 	// FIXME: At some point let's formalize these as test cases
 	// eq.Options["TestNack"] = 1
 	// eq.Options["TestDisconn"] = 1
@@ -57,7 +108,7 @@ func main() {
 	// FIXME: do a NewSubscription()
 	quench := new(elvin.Quench)
 	quench.Names = map[string]bool{"int32": true, "float64": true}
-	quench.DeliverInsecure = true
+	quench.DeliverInsecure = !args.secureDelivery
 	quench.Keys = nil
 	quench.Notifications = make(chan elvin.QuenchNotification)
 
@@ -110,6 +161,13 @@ Loop:
 func flags() (args arguments) {
 	flag.BoolVar(&args.help, "h", false, "Print this help")
 	flag.StringVar(&args.url, "e", "elvin://", "elvin url e.g., elvin://host")
+	flag.IntVar(&args.verbosity, "v", 3, "verbosity (default 3)")
+	flag.StringVar(&args.producerKeyString, "p", "", "SHA1 producer private key (string) ")
+	flag.StringVar(&args.producerKeyHex, "P", "", "SHA1 producer private key (hex)")
+	flag.StringVar(&args.consumerKeyString, "c", "", "SHA1 consumer public key (string) ")
+	flag.StringVar(&args.consumerKeyHex, "C", "", "SHA1 consumer public key (hex)")
+	flag.BoolVar(&args.secureDelivery, "x", false, "Don't allow insecure delivery (default is to allow)")
+
 	flag.Parse()
 
 	if args.help {
