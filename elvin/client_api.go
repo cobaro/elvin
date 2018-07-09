@@ -285,6 +285,7 @@ func (client *Client) Connect() (err error) {
 	pkt.Options = client.Options
 	pkt.KeysNfn = client.KeysNfn
 	pkt.KeysSub = client.KeysSub
+
 	client.mu.Unlock()
 
 	writeBuf := new(bytes.Buffer)
@@ -785,9 +786,12 @@ func readBytes(reader io.Reader, buffer []byte, numToRead int) (int, error) {
 // Handle reading for now run as a goroutine
 func (client *Client) readHandler() {
 	header := make([]byte, 4)
-	buffer := make([]byte, 2048)
 
 	for {
+		// We reallocate each time as decoding
+		// takes slices out of it
+		buffer := make([]byte, 2048)
+
 		// Read frame header
 		length, err := readBytes(client.reader, header, 4)
 		if length != 4 || err != nil {
