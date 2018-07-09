@@ -74,8 +74,10 @@ const (
 
 // KeySetList indices
 const (
-	KeySetProducer = 0
-	KeySetConsumer = 1
+	KeySetProducer     = 0
+	KeySetConsumer     = 0
+	KeySetDualProducer = 0
+	KeySetDualConsumer = 1
 )
 
 type Key []byte                  // A single key
@@ -149,8 +151,8 @@ func KeyBlockAddKeys(existing KeyBlock, add KeyBlock) {
 			if kslExisting, ok := existing[scheme]; !ok {
 				existing[scheme] = add[scheme]
 			} else {
-				for _, keyAdd := range kslAdd[KeySetConsumer] {
-					KeySetAddKey(&kslExisting[KeySetConsumer], keyAdd)
+				for _, keyAdd := range kslAdd[KeySetDualConsumer] {
+					KeySetAddKey(&kslExisting[KeySetDualConsumer], keyAdd)
 				}
 			}
 			fallthrough
@@ -166,8 +168,8 @@ func KeyBlockAddKeys(existing KeyBlock, add KeyBlock) {
 			if kslExisting, ok := existing[scheme]; !ok {
 				existing[scheme] = add[scheme]
 			} else {
-				for _, keyAdd := range kslAdd[KeySetProducer] {
-					KeySetAddKey(&kslExisting[KeySetProducer], keyAdd)
+				for _, keyAdd := range kslAdd[KeySetDualProducer] {
+					KeySetAddKey(&kslExisting[KeySetDualProducer], keyAdd)
 				}
 			}
 		}
@@ -192,8 +194,8 @@ func KeyBlockDeleteKeys(existing KeyBlock, del KeyBlock) {
 			if kslExisting, ok := existing[scheme]; !ok {
 				continue
 			} else {
-				for _, keyDel := range kslDel[KeySetConsumer] {
-					KeySetDeleteKey(&kslExisting[KeySetConsumer], keyDel)
+				for _, keyDel := range kslDel[KeySetDualConsumer] {
+					KeySetDeleteKey(&kslExisting[KeySetDualConsumer], keyDel)
 				}
 			}
 			fallthrough
@@ -209,8 +211,8 @@ func KeyBlockDeleteKeys(existing KeyBlock, del KeyBlock) {
 			if kslExisting, ok := existing[scheme]; !ok {
 				existing[scheme] = del[scheme]
 			} else {
-				for _, keyDel := range kslDel[KeySetProducer] {
-					KeySetDeleteKey(&kslExisting[KeySetProducer], keyDel)
+				for _, keyDel := range kslDel[KeySetDualProducer] {
+					KeySetDeleteKey(&kslExisting[KeySetDualProducer], keyDel)
 				}
 			}
 		}
