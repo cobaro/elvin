@@ -28,7 +28,7 @@ import (
 // the sending client such as client keys. This is used for NotifyEmit
 // and Unotify
 type Notification struct {
-	Client          *Client // Sending client
+	ClientKeys      elvin.KeyBlock
 	NameValue       map[string]interface{}
 	DeliverInsecure bool
 	Keys            elvin.KeyBlock

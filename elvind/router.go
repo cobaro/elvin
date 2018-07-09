@@ -58,14 +58,14 @@ type Router struct {
 
 // Operations from a client handled via channel to clients
 type ClientChannels struct {
-	remove    chan int32             // Client removal channel
-	notify    chan *elvin.NotifyEmit // Notifications
-	subAdd    chan *Subscription     // Subscription Add
-	subMod    chan *Subscription     // Subscription Mod
-	subDel    chan *Subscription     // Subscription Del
-	quenchAdd chan *Quench           // Quench Add
-	quenchMod chan *Quench           // Quench Mod
-	quenchDel chan *Quench           // Quench Del
+	remove    chan int32         // Client removal channel
+	notify    chan Notification  // Notifications
+	subAdd    chan *Subscription // Subscription Add
+	subMod    chan *Subscription // Subscription Mod
+	subDel    chan *Subscription // Subscription Del
+	quenchAdd chan *Quench       // Quench Add
+	quenchMod chan *Quench       // Quench Mod
+	quenchDel chan *Quench       // Quench Del
 }
 
 // Set the maximum allowed number of clients
@@ -247,7 +247,7 @@ func (router *Router) Failover() {
 func (router *Router) Init() {
 	router.clients = make(map[int32]*Client)
 	router.channels.remove = make(chan int32)
-	router.channels.notify = make(chan *elvin.NotifyEmit)
+	router.channels.notify = make(chan Notification)
 	router.channels.subAdd = make(chan *Subscription)
 	router.channels.subMod = make(chan *Subscription)
 	router.channels.subDel = make(chan *Subscription)
@@ -450,9 +450,18 @@ func (router *Router) Notify() {
 			if len(client.subs) > 0 {
 				deliver.Insecure = make([]int64, len(client.subs))
 				i := 0
-				for id, _ := range client.subs {
-					deliver.Insecure[i] = int64(connid)<<32 | int64(id)
-					i++
+				for id, sub := range client.subs {
+					// Security check first
+					PrimeProducer(nfn.Keys)
+
+					if SecurityMatches(nfn, *sub, nfn.ClientKeys, client.keysSub) {
+						router.elog.Logf(elog.LogLevelDebug1, "SecurityMatches true")
+						deliver.Insecure[i] = int64(connid)<<32 | int64(id)
+						i++
+					} else {
+						router.elog.Logf(elog.LogLevelDebug1, "SecurityMatches false")
+					}
+
 				}
 				buf := bufferPool.Get().(*bytes.Buffer)
 				deliver.Encode(buf)

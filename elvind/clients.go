@@ -90,6 +90,8 @@ type Client struct {
 	closer         io.Closer
 	state          int
 	testConnState  int
+	keysNfn        elvin.KeyBlock
+	keysSub        elvin.KeyBlock
 	writeChannel   chan *bytes.Buffer
 	writeTerminate chan int
 
@@ -140,9 +142,12 @@ func (client *Client) readHandler() {
 	defer client.elog.Logf(elog.LogLevelDebug1, "Read Handler exiting")
 
 	header := make([]byte, 4)
-	buffer := make([]byte, 2048)
 
 	for {
+		// We reallocate each time as decoding
+		// takes slices out of it
+		buffer := make([]byte, 2048)
+
 		// Read frame header
 		length, err := readBytes(client.reader, header, 4)
 		if length != 4 || err != nil {
@@ -229,7 +234,7 @@ func (client *Client) writeHandler() {
 			return // We're done, cleanup done by read
 
 		case <-time.After(currentTimeout):
-			client.elog.Logf(elog.LogLevelDebug1, "writeHandler timeout: %d", client.TestConnState())
+			client.elog.Logf(elog.LogLevelDebug3, "writeHandler timeout: %d", client.TestConnState())
 
 			switch client.TestConnState() {
 			case TestConnIdle:
@@ -417,6 +422,12 @@ func (client *Client) HandleConnRequest(buffer []byte) (err error) {
 	client.subs = make(map[int32]*Subscription)
 	client.quenches = make(map[int32]*Quench)
 
+	// Prime any keys if they gave us some
+	client.keysNfn = connRequest.KeysNfn
+	PrimeProducer(client.keysNfn)
+	client.keysSub = connRequest.KeysSub
+	PrimeConsumer(client.keysSub)
+
 	// Respond with a ConnReply
 	connReply := new(elvin.ConnReply)
 	connReply.XID = connRequest.XID
@@ -492,26 +503,25 @@ func (client *Client) HandleConfConn(buffer []byte) (err error) {
 
 // Handle a NotifyEmit
 func (client *Client) HandleNotifyEmit(buffer []byte) (err error) {
-	nfn := new(elvin.NotifyEmit)
-	err = nfn.Decode(buffer)
+	ne := new(elvin.NotifyEmit)
+	if err = ne.Decode(buffer); err != nil {
+		return err
+	}
 
-	client.channels.notify <- nfn
+	client.channels.notify <- Notification{client.keysNfn, ne.NameValue, ne.DeliverInsecure, ne.Keys}
 	return nil
 }
 
 // Handle a UNotify
 func (client *Client) HandleUNotify(buffer []byte) (err error) {
 	unotify := new(elvin.UNotify)
-	err = unotify.Decode(buffer)
+	if err = unotify.Decode(buffer); err != nil {
+		return err
+	}
 
 	// FIXME: Check version and ?
 
-	// FIXME: Or should I add a unotify channel to avoid this?
-	nfn := elvin.NotifyEmit{
-		NameValue:       unotify.NameValue,
-		DeliverInsecure: unotify.DeliverInsecure,
-		Keys:            unotify.Keys}
-	client.channels.notify <- &nfn
+	client.channels.notify <- Notification{client.keysNfn, unotify.NameValue, unotify.DeliverInsecure, unotify.Keys}
 	return nil
 }
 
@@ -537,6 +547,7 @@ func (client *Client) HandleSubAddRequest(buffer []byte) (err error) {
 	sub.Ast = ast
 	sub.AcceptInsecure = subRequest.AcceptInsecure
 	sub.Keys = subRequest.Keys
+	PrimeConsumer(sub.Keys)
 
 	// Create a unique sub id
 	var s int32 = rand.Int31()
@@ -655,14 +666,16 @@ func (client *Client) HandleSubModRequest(buffer []byte) (err error) {
 	// AcceptInsecure is the only piece that must have a value - and it is allowed to be the same
 	sub.AcceptInsecure = subModRequest.AcceptInsecure
 
-	// We ignore deletion requests that don't exist
-	if len(subModRequest.DelKeys) > 0 {
-		// FIXME: implement
+	// Merge in any new keys
+	if len(subModRequest.AddKeys) > 0 {
+		PrimeConsumer(subModRequest.AddKeys)
+		elvin.KeyBlockAddKeys(sub.Keys, subModRequest.AddKeys)
 	}
 
-	// We ignore addition requests that already exist
-	if len(subModRequest.AddKeys) > 0 {
-		// FIXME: implement
+	// Remove any old keys
+	if len(subModRequest.DelKeys) > 0 {
+		PrimeConsumer(subModRequest.DelKeys)
+		elvin.KeyBlockDeleteKeys(sub.Keys, subModRequest.DelKeys)
 	}
 
 	// Send it to the subscription engine

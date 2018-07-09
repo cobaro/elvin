@@ -35,7 +35,7 @@ func BenchmarkFillNotification(b *testing.B) {
 	var n Notification
 
 	for i := 0; i < b.N; i++ {
-		n = Notification{client, ne.NameValue, ne.DeliverInsecure, ne.Keys}
+		n = Notification{client.keysNfn, ne.NameValue, ne.DeliverInsecure, ne.Keys}
 	}
 	// Required to use n
 	if n.Keys == nil {

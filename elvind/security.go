@@ -22,7 +22,6 @@ package main
 
 import (
 	"bytes"
-	//"fmt"
 	"github.com/cobaro/elvin/elvin"
 )
 
@@ -51,20 +50,20 @@ func PrimeConsumer(keys elvin.KeyBlock) {
 	for scheme, ksl := range keys {
 		switch scheme {
 		case elvin.KeySchemeSha1Consumer:
-			for i, raw := range ksl[0] {
-				ksl[0][i] = elvin.PrimeSha1(raw)
+			for i, raw := range ksl[elvin.KeySetConsumer] {
+				ksl[elvin.KeySetConsumer][i] = elvin.PrimeSha1(raw)
 			}
 		case elvin.KeySchemeSha1Dual:
-			for i, raw := range ksl[1] {
-				ksl[1][i] = elvin.PrimeSha1(raw)
+			for i, raw := range ksl[elvin.KeySetDualConsumer] {
+				ksl[elvin.KeySetDualConsumer][i] = elvin.PrimeSha1(raw)
 			}
 		case elvin.KeySchemeSha256Consumer:
-			for i, raw := range ksl[0] {
-				ksl[0][i] = elvin.PrimeSha256(raw)
+			for i, raw := range ksl[elvin.KeySetConsumer] {
+				ksl[elvin.KeySetConsumer][i] = elvin.PrimeSha256(raw)
 			}
 		case elvin.KeySchemeSha256Dual:
-			for i, raw := range ksl[1] {
-				ksl[1][i] = elvin.PrimeSha256(raw)
+			for i, raw := range ksl[elvin.KeySetDualConsumer] {
+				ksl[elvin.KeySetDualConsumer][i] = elvin.PrimeSha256(raw)
 			}
 		}
 	}
@@ -75,16 +74,20 @@ func PrimeProducer(keys elvin.KeyBlock) {
 	for scheme, ksl := range keys {
 		switch scheme {
 		case elvin.KeySchemeSha1Producer:
-			fallthrough
+			for i, raw := range ksl[elvin.KeySetProducer] {
+				ksl[elvin.KeySetProducer][i] = elvin.PrimeSha1(raw)
+			}
 		case elvin.KeySchemeSha1Dual:
-			for i, raw := range ksl[0] {
-				ksl[0][i] = elvin.PrimeSha1(raw)
+			for i, raw := range ksl[elvin.KeySetDualProducer] {
+				ksl[elvin.KeySetDualProducer][i] = elvin.PrimeSha1(raw)
 			}
 		case elvin.KeySchemeSha256Producer:
-			fallthrough
+			for i, raw := range ksl[elvin.KeySetProducer] {
+				ksl[elvin.KeySetProducer][i] = elvin.PrimeSha256(raw)
+			}
 		case elvin.KeySchemeSha256Dual:
-			for i, raw := range ksl[0] {
-				ksl[0][i] = elvin.PrimeSha256(raw)
+			for i, raw := range ksl[elvin.KeySetDualProducer] {
+				ksl[elvin.KeySetDualProducer][i] = elvin.PrimeSha256(raw)
 			}
 		}
 	}
@@ -93,10 +96,9 @@ func PrimeProducer(keys elvin.KeyBlock) {
 // Do the keys match
 // i.e, amongst the notifications and producer's keys does one of
 // our schemes succeed agains the subscriptions and consumer's keys.
-func SecurityMatches(nfn elvin.NotifyEmit, sub Subscription, pKeys, cKeys elvin.KeyBlock) bool {
+func SecurityMatches(nfn Notification, sub Subscription, pKeys, cKeys elvin.KeyBlock) bool {
 
 	// Start with the simple (and hence common) cases
-	//fmt.Printf("%v\n%v\n%v\n%v\n", nfn, sub, pKeys, cKeys)
 
 	// No-one cares
 	if nfn.DeliverInsecure && sub.AcceptInsecure {
@@ -140,17 +142,21 @@ func KeyBlocksMatches(producer, consumer elvin.KeyBlock) bool {
 		return false
 	}
 	for scheme, ksl := range producer {
+		if _, ok := consumer[scheme]; !ok {
+			// No matching scheme
+			continue
+		}
 		switch scheme {
 		case elvin.KeySchemeSha1Dual:
-			if KeySetMatches(ksl[0], consumer[elvin.KeySchemeSha1Dual][1]) && KeySetMatches(ksl[1], consumer[elvin.KeySchemeSha1Dual][0]) {
+			if KeySetMatches(ksl[elvin.KeySetDualProducer], consumer[elvin.KeySchemeSha1Dual][elvin.KeySetDualProducer]) && KeySetMatches(ksl[elvin.KeySetDualConsumer], consumer[elvin.KeySchemeSha1Dual][elvin.KeySetDualConsumer]) {
 				return true
 			}
 		case elvin.KeySchemeSha1Producer:
-			if KeySetMatches(ksl[0], consumer[elvin.KeySchemeSha1Producer][0]) {
+			if KeySetMatches(ksl[elvin.KeySetProducer], consumer[elvin.KeySchemeSha1Producer][elvin.KeySetProducer]) {
 				return true
 			}
 		case elvin.KeySchemeSha1Consumer:
-			if KeySetMatches(ksl[0], consumer[elvin.KeySchemeSha1Consumer][0]) {
+			if KeySetMatches(ksl[elvin.KeySetConsumer], consumer[elvin.KeySchemeSha1Consumer][elvin.KeySetConsumer]) {
 				return true
 			}
 		case elvin.KeySchemeSha256Dual:

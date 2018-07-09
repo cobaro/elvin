@@ -157,7 +157,7 @@ func TestMatching(t *testing.T) {
 	producerKeyBlock[elvin.KeySchemeSha1Producer] = producerKeySetList
 
 	// Make a notification with that key block that must match
-	nfn := elvin.NotifyEmit{namevalue, false, producerKeyBlock}
+	nfn := Notification{nil, namevalue, false, producerKeyBlock}
 
 	// Consumer keyblock
 	var consumerKeySet elvin.KeySet
