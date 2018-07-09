@@ -26,7 +26,6 @@ import (
 	"github.com/cobaro/elvin/elvin"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 )
 
@@ -83,14 +82,17 @@ func main() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt)
 
+	// FIXME: SIGUSR[12] not supported on windows. Bring this back
+	// via REST api at some point
+
 	// State reporting on SIGUSR1 (testing/debugging)
-	signal.Notify(ch, syscall.SIGUSR1)
+	// signal.Notify(ch, syscall.SIGUSR1)
 
 	// Failover on SIGUSR2 (testing)
-	if manager.router.doFailover {
-		// FIXME: elvin://
-		signal.Notify(ch, syscall.SIGUSR2)
-	}
+	// if manager.router.doFailover {
+	// FIXME: elvin://
+	// signal.Notify(ch, syscall.SIGUSR2)
+	// }
 
 	for {
 		sig := <-ch
@@ -100,10 +102,10 @@ func main() {
 			// FIXME: Flush logs
 			// FIXME: wait group
 			os.Exit(0)
-		case syscall.SIGUSR1:
-			manager.router.LogClients()
-		case syscall.SIGUSR2:
-			manager.router.Failover()
+			// case syscall.SIGUSR1:
+			// manager.router.LogClients()
+			// case syscall.SIGUSR2:
+			// manager.router.Failover()
 		}
 	}
 
