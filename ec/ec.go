@@ -118,9 +118,9 @@ func main() {
 	sub.Notifications = make(chan map[string]interface{})
 
 	if err := ec.Subscribe(sub); err != nil {
-		ec.Logf(elog.LogLevelInfo1, "Subscribe failed %v", err)
+		ec.Logf(elog.LogLevelError, "Subscribe failed %v", err)
 	} else {
-		ec.Logf(elog.LogLevelInfo1, "Subscribe succeeded %v", sub)
+		ec.Logf(elog.LogLevelInfo2, "Subscribe succeeded %v", sub)
 	}
 
 	ch := make(chan os.Signal)
@@ -136,7 +136,7 @@ Loop:
 			break Loop
 		case nfn := <-sub.Notifications:
 			if args.number == 1 {
-				ec.Logf(elog.LogLevelInfo1, "Received notification:\n%v", nfn)
+				ec.Logf(elog.LogLevelInfo1, "%v", nfn)
 			} else {
 				received++
 				if received == args.number {
