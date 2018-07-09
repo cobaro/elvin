@@ -136,7 +136,11 @@ Loop:
 			break Loop
 		case nfn := <-sub.Notifications:
 			if args.number == 1 {
-				ec.Logf(elog.LogLevelInfo1, "%v", nfn)
+				if s, err := elvin.NameValueToString(nfn, true); err != nil {
+					ec.Logf(elog.LogLevelError, err.Error())
+				} else {
+					fmt.Println(s)
+				}
 			} else {
 				received++
 				if received == args.number {

@@ -189,6 +189,10 @@ func (client *Client) SetLogFunc(logger func(io.Writer, string, ...interface{}) 
 	client.elog.SetLogFunc(logger)
 }
 
+func (client *Client) LogFunc() func(io.Writer, string, ...interface{}) (int, error) {
+	return client.elog.LogFunc()
+}
+
 // Call client's log func
 func (client *Client) Logf(level int, format string, a ...interface{}) (int, error) {
 	return client.elog.Logf(level, format, a...)
