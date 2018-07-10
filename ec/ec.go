@@ -136,10 +136,10 @@ Loop:
 			break Loop
 		case nfn := <-sub.Notifications:
 			if args.number == 1 {
-				if s, err := elvin.NameValueToString(nfn, true); err != nil {
+				if s, err := elvin.NameValueToString(nfn, "---\n", elvin.DefaultNameValueTimeFormat); err != nil {
 					ec.Logf(elog.LogLevelError, err.Error())
 				} else {
-					fmt.Println(s)
+					fmt.Printf(s)
 				}
 			} else {
 				received++

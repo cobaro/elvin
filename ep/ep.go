@@ -35,6 +35,7 @@ type arguments struct {
 	url               string
 	unotify           bool
 	number            int
+	multiplier        int
 	producerKeyString string
 	producerKeyHex    string
 	consumerKeyString string
@@ -105,7 +106,7 @@ func main() {
 	}
 
 	// Grab a channel of notifications from our Parser
-	notifications := elvin.ParseNotifications(os.Stdin, os.Stderr, ep.LogFunc())
+	notifications := elvin.ParseNotifications(os.Stdin, os.Stderr, args.multiplier, ep.LogFunc())
 
 Loop:
 	for {
@@ -152,6 +153,7 @@ func flags() (args arguments) {
 	flag.StringVar(&args.url, "e", "elvin://", "elvin url e.g. elvin://host")
 	flag.IntVar(&args.verbosity, "v", 3, "verbosity (default 3)")
 	flag.IntVar(&args.number, "n", 1, "number of notifications to send")
+	flag.IntVar(&args.multiplier, "m", 0, "speed increase when replaying ec log")
 	flag.BoolVar(&args.unotify, "unotify", false, "send using UNotify")
 	flag.StringVar(&args.producerKeyString, "p", "", "SHA1 producer private key (string) ")
 	flag.StringVar(&args.producerKeyHex, "P", "", "SHA1 producer private key (hex)")

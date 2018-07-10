@@ -27,14 +27,20 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 )
 
+const DefaultNameValueTimeFormat = "2006-01-02T15:04:05.999999999-0700"
+
 // Pretty print a NameValue in a standardized format
-func NameValueToString(nv map[string]interface{}, timeStamp bool) (string, error) {
+// separator is appended to the output
+// If timsta
+func NameValueToString(nv map[string]interface{}, separator string, timeFormat string) (string, error) {
 	var sb strings.Builder
-	if timeStamp {
-		// FIXME: 2018-07-09T14:48:38.836165+1000
-		fmt.Fprintf(&sb, "$time %s: \n", "FIXME")
+
+	if len(timeFormat) > 0 {
+		now := time.Now()
+		fmt.Fprintf(&sb, "$time %s\n", now.Format(timeFormat))
 	}
 
 	for name, value := range nv {
@@ -55,16 +61,23 @@ func NameValueToString(nv map[string]interface{}, timeStamp bool) (string, error
 			return "", fmt.Errorf("Bad *type* of %v in %v", value, nv)
 		}
 	}
-	fmt.Fprintf(&sb, "---\n")
+
+	// Add any separator
+	fmt.Fprintf(&sb, separator)
 
 	return sb.String(), nil
 }
 
-// Read's notifications from input stream into an output channel,
-// exits on EOF closing the output channel.
-// Set out to io.discard for quiet (on failure) operation
-func ParseNotifications(in io.Reader, out io.Writer, logf func(io.Writer, string, ...interface{}) (int, error)) chan map[string]interface{} {
+// Read's notifications from input stream into an output channel.
+// Exits on EOF closing the output channel.
+// Set out to io.discard for quiet (on failure) operation.
+// If replayMultiple is 0, then it will ignore timestamps. Otherwise
+// it will look at the difference in timestamps ($time) and replay up
+// to the desired multiple.
+func ParseNotifications(in io.Reader, out io.Writer, replayMultiple int, logf func(io.Writer, string, ...interface{}) (int, error)) chan map[string]interface{} {
 
+	var prevTime, thisTime time.Time
+	var err error
 	scanner := bufio.NewScanner(in)
 	channel := make(chan map[string]interface{})
 
@@ -86,7 +99,20 @@ func ParseNotifications(in io.Reader, out io.Writer, logf func(io.Writer, string
 					nfn = make(map[string]interface{}) // reset
 				}
 			} else if len(line) >= 6 && line[:6] == "$time " {
-				// FIXME: process time
+				// If we're replaying then perhaps we should delay
+
+				// Extract the timestamp
+				prevTime = thisTime
+				thisTime, err = time.Parse(DefaultNameValueTimeFormat, line[6:])
+				if err != nil {
+					logf(out, "Failed to parse '%s' as $time\n", line)
+				}
+
+				// And if we should delay then do so
+				if !prevTime.IsZero() && replayMultiple > 0 {
+					time.Sleep(thisTime.Sub(prevTime) / time.Duration(replayMultiple))
+				}
+
 			} else {
 				// look for name : value (with or without space around :)
 				namevalue := strings.SplitN(line, ":", 2)
@@ -103,9 +129,12 @@ func ParseNotifications(in io.Reader, out io.Writer, logf func(io.Writer, string
 
 					} else if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
 						// opaque [delimited]
-						size := (len(value) - 2) / 2 // half what's between the []
+
+						// It's optional to allow white space between hex digits
+						s := strings.Join(strings.Split(value[1:len(value)-1], " "), "")
+						size := len(s) / 2
 						opaque := make([]byte, size)
-						len, err := hex.Decode(opaque, []byte(value[1:len(value)-1]))
+						len, err := hex.Decode(opaque, []byte(s[:]))
 						if err != nil {
 							logf(out, "ParseError: %s\n", err.Error())
 
