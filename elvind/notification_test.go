@@ -30,7 +30,7 @@ import (
 // than a nanosecond
 func BenchmarkFillNotification(b *testing.B) {
 	nv := map[string]interface{}{"Benchmark creating a Notification from a NotifyEmit": int32(1)}
-	ne := elvin.NotifyEmit{nv, true, nil}
+    ne := elvin.NotifyEmit{NameValue:nv, DeliverInsecure:true, Keys:nil}
 	client := new(Client)
 	var n Notification
 
