@@ -32,7 +32,7 @@ import (
 var client *elvin.Client
 
 func TestMain(m *testing.M) {
-	flag.Parse() // FIXME: do something about logging
+	flag.Parse()
 	// Create a router instance using standard test config
 	url := "elvin://localhost:3917"
 	protocol, _ := elvin.URLToProtocol(url)
